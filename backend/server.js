@@ -8,11 +8,13 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Serve overlay from dist/
-const distPath = path.join(__dirname, "..", "dist");
+// >>> FIXED — serve dist from the correct folder
+const distPath = path.join(__dirname, "dist"); 
+// (NOT "..", because dist is inside backend/)
 app.use(express.static(distPath));
 
-app.get("/", (req, res) => {
+// >>> FIXED — fallback route for overlay
+app.get("*", (req, res) => {
   res.sendFile(path.join(distPath, "index.html"));
 });
 
