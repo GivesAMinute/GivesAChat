@@ -3,28 +3,24 @@ import { WebSocketServer } from "ws";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Resolve __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Serve static overlay files from backend/dist
-const distPath = path.join(__dirname, "dist");
+// Correct absolute path for Railway
+const distPath = path.join(__dirname, "backend", "dist");
 app.use(express.static(distPath));
 
-// Serve index.html for all routes (overlay is SPA-style)
 app.get("*", (req, res) => {
   res.sendFile(path.join(distPath, "index.html"));
 });
 
-// Start HTTP server
 const PORT = process.env.PORT || 8080;
 const server = app.listen(PORT, () => {
   console.log(`[Backend] Running on port ${PORT}`);
 });
 
-// WebSocket server
 const wss = new WebSocketServer({ server });
 
 wss.on("connection", (ws) => {
@@ -33,7 +29,6 @@ wss.on("connection", (ws) => {
   ws.on("message", (data) => {
     console.log("[Backend] Incoming:", data.toString());
 
-    // Broadcast to all connected clients
     for (const client of wss.clients) {
       if (client.readyState === client.OPEN) {
         client.send(data.toString());
