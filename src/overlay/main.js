@@ -10,7 +10,7 @@ import { renderBlazeMessage } from "./renderers/blazeRenderer.js";
 import { renderBeamMessage } from "./renderers/beamRenderer.js";
 
 const MESSAGES_ID = "messages";
-const SOCKET_URL = "ws://localhost:3000";
+const SOCKET_URL = "wss://givesachat-production.up.railway.app";
 
 function getMessagesContainer() {
   const el = document.getElementById(MESSAGES_ID);
