@@ -4,7 +4,7 @@ import { resolve } from "path";
 export default defineConfig({
   root: resolve(__dirname, "src/overlay"),
   build: {
-    outDir: resolve(__dirname, "dist"),
+    outDir: resolve(__dirname, "backend/dist"),
     emptyOutDir: true,
     rollupOptions: {
       input: {
