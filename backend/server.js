@@ -3,13 +3,16 @@ import { WebSocketServer } from "ws";
 import path from "path";
 import { fileURLToPath } from "url";
 
+// DEBUG LOGS
+console.log("DEBUG __dirname:", path.dirname(fileURLToPath(import.meta.url)));
+console.log("DEBUG distPath:", path.join(path.dirname(fileURLToPath(import.meta.url)), "dist"));
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Correct absolute path for Railway
-const distPath = path.join(__dirname, "backend", "dist");
+const distPath = path.join(__dirname, "dist");
 app.use(express.static(distPath));
 
 app.get("*", (req, res) => {
