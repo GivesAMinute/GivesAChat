@@ -10,7 +10,7 @@ import { renderBlazeMessage } from "./renderers/blazeRenderer.js";
 import { renderBeamMessage } from "./renderers/beamRenderer.js";
 
 const MESSAGES_ID = "messages";
-const SOCKET_URL = "wss://headless-chat-browser-production.up.railway.app";
+const SOCKET_URL = "ws://localhost:3000";
 
 function getMessagesContainer() {
   const el = document.getElementById(MESSAGES_ID);
