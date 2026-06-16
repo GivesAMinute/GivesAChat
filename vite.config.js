@@ -7,13 +7,7 @@ export default defineConfig({
     outDir: resolve(__dirname, "backend/dist"),
     emptyOutDir: true,
     rollupOptions: {
-      input: {
-        overlay: resolve(__dirname, "src/overlay/index.html")
-      },
-      output: {
-        entryFileNames: "overlay.js",
-        assetFileNames: "overlay.[ext]"
-      }
+      input: resolve(__dirname, "src/overlay/index.html")
     }
   }
 });
