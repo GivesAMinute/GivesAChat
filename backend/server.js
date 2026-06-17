@@ -1,59 +1,62 @@
+// backend/server.js
 import express from "express";
 import { WebSocketServer } from "ws";
 import path from "path";
 import { fileURLToPath } from "url";
-import { refreshBlazeToken } from "./blazeAuth.js";
 
-// Resolve __dirname
+import { refreshBlazeToken } from "./blaze/blazeAuth.js";
+import { startBlaze } from "./blaze/index.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// DEBUG LOGS
 console.log("DEBUG __dirname:", __dirname);
-console.log("DEBUG distPath:", path.join(__dirname, "dist"));
 
-async function startServer() {
-  // 🔥 Refresh Blaze token on startup
-  await refreshBlazeToken();
+const app = express();
+const distPath = path.join(__dirname, "dist");
+console.log("DEBUG distPath:", distPath);
 
-  // 🔥 Auto-refresh every 12 hours
-  setInterval(refreshBlazeToken, 1000 * 60 * 60 * 12);
+app.use(express.static(distPath));
 
-  const app = express();
+app.get("/", (req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
+});
 
-  // Serve overlay from dist/
-  const distPath = path.join(__dirname, "dist");
-  app.use(express.static(distPath));
+const server = app.listen(8080, () => {
+  console.log("[Backend] Running on port 8080");
+});
 
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(distPath, "index.html"));
+// WebSocket server
+const wss = new WebSocketServer({ server });
+
+wss.on("connection", (ws) => {
+  console.log("[Backend] WebSocket client connected");
+
+  ws.on("close", () => {
+    console.log("[Backend] Client disconnected");
   });
+});
 
-  const PORT = process.env.PORT || 8080;
-  const server = app.listen(PORT, () => {
-    console.log(`[Backend] Running on port ${PORT}`);
-  });
+// Broadcast helper
+function broadcast(msg) {
+  const json = JSON.stringify(msg);
 
-  // WebSocket server
-  const wss = new WebSocketServer({ server });
-
-  wss.on("connection", (ws) => {
-    console.log("[Backend] WebSocket client connected");
-
-    ws.on("message", (data) => {
-      console.log("[Backend] Incoming:", data.toString());
-
-      // Broadcast to all connected clients
-      for (const client of wss.clients) {
-        if (client.readyState === client.OPEN) {
-          client.send(data.toString());
-        }
-      }
-    });
-
-    ws.on("close", () => console.log("[Backend] Client disconnected"));
-    ws.on("error", (err) => console.error("[Backend] WS error:", err));
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1) {
+      client.send(json);
+    }
   });
 }
 
-startServer();
+// Start Blaze chat ingestion
+startBlaze(broadcast);
+
+// Refresh Blaze token on startup + every 12 hours
+async function init() {
+  await refreshBlazeToken();
+  console.log("🔥 Blaze token refreshed");
+
+  setInterval(refreshBlazeToken, 12 * 60 * 60 * 1000);
+}
+
+init();
