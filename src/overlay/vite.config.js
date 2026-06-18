@@ -1,21 +1,13 @@
 import { defineConfig } from "vite";
-import { resolve } from "path";
-import path from "path";                     // REQUIRED for path.dirname, path.join
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Repo root = backend/..
-const repoRoot = resolve(__dirname, "..");
+import path from "path";
 
 export default defineConfig({
-  root: resolve(repoRoot, "src/overlay"),
+  root: __dirname,
   build: {
-    outDir: resolve(__dirname, "dist/overlay"),
+    outDir: path.resolve(__dirname, "../../backend/dist/overlay"),
     emptyOutDir: true,
     rollupOptions: {
-      input: resolve(repoRoot, "src/overlay/index.html"),
+      input: path.resolve(__dirname, "index.html"),
       output: {
         entryFileNames: "assets/[name]-[hash].js",
         chunkFileNames: "assets/[name]-[hash].js",
