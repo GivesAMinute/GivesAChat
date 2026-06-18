@@ -1,4 +1,3 @@
-// backend/server.js
 import express from "express";
 import { WebSocketServer } from "ws";
 import path from "path";
@@ -7,21 +6,38 @@ import { fileURLToPath } from "url";
 import { refreshBlazeToken } from "./blaze/blazeAuth.js";
 import { startBlaze } from "./blaze/index.js";
 
+// Resolve __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 console.log("DEBUG __dirname:", __dirname);
 
 const app = express();
+
+// Main frontend build output
 const distPath = path.join(__dirname, "dist");
 console.log("DEBUG distPath:", distPath);
 
+// Serve main frontend
 app.use(express.static(distPath));
 
+// Serve overlay assets
+app.use(
+  "/overlay/assets",
+  express.static(path.join(distPath, "overlay/assets"))
+);
+
+// Serve overlay HTML
+app.get("/overlay", (req, res) => {
+  res.sendFile(path.join(distPath, "overlay/index.html"));
+});
+
+// Root route → main frontend
 app.get("/", (req, res) => {
   res.sendFile(path.join(distPath, "index.html"));
 });
 
+// Start HTTP server
 const server = app.listen(8080, () => {
   console.log("[Backend] Running on port 8080");
 });
