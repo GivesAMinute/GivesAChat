@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import { resolve } from "path";
+import path from "path";                     // REQUIRED for path.dirname, path.join
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
