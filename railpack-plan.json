@@ -1,0 +1,9 @@
+{
+  "build": {
+    "context": ".",
+    "builder": "nodejs"
+  },
+  "deploy": {
+    "start": "node backend/server.js"
+  }
+}
