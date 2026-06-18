@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "start": "node backend/server.js",
-    "build": "vite build"
+    "build": "vite build --config src/overlay/vite.config.js"
+
   },
   "dependencies": {
     "axios": "^1.18.0",
