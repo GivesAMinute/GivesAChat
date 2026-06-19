@@ -14,27 +14,21 @@ console.log("DEBUG __dirname:", __dirname);
 
 const app = express();
 
-// Main frontend build output
-const distPath = path.join(__dirname, "dist");
-console.log("DEBUG distPath:", distPath);
-
-// Serve main frontend
-app.use(express.static(distPath));
+// Correct overlay build output path
+const overlayPath = path.join(__dirname, "dist", "overlay");
+console.log("DEBUG overlayPath:", overlayPath);
 
 // Serve overlay assets
-app.use(
-  "/overlay/assets",
-  express.static(path.join(distPath, "overlay/assets"))
-);
+app.use("/overlay/assets", express.static(path.join(overlayPath, "assets")));
 
 // Serve overlay HTML
 app.get("/overlay", (req, res) => {
-  res.sendFile(path.join(distPath, "overlay/index.html"));
+  res.sendFile(path.join(overlayPath, "index.html"));
 });
 
-// Root route → main frontend
+// Optional: simple root route so "/" doesn't 404
 app.get("/", (req, res) => {
-  res.sendFile(path.join(distPath, "index.html"));
+  res.send("GivesAChat backend is running");
 });
 
 // Start HTTP server
