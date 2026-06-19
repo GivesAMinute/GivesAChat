@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node backend/server.js",
-    "build": "vite build --config src/overlay/vite.config.js"
+    "build": "vite build --config ../src/overlay/vite.config.js"
 
   },
   "dependencies": {
