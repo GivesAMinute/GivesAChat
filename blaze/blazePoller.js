@@ -6,10 +6,7 @@ export class BlazePoller {
   constructor({ channelId, clientId, accessToken, intervalMs = 1000, onMessages }) {
     this.channelId = channelId;
     this.clientId = clientId;
-
-    // Keep initial token but do NOT rely on it long-term
     this.accessToken = accessToken;
-
     this.intervalMs = intervalMs;
     this.onMessages = onMessages;
     this.timer = null;
@@ -18,10 +15,9 @@ export class BlazePoller {
   }
 
   async _fetchMessages() {
-    const url = "https://blaze.stream/v1/chats/messages";
+    const url = "https://api.blaze.stream/v1/chats/messages";
 
-    const tokenToUse =
-      globalThis.blazeAccessToken || this.accessToken;
+    const tokenToUse = globalThis.blazeAccessToken || this.accessToken;
 
     const res = await axios.get(url, {
       headers: {

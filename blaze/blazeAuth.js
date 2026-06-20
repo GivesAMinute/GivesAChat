@@ -17,7 +17,6 @@ export async function refreshBlazeToken() {
 
     const { accessToken, refreshToken } = res.data;
 
-    // ⭐ Store tokens in memory (NOT env vars)
     globalThis.blazeAccessToken = accessToken;
     globalThis.blazeRefreshToken = refreshToken;
 
