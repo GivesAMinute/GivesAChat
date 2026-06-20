@@ -1,3 +1,4 @@
+// backend/blaze/blazeAuth.js
 import axios from "axios";
 
 export async function refreshBlazeToken() {
@@ -7,7 +8,7 @@ export async function refreshBlazeToken() {
       {
         clientId: process.env.BLAZE_CLIENT_ID,
         clientSecret: process.env.BLAZE_CLIENT_SECRET,
-        refreshToken: process.env.BLAZE_REFRESH_TOKEN
+        refreshToken: globalThis.blazeRefreshToken || process.env.BLAZE_REFRESH_TOKEN
       },
       {
         headers: { "Content-Type": "application/json" }
@@ -16,9 +17,9 @@ export async function refreshBlazeToken() {
 
     const { accessToken, refreshToken } = res.data;
 
-    // Update environment variables in memory
-    process.env.BLAZE_ACCESS_TOKEN = accessToken;
-    process.env.BLAZE_REFRESH_TOKEN = refreshToken;
+    // ⭐ Store tokens in memory (NOT env vars)
+    globalThis.blazeAccessToken = accessToken;
+    globalThis.blazeRefreshToken = refreshToken;
 
     console.log("🔥 Blaze token refreshed");
 

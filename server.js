@@ -18,7 +18,7 @@ console.log("DEBUG __dirname:", __dirname);
 // Express setup
 const app = express();
 
-// Correct overlay path: /app/dist/overlay
+// Overlay path: /app/backend/dist/overlay
 const overlayPath = path.join(__dirname, "backend", "dist", "overlay");
 console.log("DEBUG overlayPath:", overlayPath);
 
@@ -62,15 +62,18 @@ function broadcast(msg) {
   });
 }
 
-// ⭐ Correct startup order: DO NOT refresh immediately
+// ⭐ Startup: init in-memory tokens, start Blaze, schedule refresh
 async function init() {
   try {
-    // 1. Start Blaze poller + EventSub immediately using the valid token
+    // 1. Seed in-memory tokens from env on first boot
+    globalThis.blazeAccessToken = process.env.BLAZE_ACCESS_TOKEN;
+    globalThis.blazeRefreshToken = process.env.BLAZE_REFRESH_TOKEN;
+
+    // 2. Start Blaze poller + EventSub
     startBlaze(broadcast);
 
-    // 2. Refresh every 12 hours (Blaze tokens last 24h)
+    // 3. Refresh every 12 hours
     setInterval(refreshBlazeToken, 12 * 60 * 60 * 1000);
-
   } catch (err) {
     console.error("❌ Fatal error during startup:", err);
   }
