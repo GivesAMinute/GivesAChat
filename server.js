@@ -15,9 +15,10 @@ const __dirname = path.dirname(__filename);
 
 console.log("DEBUG __dirname:", __dirname);
 
+// Express setup
 const app = express();
 
-// Correct overlay path: /app/backend/dist/overlay
+// Correct overlay path: /app/dist/overlay
 const overlayPath = path.join(__dirname, "dist", "overlay");
 console.log("DEBUG overlayPath:", overlayPath);
 
@@ -61,18 +62,15 @@ function broadcast(msg) {
   });
 }
 
-// ⭐ Correct startup order: refresh FIRST, then start Blaze
+// ⭐ Correct startup order: DO NOT refresh immediately
 async function init() {
   try {
-    // 1. Refresh token BEFORE starting Blaze
-    await refreshBlazeToken();
-    console.log("🔥 Blaze token refreshed");
-
-    // 2. Now safe to start Blaze poller + EventSub
+    // 1. Start Blaze poller + EventSub immediately using the valid token
     startBlaze(broadcast);
 
-    // 3. Refresh every 12 hours
+    // 2. Refresh every 12 hours (Blaze tokens last 24h)
     setInterval(refreshBlazeToken, 12 * 60 * 60 * 1000);
+
   } catch (err) {
     console.error("❌ Fatal error during startup:", err);
   }
