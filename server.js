@@ -61,15 +61,21 @@ function broadcast(msg) {
   });
 }
 
-// Start Blaze chat ingestion
-startBlaze(broadcast);
-
-// Refresh Blaze token on startup + every 12 hours
+// ⭐ Correct startup order: refresh FIRST, then start Blaze
 async function init() {
-  await refreshBlazeToken();
-  console.log("🔥 Blaze token refreshed");
+  try {
+    // 1. Refresh token BEFORE starting Blaze
+    await refreshBlazeToken();
+    console.log("🔥 Blaze token refreshed");
 
-  setInterval(refreshBlazeToken, 12 * 60 * 60 * 1000);
+    // 2. Now safe to start Blaze poller + EventSub
+    startBlaze(broadcast);
+
+    // 3. Refresh every 12 hours
+    setInterval(refreshBlazeToken, 12 * 60 * 60 * 1000);
+  } catch (err) {
+    console.error("❌ Fatal error during startup:", err);
+  }
 }
 
 init();
