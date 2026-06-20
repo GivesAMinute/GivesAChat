@@ -17,8 +17,8 @@ console.log("DEBUG __dirname:", __dirname);
 
 const app = express();
 
-// Correct overlay build output path
-const overlayPath = path.join(__dirname, "dist", "overlay");
+// Correct overlay build output path (Railway builds into backend/dist/overlay)
+const overlayPath = path.join(__dirname, "backend", "dist", "overlay");
 console.log("DEBUG overlayPath:", overlayPath);
 
 // Serve overlay assets
@@ -29,7 +29,7 @@ app.get("/overlay", (req, res) => {
   res.sendFile(path.join(overlayPath, "index.html"));
 });
 
-// Optional: simple root route so "/" doesn't 404
+// Root route
 app.get("/", (req, res) => {
   res.send("GivesAChat backend is running");
 });
