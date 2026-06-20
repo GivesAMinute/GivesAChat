@@ -15,7 +15,7 @@ export class BlazePoller {
   }
 
   async _fetchMessages() {
-    const url = "https://api.blaze.stream/v1/chats/messages";
+    const url = "https://blaze.stream/v1/chats/messages";
 
     const res = await axios.get(url, {
       headers: {

@@ -33,7 +33,7 @@ export function startBlazeEventSub(broadcast) {
     for (const type of subs) {
       try {
         await axios.post(
-          "https://api.blaze.stream/v1/events/subscriptions",
+          "https://blaze.stream/v1/events/subscriptions",
           {
             type,
             sessionId,
