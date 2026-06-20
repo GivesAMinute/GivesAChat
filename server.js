@@ -17,8 +17,8 @@ console.log("DEBUG __dirname:", __dirname);
 
 const app = express();
 
-// Correct overlay build output path (Railway builds into backend/dist/overlay)
-const overlayPath = path.join(__dirname, "backend", "dist", "overlay");
+// Correct overlay path: /app/backend/dist/overlay
+const overlayPath = path.join(__dirname, "dist", "overlay");
 console.log("DEBUG overlayPath:", overlayPath);
 
 // Serve overlay assets
