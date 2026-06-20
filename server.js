@@ -19,7 +19,7 @@ console.log("DEBUG __dirname:", __dirname);
 const app = express();
 
 // Correct overlay path: /app/dist/overlay
-const overlayPath = path.join(__dirname, "dist", "overlay");
+const overlayPath = path.join(__dirname, "backend", "dist", "overlay");
 console.log("DEBUG overlayPath:", overlayPath);
 
 // Serve overlay assets
