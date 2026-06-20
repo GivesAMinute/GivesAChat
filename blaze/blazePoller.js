@@ -61,14 +61,17 @@ export class BlazePoller {
 
     try {
       const messages = await this._fetchMessages();
+      console.log("[BLAZE] Polled messages:", messages.length);
+
       const newOnes = this._filterNew(messages);
 
       if (newOnes.length && this.onMessages) {
+        console.log("[BLAZE] New messages to broadcast:", newOnes.length);
         const normalized = newOnes.map(transformBlazeMessage);
         this.onMessages(normalized);
       }
     } catch (err) {
-      console.error("[BLAZE] Poll error:", err?.response?.data || err.message);
+      console.error("[BLAZE] Poll error:", err?.response?.status, err?.response?.data || err.message);
     }
 
     if (this.running) {

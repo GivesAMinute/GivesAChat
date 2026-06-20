@@ -62,18 +62,22 @@ function broadcast(msg) {
   });
 }
 
-// ⭐ Startup: init in-memory tokens, start Blaze, schedule refresh
+// ⭐ Startup: init in-memory tokens, refresh once, start Blaze, schedule refresh
 async function init() {
   try {
     // 1. Seed in-memory tokens from env on first boot
     globalThis.blazeAccessToken = process.env.BLAZE_ACCESS_TOKEN;
     globalThis.blazeRefreshToken = process.env.BLAZE_REFRESH_TOKEN;
 
-    // 2. Start Blaze poller + EventSub
+    // 2. Do ONE refresh to get a guaranteed good access token
+    await refreshBlazeToken();
+
+    // 3. Start Blaze poller + EventSub with fresh token
     startBlaze(broadcast);
 
-    // 3. Refresh every 12 hours
+    // 4. Refresh every 12 hours
     setInterval(refreshBlazeToken, 12 * 60 * 60 * 1000);
+
   } catch (err) {
     console.error("❌ Fatal error during startup:", err);
   }
