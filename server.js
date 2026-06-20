@@ -1,3 +1,6 @@
+console.log("ENV REFRESH TOKEN:", process.env.BLAZE_REFRESH_TOKEN);
+console.log("ENV CLIENT SECRET:", process.env.BLAZE_CLIENT_SECRET);
+
 import express from "express";
 import { WebSocketServer } from "ws";
 import path from "path";
