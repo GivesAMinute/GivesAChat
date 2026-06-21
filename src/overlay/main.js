@@ -3,10 +3,7 @@ import "../utils/sanitizeHTML.js";
 import "../utils/tooltip.js";
 import "../utils/usernameColors.js";
 
-import { renderVeloraMessage } from "./renderers/veloraRenderer.js";
-import { renderYouTubeMessage } from "./renderers/youtubeRenderer.js";
 import { renderBlazeMessage } from "./renderers/blazeRenderer.js";
-import { renderBeamMessage } from "./renderers/beamRenderer.js";
 
 const MESSAGES_ID = "messages";
 const SOCKET_URL = "wss://givesachat-production.up.railway.app";
@@ -56,14 +53,8 @@ function handleBroadcast(payload) {
   const platform = String(payload.platform || "").toLowerCase();
   let element = null;
 
-  if (platform === "velora") {
-    element = renderVeloraMessage(payload);
-  } else if (platform === "youtube") {
-    element = renderYouTubeMessage(payload);
-  } else if (platform === "blaze") {
+  if (platform === "blaze") {
     element = renderBlazeMessage(payload);
-  } else if (platform === "beam") {
-    element = renderBeamMessage(payload);
   } else {
     console.warn("[Overlay] Unknown platform:", platform, payload);
     return;
