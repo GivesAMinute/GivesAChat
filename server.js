@@ -3,8 +3,16 @@ import { WebSocketServer } from "ws";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { refreshBlazeToken } from "./blaze/blazeAuth.js";
+// PLATFORM MODULES
 import { startBlaze } from "./blaze/index.js";
+import { startAdditional1 } from "./platforms/additional1/index.js";
+import { startAdditional2 } from "./platforms/additional2/index.js";
+import { startAdditional3 } from "./platforms/additional3/index.js";
+
+// TTS + EVENTS (dummy for now)
+import { refreshBlazeToken } from "./blaze/blazeAuth.js";
+import "./tts/engine.js";
+import "./events/velora.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,30 +20,28 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 /* ---------------------------------------------------------
-   ⭐ Serve /public at root (FIXES /icons/*.png)
+   ⭐ STATIC ASSETS (icons, audio, tts output)
 --------------------------------------------------------- */
 app.use(express.static(path.join(__dirname, "public")));
 
 /* ---------------------------------------------------------
-   ⭐ Overlay build output
+   ⭐ OVERLAY ROUTES
 --------------------------------------------------------- */
-const overlayPath = path.join(__dirname, "backend", "dist", "overlay");
+const overlayRoot = path.join(__dirname, "overlay");
 
-app.use("/overlay/assets", express.static(path.join(overlayPath, "assets")));
-
-app.get("/overlay", (req, res) => {
-  res.sendFile(path.join(overlayPath, "index.html"));
-});
+app.use("/overlay/chat", express.static(path.join(overlayRoot, "chat")));
+app.use("/overlay/tts", express.static(path.join(overlayRoot, "tts")));
+app.use("/overlay/events", express.static(path.join(overlayRoot, "events")));
 
 /* ---------------------------------------------------------
-   Root route
+   ROOT ROUTE
 --------------------------------------------------------- */
 app.get("/", (req, res) => {
   res.send("GivesAChat backend is running");
 });
 
 /* ---------------------------------------------------------
-   HTTP + WebSocket server
+   HTTP + WEBSOCKET SERVER
 --------------------------------------------------------- */
 const server = app.listen(8080, () => {
   console.log("[Backend] Running on port 8080");
@@ -44,33 +50,56 @@ const server = app.listen(8080, () => {
 const wss = new WebSocketServer({ server });
 
 wss.on("connection", (ws) => {
-  console.log("[Backend] WebSocket client connected");
-  ws.on("close", () => console.log("[Backend] Client disconnected"));
+  console.log("[WS] Overlay connected");
+  ws.on("close", () => console.log("[WS] Overlay disconnected"));
 });
 
 /* ---------------------------------------------------------
-   Broadcast helper
+   ⭐ BROADCAST HELPER
 --------------------------------------------------------- */
-function broadcast(msg) {
-  const json = JSON.stringify(msg);
+export function broadcast(payload) {
+  const json = JSON.stringify(payload);
   wss.clients.forEach((client) => {
     if (client.readyState === 1) client.send(json);
   });
 }
 
 /* ---------------------------------------------------------
-   Startup
+   ⭐ LOCAL TEST MESSAGE (no Blaze auth needed)
+--------------------------------------------------------- */
+setTimeout(() => {
+  broadcast({
+    type: "chat",
+    platform: "blaze",
+    username: "LocalTester",
+    message: "This is a local test message",
+    avatar: null,
+    badges: []
+  });
+  console.log("[LocalTest] Sent test chat message");
+}, 2000);
+
+/* ---------------------------------------------------------
+   ⭐ STARTUP (PLATFORMS + TOKENS)
 --------------------------------------------------------- */
 async function init() {
   try {
+    // Blaze OAuth tokens (production only)
     globalThis.blazeAccessToken = process.env.BLAZE_ACCESS_TOKEN;
     globalThis.blazeRefreshToken = process.env.BLAZE_REFRESH_TOKEN;
 
-    startBlaze(broadcast);
-
+    // Blaze token refresh every 12 hours
     setInterval(refreshBlazeToken, 12 * 60 * 60 * 1000);
+
+    // Start platforms
+    startBlaze(broadcast);
+    startAdditional1(broadcast);
+    startAdditional2(broadcast);
+    startAdditional3(broadcast);
+
+    console.log("[Backend] All platforms initialized");
   } catch (err) {
-    console.error("❌ Fatal error during startup:", err);
+    console.error("❌ Fatal startup error:", err);
   }
 }
 
