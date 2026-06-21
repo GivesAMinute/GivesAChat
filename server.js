@@ -29,6 +29,10 @@ app.use(express.static(path.join(__dirname, "public")));
 --------------------------------------------------------- */
 const overlayRoot = path.join(__dirname, "overlay");
 
+// Serve ENTIRE overlay folder (fixes "Cannot GET /overlay/")
+app.use("/overlay", express.static(overlayRoot));
+
+// Serve subfolders
 app.use("/overlay/chat", express.static(path.join(overlayRoot, "chat")));
 app.use("/overlay/tts", express.static(path.join(overlayRoot, "tts")));
 app.use("/overlay/events", express.static(path.join(overlayRoot, "events")));
