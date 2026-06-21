@@ -197,7 +197,9 @@ body {
   opacity: 1;
 }
 
-/* Swipe-left exit */
+/* ---------------------------------------------------------
+   ⭐ GLOBAL SLIDE-LEFT EXIT ANIMATION (ALL PLATFORMS)
+--------------------------------------------------------- */
 @keyframes swipeLeft {
   from {
     opacity: 1;
@@ -209,7 +211,7 @@ body {
   }
 }
 
-.fadeOut {
+.fade-out {
   animation: swipeLeft 0.6s ease-out forwards;
 }
 
