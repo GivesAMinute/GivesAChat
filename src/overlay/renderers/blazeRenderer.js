@@ -15,7 +15,7 @@ export function renderBlazeMessage(msg) {
   const avatar = msg.avatar || null;
   const badges = msg.badges || [];
 
-  const root = createBaseMessageElement();
+  const root = createBaseMessageElement("blaze");
 
   const avatarEl = createAvatar(avatar, username);
   if (avatarEl) root.appendChild(avatarEl);

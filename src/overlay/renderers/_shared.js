@@ -1,3 +1,7 @@
+/* ---------------------------------------------------------
+   SANITIZATION + COLORS + EXIT
+--------------------------------------------------------- */
+
 export function safeSanitize(html) {
   const raw = html || "";
   if (typeof window !== "undefined" && window.sanitizeHTML) {
@@ -36,11 +40,91 @@ export function applyExit(el) {
   }, 45000);
 }
 
-export function createBaseMessageElement() {
+/* ---------------------------------------------------------
+   ⭐ PLATFORM ICON SYSTEM (ported from V6)
+--------------------------------------------------------- */
+
+const PLATFORM_MAP = {
+  youtube: "youtube",
+  "youtube.com": "youtube",
+  yt: "youtube",
+
+  velora: "velora",
+  "velora.live": "velora",
+
+  pilled: "pilled",
+  "pilled.net": "pilled",
+
+  nimotv: "nimotv",
+  nimo: "nimotv",
+
+  kick: "kick",
+  "kick.com": "kick",
+
+  rumble: "rumble",
+  odysee: "odysee",
+  arena: "arena",
+
+  blaze: "blaze",
+
+  bitchute: "bitchute",
+  vpzone: "vpzone",
+
+  twitch: "twitch",
+  beam: "beam"
+};
+
+export function getPlatformIcon(platformRaw) {
+  if (!platformRaw) return null;
+  const platform = String(platformRaw).toLowerCase();
+  const mapped = PLATFORM_MAP[platform];
+  if (mapped === null) return null;
+  if (mapped) return `/icons/${mapped}.png`;
+  return `/icons/default.png`;
+}
+
+export function createPlatformIcon(platform) {
+  const src = getPlatformIcon(platform);
+  if (!src) return null;
+
+  const wrapper = document.createElement("span");
+  wrapper.className = "tooltip-wrapper";
+
+  const img = document.createElement("img");
+  img.className = "platform-icon";
+  img.src = src;
+  img.alt = platform || "";
+
+  const tooltip = document.createElement("span");
+  tooltip.className = "tooltip-bubble";
+  tooltip.textContent = (platform || "").toUpperCase();
+
+  wrapper.appendChild(img);
+  wrapper.appendChild(tooltip);
+  return wrapper;
+}
+
+/* ---------------------------------------------------------
+   ⭐ BASE MESSAGE ELEMENT
+--------------------------------------------------------- */
+
+export function createBaseMessageElement(platform) {
   const msg = document.createElement("div");
   msg.className = "msg";
+
+  if (platform) {
+    msg.classList.add(`platform-${platform.toLowerCase()}`);
+  }
+
+  const icon = createPlatformIcon(platform);
+  if (icon) msg.appendChild(icon);
+
   return msg;
 }
+
+/* ---------------------------------------------------------
+   AVATAR + BUBBLE + BADGES
+--------------------------------------------------------- */
 
 export function createAvatar(avatarUrl, username) {
   if (!avatarUrl) return null;
@@ -60,9 +144,7 @@ export function createBubble(username, platform) {
   nameEl.textContent = username || "Unknown";
 
   const color = safeColorForUsername(username, platform);
-  if (color) {
-    nameEl.style.color = color;
-  }
+  if (color) nameEl.style.color = color;
 
   bubble.appendChild(nameEl);
   return bubble;
