@@ -1,3 +1,5 @@
+// overlay/chat/main.js
+
 import _shared from "../shared/_shared.js";
 
 const MESSAGES_ID = "messages";
@@ -60,7 +62,7 @@ function handleBroadcast(payload) {
       ${avatar}
       <span class="username">${payload.username}</span>
       ${badges}
-      <span class="text">${payload.message}</span>
+      <span class="text">${payload.html}</span>
     </div>
   `;
 

@@ -1,4 +1,5 @@
 // backend/blaze/blazeTransform.js
+
 export function extractMessage(msg) {
   if (msg.message) return msg.message;
   if (msg.content) return msg.content;
@@ -56,11 +57,14 @@ export function transformBlazeMessage(msg) {
     badges.push("https://cdn.blaze.stream/badges/streamer.svg");
 
   return {
+    type: "chat",   // ⭐ REQUIRED FOR OVERLAY
     platform: "blaze",
+
     id: msg.id,
     username: sender.displayName || sender.username || sender.slug || "Unknown",
     avatar: sender.avatarUrl || null,
-    html: extractMessage(msg),
+
+    html: extractMessage(msg),   // ⭐ overlay uses html now
 
     isStreamer: String(sender.id) === String(CHANNEL_OWNER_ID),
     isMod: roles.includes("moderator"),
