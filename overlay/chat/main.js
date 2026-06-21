@@ -1,6 +1,5 @@
-// overlay/chat/main.js
-
 import _shared from "../shared/_shared.js";
+import { renderBlazeBadges } from "./badges/blaze/index.js";
 
 const MESSAGES_ID = "messages";
 
@@ -37,41 +36,42 @@ function handleBroadcast(payload) {
   const container = getMessagesContainer();
   if (!container) return;
 
+  // Only process chat messages
   if (!payload || payload.type !== "chat") return;
 
   const el = document.createElement("div");
   el.className = "chat-message";
 
+  // Platform icon (Blaze, Kick, etc.)
   const icon = document.createElement("img");
   icon.className = "platform-icon";
   icon.src = `/icons/${payload.platform}.png`;
 
+  // Inline avatar inside bubble
   const avatar = payload.avatar
     ? `<img class="inline-avatar" src="${payload.avatar}">`
     : "";
 
-  const badges = Array.isArray(payload.badges)
-    ? payload.badges
-        .map((b) => `<img class="badge-icon" src="${b}">`)
-        .join("")
-    : "";
+  // Blaze badges (V6 style)
+  const badgesHTML = renderBlazeBadges(payload);
 
+  // Build bubble
   el.innerHTML = `
     ${icon.outerHTML}
     <div class="bubble">
       ${avatar}
       <span class="username">${payload.username}</span>
-      ${badges}
+      ${badgesHTML}
       <span class="text">${payload.html}</span>
     </div>
   `;
 
   container.appendChild(el);
 
-  // Ephemeral mode fade-out
+  // Fade-out after 45 seconds
   setTimeout(() => {
     el.classList.add("fade-out");
-    setTimeout(() => el.remove(), 500);
+    setTimeout(() => el.remove(), 600);
   }, 45000);
 }
 
