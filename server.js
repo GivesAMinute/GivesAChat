@@ -25,17 +25,17 @@ const app = express();
 app.use(express.static(path.join(__dirname, "public")));
 
 /* ---------------------------------------------------------
-   ⭐ OVERLAY ROUTES
+   ⭐ OVERLAY ROUTES (REAL FIX)
 --------------------------------------------------------- */
 const overlayRoot = path.join(__dirname, "overlay");
 
-// Serve ENTIRE overlay folder (fixes "Cannot GET /overlay/")
-app.use("/overlay", express.static(overlayRoot));
+// Default overlay page → loads chat.html
+app.get("/overlay", (req, res) => {
+  res.sendFile(path.join(overlayRoot, "chat.html"));
+});
 
-// Serve subfolders
-app.use("/overlay/chat", express.static(path.join(overlayRoot, "chat")));
-app.use("/overlay/tts", express.static(path.join(overlayRoot, "tts")));
-app.use("/overlay/events", express.static(path.join(overlayRoot, "events")));
+// Serve ALL overlay assets (CSS, JS, images, etc.)
+app.use("/overlay", express.static(overlayRoot));
 
 /* ---------------------------------------------------------
    ROOT ROUTE
