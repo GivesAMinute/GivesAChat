@@ -123,22 +123,23 @@ export function createBaseMessageElement(platform) {
 }
 
 /* ---------------------------------------------------------
-   AVATAR + BUBBLE + BADGES
+   ⭐ BUBBLE (avatar INSIDE bubble)
 --------------------------------------------------------- */
 
-export function createAvatar(avatarUrl, username) {
-  if (!avatarUrl) return null;
-  const img = document.createElement("img");
-  img.className = "avatar";
-  img.src = avatarUrl;
-  img.alt = username || "";
-  return img;
-}
-
-export function createBubble(username, platform) {
+export function createBubble(username, platform, avatarUrl) {
   const bubble = document.createElement("div");
   bubble.className = "bubble";
 
+  // ⭐ Avatar INSIDE bubble (V6 style)
+  if (avatarUrl) {
+    const img = document.createElement("img");
+    img.className = "inline-avatar";
+    img.src = avatarUrl;
+    img.alt = username || "";
+    bubble.appendChild(img);
+  }
+
+  // Username
   const nameEl = document.createElement("span");
   nameEl.className = "username";
   nameEl.textContent = username || "Unknown";
@@ -147,8 +148,13 @@ export function createBubble(username, platform) {
   if (color) nameEl.style.color = color;
 
   bubble.appendChild(nameEl);
+
   return bubble;
 }
+
+/* ---------------------------------------------------------
+   BADGES + HTML TEXT
+--------------------------------------------------------- */
 
 export function appendBadgesToBubble(bubble, badges) {
   if (!bubble) return;

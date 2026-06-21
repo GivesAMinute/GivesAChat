@@ -1,6 +1,5 @@
 import {
   applyExit,
-  createAvatar,
   createBaseMessageElement,
   createBubble,
   appendBadgesToBubble,
@@ -15,16 +14,20 @@ export function renderBlazeMessage(msg) {
   const avatar = msg.avatar || null;
   const badges = msg.badges || [];
 
+  // ⭐ Platform icon only — no avatar here
   const root = createBaseMessageElement("blaze");
 
-  const avatarEl = createAvatar(avatar, username);
-  if (avatarEl) root.appendChild(avatarEl);
+  // ⭐ Avatar now lives INSIDE the bubble
+  const bubble = createBubble(username, "blaze", avatar);
 
-  const bubble = createBubble(username, "blaze");
+  // Blaze badges (OG, VIP, Mod, Streamer) come through msg.badges
   appendBadgesToBubble(bubble, badges);
+
+  // Message HTML
   appendHtmlTextToBubble(bubble, html);
 
   root.appendChild(bubble);
+
   applyExit(root);
   return root;
 }
