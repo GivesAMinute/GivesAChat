@@ -9,7 +9,7 @@ body {
   position: absolute;
   bottom: 0;
   width: 100%;
-  padding: 20px;
+  padding: 20px 20px 20px 10px; /* ⭐ Left padding reduced by half */
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -18,12 +18,12 @@ body {
 
 /* ---------------------------------------------------------
    ⭐ CHAT MESSAGE WRAPPER
-   Align icon to TOP of bubble + reduce spacing
+   Align icon to TOP of bubble + reduced spacing
 --------------------------------------------------------- */
 .chat-message {
   display: flex;
-  align-items: flex-start; /* ⭐ Forces icon to align with bubble top */
-  gap: 6px; /* ⭐ Reduced from 10px → half the spacing */
+  align-items: flex-start;
+  gap: 6px; /* Reduced spacing between icon + bubble */
 }
 
 /* ---------------------------------------------------------
@@ -34,7 +34,7 @@ body {
   height: 40px;
   border-radius: 6px;
   flex-shrink: 0;
-  margin-top: 2px; /* ⭐ Micro‑adjust for perfect top alignment */
+  margin-top: 2px; /* Micro-adjust for perfect alignment */
 }
 
 .avatar {
@@ -302,4 +302,10 @@ body {
 
 /* Reward wrapper fade-out */
 .velora-reward-wrapper {
-  opacity
+  opacity: 1;
+  transition: opacity 1s ease;
+}
+
+.velora-reward-wrapper.fade-out {
+  opacity: 0;
+}
