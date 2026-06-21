@@ -36,18 +36,17 @@ function handleBroadcast(payload) {
   const container = getMessagesContainer();
   if (!container) return;
 
-  // Only process chat messages
   if (!payload || payload.type !== "chat") return;
 
   const el = document.createElement("div");
   el.className = "chat-message";
 
-  // Platform icon (Blaze, Kick, etc.)
+  // Platform icon
   const icon = document.createElement("img");
   icon.className = "platform-icon";
   icon.src = `/icons/${payload.platform}.png`;
 
-  // Inline avatar inside bubble
+  // Inline avatar
   const avatar = payload.avatar
     ? `<img class="inline-avatar" src="${payload.avatar}">`
     : "";
@@ -55,13 +54,13 @@ function handleBroadcast(payload) {
   // Blaze badges (V6 style)
   const badgesHTML = renderBlazeBadges(payload);
 
-  // Build bubble
+  // ⭐ Correct order: avatar → badges → username
   el.innerHTML = `
     ${icon.outerHTML}
     <div class="bubble">
       ${avatar}
-      <span class="username">${payload.username}</span>
       ${badgesHTML}
+      <span class="username">${payload.username}</span>
       <span class="text">${payload.html}</span>
     </div>
   `;
