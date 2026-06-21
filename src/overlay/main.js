@@ -3,7 +3,6 @@ import "../utils/sanitizeHTML.js";
 import "../utils/tooltip.js";
 import "../utils/usernameColors.js";
 
-import { renderTwitchMessage } from "./renderers/twitchRenderer.js";
 import { renderVeloraMessage } from "./renderers/veloraRenderer.js";
 import { renderYouTubeMessage } from "./renderers/youtubeRenderer.js";
 import { renderBlazeMessage } from "./renderers/blazeRenderer.js";
@@ -57,9 +56,7 @@ function handleBroadcast(payload) {
   const platform = String(payload.platform || "").toLowerCase();
   let element = null;
 
-  if (platform === "twitch") {
-    element = renderTwitchMessage(payload);
-  } else if (platform === "velora") {
+  if (platform === "velora") {
     element = renderVeloraMessage(payload);
   } else if (platform === "youtube") {
     element = renderYouTubeMessage(payload);
