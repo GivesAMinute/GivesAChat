@@ -19,11 +19,13 @@ body {
 /* ---------------------------------------------------------
    ⭐ CHAT MESSAGE WRAPPER
    Align icon to TOP of bubble + reduced spacing
+   + smooth fade-in for entire message
 --------------------------------------------------------- */
 .chat-message {
   display: flex;
   align-items: flex-start;
   gap: 6px; /* Reduced spacing between icon + bubble */
+  animation: fadeIn 0.75s cubic-bezier(0.16, 1, 0.3, 1); /* ⭐ New fade-in */
 }
 
 /* ---------------------------------------------------------
