@@ -1,6 +1,8 @@
 /* ---------------------------------------------------------
-   SANITIZATION + COLORS + EXIT
+   SANITIZATION + EXIT
 --------------------------------------------------------- */
+
+import { colorForUsername } from "../../src/utils/usernameColors.js";
 
 export function safeSanitize(html) {
   const raw = html || "";
@@ -12,17 +14,6 @@ export function safeSanitize(html) {
     }
   }
   return raw;
-}
-
-export function safeColorForUsername(username, platform) {
-  if (typeof window !== "undefined" && window.colorForUsername) {
-    try {
-      return window.colorForUsername(username || "", platform || "");
-    } catch {
-      return "";
-    }
-  }
-  return "";
 }
 
 export function applyExit(el) {
@@ -144,8 +135,8 @@ export function createBubble(username, platform, avatarUrl) {
   nameEl.className = "username";
   nameEl.textContent = username || "Unknown";
 
-  const color = safeColorForUsername(username, platform);
-  if (color) nameEl.style.color = color;
+  // ⭐ DIRECT color application (no window globals)
+  nameEl.style.color = colorForUsername(username, platform);
 
   bubble.appendChild(nameEl);
 
