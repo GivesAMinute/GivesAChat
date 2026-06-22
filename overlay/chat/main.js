@@ -1,5 +1,6 @@
 import _shared from "../shared/_shared.js";
 import { renderBlazeBadges } from "./badges/blaze/index.js";
+import { colorForUsername } from "../utils/usernameColors.js";   // ⭐ FIXED PATH
 
 const MESSAGES_ID = "messages";
 
@@ -51,10 +52,10 @@ function handleBroadcast(payload) {
     ? `<img class="inline-avatar" src="${payload.avatar}">`
     : "";
 
-  // Blaze badges (V6 style)
+  // Blaze badges
   const badgesHTML = renderBlazeBadges(payload);
 
-  // ⭐ Correct order: avatar → badges → username
+  // Build bubble
   el.innerHTML = `
     ${icon.outerHTML}
     <div class="bubble">
@@ -64,6 +65,13 @@ function handleBroadcast(payload) {
       <span class="text">${payload.html}</span>
     </div>
   `;
+
+  // ⭐ APPLY USERNAME COLOUR (FIXED ARG ORDER)
+  const usernameSpan = el.querySelector(".username");
+  if (usernameSpan) {
+    const color = colorForUsername(payload.username, payload.platform);
+    usernameSpan.style.color = color;
+  }
 
   container.appendChild(el);
 
@@ -80,3 +88,4 @@ function initOverlay() {
 }
 
 document.addEventListener("DOMContentLoaded", initOverlay);
+
