@@ -1,6 +1,6 @@
 import _shared from "../shared/_shared.js";
 import { renderBlazeBadges } from "./badges/blaze/index.js";
-import { colorForUsername } from "../src/utils/usernameColors.js";   // ⭐ CORRECT PATH
+import { colorForUsername } from "../../src/utils/usernameColors.js";   // ⭐ VERIFIED CORRECT PATH
 
 const MESSAGES_ID = "messages";
 
