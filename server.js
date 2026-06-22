@@ -4,13 +4,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 // PLATFORM MODULES
-import { startBlaze } from "./blaze/index.js";
+import { startBlaze } from "./platforms/blaze/index.js";
 import { startAdditional1 } from "./platforms/additional1/index.js";
 import { startAdditional2 } from "./platforms/additional2/index.js";
 import { startAdditional3 } from "./platforms/additional3/index.js";
 
 // TTS + EVENTS (dummy for now)
-import { refreshBlazeToken } from "./blaze/blazeAuth.js";
+import { refreshBlazeToken } from "./platforms/blaze/blazeAuth.js";
 import "./tts/engine.js";
 import "./events/velora.js";
 
