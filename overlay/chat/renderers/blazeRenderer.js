@@ -6,6 +6,8 @@ import {
   appendHtmlTextToBubble
 } from "./_shared.js";
 
+import { colorForUsername } from "../../../src/utils/usernameColors.js";
+
 export function renderBlazeMessage(msg) {
   if (!msg) return null;
 
@@ -17,10 +19,16 @@ export function renderBlazeMessage(msg) {
   // ⭐ Platform icon only — no avatar here
   const root = createBaseMessageElement("blaze");
 
-  // ⭐ Avatar now lives INSIDE the bubble
+  // ⭐ Avatar + username + badges live INSIDE the bubble
   const bubble = createBubble(username, "blaze", avatar);
 
-  // Blaze badges (OG, VIP, Mod, Streamer) come through msg.badges
+  // ⭐ Apply username color (per‑session, weighted palette)
+  const usernameSpan = bubble.querySelector(".username");
+  if (usernameSpan) {
+    usernameSpan.style.color = colorForUsername(username, "blaze");
+  }
+
+  // Blaze badges (OG, VIP, Mod, Streamer)
   appendBadgesToBubble(bubble, badges);
 
   // Message HTML
