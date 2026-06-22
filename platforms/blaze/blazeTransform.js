@@ -75,4 +75,3 @@ export function transformBlazeMessage(msg) {
     timestamp: msg.timestamp || msg.createdAt || Date.now()
   };
 }
-
