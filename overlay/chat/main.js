@@ -1,6 +1,6 @@
 import _shared from "../shared/_shared.js";
 import { renderBlazeBadges } from "./badges/blaze/index.js";
-import { colorForUsername } from "../utils/usernameColors.js";   // ⭐ FIXED PATH
+import { colorForUsername } from "../src/utils/usernameColors.js";   // ⭐ CORRECT PATH
 
 const MESSAGES_ID = "messages";
 
@@ -66,7 +66,7 @@ function handleBroadcast(payload) {
     </div>
   `;
 
-  // ⭐ APPLY USERNAME COLOUR (FIXED ARG ORDER)
+  // ⭐ APPLY USERNAME COLOUR — CORRECT ARG ORDER
   const usernameSpan = el.querySelector(".username");
   if (usernameSpan) {
     const color = colorForUsername(payload.username, payload.platform);
@@ -88,4 +88,3 @@ function initOverlay() {
 }
 
 document.addEventListener("DOMContentLoaded", initOverlay);
-

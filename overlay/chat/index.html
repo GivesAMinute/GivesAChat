@@ -5,15 +5,14 @@
   <title>Chat Overlay</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- FIXED: must be relative, not absolute -->
-  <link rel="stylesheet" href="./styles.css">
+  <!-- Stylesheet with cache‑buster -->
+  <link rel="stylesheet" href="./styles.css?v=2">
 </head>
 
 <body>
   <div id="messages"></div>
 
-  <!-- FIXED: must be relative, not absolute -->
-  <script type="module" src="./main.js"></script>
+  <!-- ⭐ Cache‑buster forces Brave to reload ALL imported modules -->
+  <script type="module" src="./main.js?v=2"></script>
 </body>
 </html>
-
