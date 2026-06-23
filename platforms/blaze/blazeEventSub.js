@@ -8,18 +8,24 @@ export function startBlazeEventSub(broadcast) {
   const clientId = process.env.BLAZE_CLIENT_ID;
   const accessToken = process.env.BLAZE_ACCESS_TOKEN;
 
+  let currentSessionId = null;
+
   const socket = io("https://blaze.stream", {
     path: "/ws",
     transports: ["websocket"],
     auth: {
       token: accessToken,
       "client-id": clientId
-    }
+    },
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 2000
   });
 
-  socket.on("session_welcome", async ({ sessionId }) => {
-    console.log("[BLAZE] Session ID:", sessionId);
-
+  // -----------------------------
+  // AUTO-SUBSCRIBE FUNCTION
+  // -----------------------------
+  async function subscribeToAll(sessionId) {
     const subs = [
       "channel.chat.message",
       "channel.chat.message_delete",
@@ -33,34 +39,72 @@ export function startBlazeEventSub(broadcast) {
     ];
 
     for (const type of subs) {
-      try {
-        await axios.post(
-          "https://blaze.stream/v1/events/subscriptions",
-          {
-            type,
-            sessionId,
-            condition: { channelId }
-          },
-          {
-            headers: {
-              "client-id": clientId,
-              Authorization: `Bearer ${accessToken}`,
-              "Content-Type": "application/json"
-            }
-          }
-        );
+      let attempts = 0;
+      const maxAttempts = 5;
 
-        console.log(`[BLAZE] Subscribed to: ${type}`);
-      } catch (err) {
-        console.error(
-          "[BLAZE] Subscription error:",
-          type,
-          err.response?.data || err.message
-        );
+      while (attempts < maxAttempts) {
+        try {
+          await axios.post(
+            "https://blaze.stream/v1/events/subscriptions",
+            {
+              type,
+              sessionId,
+              condition: { channelId }
+            },
+            {
+              headers: {
+                "client-id": clientId,
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json"
+              }
+            }
+          );
+
+          console.log(`[BLAZE] Subscribed to: ${type}`);
+          break;
+        } catch (err) {
+          attempts++;
+          const msg = err.response?.data || err.message;
+          console.error(`[BLAZE] Subscription error (${type}) attempt ${attempts}:`, msg);
+
+          if (attempts >= maxAttempts) {
+            console.error(`[BLAZE] FAILED to subscribe to ${type} after ${maxAttempts} attempts`);
+          } else {
+            await new Promise((res) => setTimeout(res, 1000 * attempts));
+          }
+        }
       }
     }
+  }
+
+  // -----------------------------
+  // SESSION WELCOME
+  // -----------------------------
+  socket.on("session_welcome", async ({ sessionId }) => {
+    currentSessionId = sessionId;
+    console.log("[BLAZE] Session ID:", sessionId);
+
+    await subscribeToAll(sessionId);
   });
 
+  // -----------------------------
+  // AUTO-RESUBSCRIBE ON RECONNECT
+  // -----------------------------
+  socket.on("reconnect", () => {
+    console.log("[BLAZE] Reconnected — waiting for new session_welcome...");
+  });
+
+  socket.on("reconnect_attempt", (n) => {
+    console.log(`[BLAZE] Reconnect attempt ${n}`);
+  });
+
+  socket.on("connect_error", (err) => {
+    console.error("[BLAZE] Socket connection error:", err.message);
+  });
+
+  // -----------------------------
+  // EVENT HANDLING
+  // -----------------------------
   socket.on("eventsub", ({ metadata, payload }) => {
     if (!metadata || !metadata.subscriptionType) return;
 
@@ -96,9 +140,5 @@ export function startBlazeEventSub(broadcast) {
         timestamp: payload.createdAt
       });
     }
-  });
-
-  socket.on("connect_error", (err) => {
-    console.error("[BLAZE] Socket connection error:", err.message);
   });
 }
