@@ -1,4 +1,4 @@
-// backend/blaze/blazeEventSub.js
+// platforms/blaze/blazeEventSub.js
 import axios from "axios";
 import { io } from "socket.io-client";
 import { extractMessage } from "./blazeTransform.js";
@@ -17,9 +17,8 @@ export function startBlazeEventSub(broadcast) {
     }
   });
 
-  // ⭐ This is where Blaze sends the sessionId
   socket.on("session_welcome", async ({ sessionId }) => {
-    console.log("[BLAZE] Session ID:", sessionId); // ⭐ Added so you can see it
+    console.log("[BLAZE] Session ID:", sessionId);
 
     const subs = [
       "channel.chat.message",
@@ -50,6 +49,7 @@ export function startBlazeEventSub(broadcast) {
             }
           }
         );
+
         console.log(`[BLAZE] Subscribed to: ${type}`);
       } catch (err) {
         console.error(
@@ -61,7 +61,6 @@ export function startBlazeEventSub(broadcast) {
     }
   });
 
-  // ⭐ Blaze EventSub notifications
   socket.on("eventsub", ({ metadata, payload }) => {
     if (!metadata || !metadata.subscriptionType) return;
 
@@ -71,8 +70,35 @@ export function startBlazeEventSub(broadcast) {
 
       const badges = [];
 
-      if (roles.includes("moderator"))
+      if (roles.includes("moderator")) {
         badges.push("https://cdn.blaze.stream/badges/mod.svg");
+      }
 
-      if (roles.includes("og"))
-        badges.push("https://cdn
+      if (roles.includes("og")) {
+        badges.push("https://cdn.blaze.stream/badges/og.svg");
+      }
+
+      if (roles.includes("vip")) {
+        badges.push("https://cdn.blaze.stream/badges/vip.svg");
+      }
+
+      if (sender.isOwner === true) {
+        badges.push("https://cdn.blaze.stream/badges/streamer.svg");
+      }
+
+      broadcast({
+        platform: "blaze",
+        id: payload.id,
+        username: sender.displayName || sender.username,
+        avatar: sender.avatarUrl,
+        html: extractMessage(payload),
+        badges,
+        timestamp: payload.createdAt
+      });
+    }
+  });
+
+  socket.on("connect_error", (err) => {
+    console.error("[BLAZE] Socket connection error:", err.message);
+  });
+}
