@@ -17,7 +17,10 @@ export function startBlazeEventSub(broadcast) {
     }
   });
 
+  // ⭐ This is where Blaze sends the sessionId
   socket.on("session_welcome", async ({ sessionId }) => {
+    console.log("[BLAZE] Session ID:", sessionId); // ⭐ Added so you can see it
+
     const subs = [
       "channel.chat.message",
       "channel.chat.message_delete",
@@ -47,12 +50,18 @@ export function startBlazeEventSub(broadcast) {
             }
           }
         );
+        console.log(`[BLAZE] Subscribed to: ${type}`);
       } catch (err) {
-        console.error("[BLAZE] Subscription error:", type, err.response?.data || err.message);
+        console.error(
+          "[BLAZE] Subscription error:",
+          type,
+          err.response?.data || err.message
+        );
       }
     }
   });
 
+  // ⭐ Blaze EventSub notifications
   socket.on("eventsub", ({ metadata, payload }) => {
     if (!metadata || !metadata.subscriptionType) return;
 
@@ -66,24 +75,4 @@ export function startBlazeEventSub(broadcast) {
         badges.push("https://cdn.blaze.stream/badges/mod.svg");
 
       if (roles.includes("og"))
-        badges.push("https://cdn.blaze.stream/badges/og.svg");
-
-      if (roles.includes("vip"))
-        badges.push("https://cdn.blaze.stream/badges/vip.svg");
-
-      if (sender.isOwner === true)
-        badges.push("https://cdn.blaze.stream/badges/streamer.svg");
-
-      broadcast({
-        platform: "blaze",
-        id: payload.id,
-        username: sender.displayName || sender.username,
-        avatar: sender.avatarUrl,
-        html: extractMessage(payload),
-        badges,
-        timestamp: payload.createdAt
-      });
-    }
-  });
-}
-
+        badges.push("https://cdn
