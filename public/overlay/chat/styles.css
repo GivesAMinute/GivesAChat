@@ -18,25 +18,23 @@ body {
 
 /* ---------------------------------------------------------
    ⭐ CHAT MESSAGE WRAPPER
-   Align icon to TOP of bubble + reduced spacing
-   + smooth fade-in for entire message
 --------------------------------------------------------- */
 .chat-message {
   display: flex;
   align-items: flex-start;
-  gap: 6px; /* Reduced spacing between icon + bubble */
-  animation: fadeIn 0.75s cubic-bezier(0.16, 1, 0.3, 1); /* ⭐ New fade-in */
+  gap: 6px;
+  animation: fadeIn 0.75s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ---------------------------------------------------------
-   ⭐ PLATFORM ICON — aligned perfectly to bubble top
+   ⭐ PLATFORM ICON
 --------------------------------------------------------- */
 .platform-icon {
   width: 40px;
   height: 40px;
   border-radius: 6px;
   flex-shrink: 0;
-  margin-top: 2px; /* Micro-adjust for perfect alignment */
+  margin-top: 2px;
 }
 
 .avatar {
@@ -56,6 +54,9 @@ body {
   object-fit: cover;
 }
 
+/* ---------------------------------------------------------
+   ⭐ BUBBLE
+--------------------------------------------------------- */
 .bubble {
   background: rgba(0,0,0,0.85);
   color: white;
@@ -82,7 +83,9 @@ body {
   display: block;
 }
 
-/* Badge wrapper + icons */
+/* ---------------------------------------------------------
+   ⭐ BADGES
+--------------------------------------------------------- */
 .badges-wrapper {
   display: inline-flex;
   align-items: center;
@@ -257,7 +260,9 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Velora Reward Card */
+/* ---------------------------------------------------------
+   ⭐ VELORA REWARD CARDS
+--------------------------------------------------------- */
 .velora-reward-msg {
   width: 100%;
   display: flex;
@@ -302,7 +307,6 @@ body {
   line-height: 1.3;
 }
 
-/* Reward wrapper fade-out */
 .velora-reward-wrapper {
   opacity: 1;
   transition: opacity 1s ease;
@@ -310,4 +314,73 @@ body {
 
 .velora-reward-wrapper.fade-out {
   opacity: 0;
+}
+
+/* ---------------------------------------------------------
+   ⭐ PLATFORM ALIGNMENT PACK
+   (Blaze + future platforms)
+--------------------------------------------------------- */
+
+/* BLAZE */
+.msg.platform-blaze .text {
+  padding-left: 4px;
+}
+
+.msg.platform-blaze .badges img,
+.msg.platform-blaze .tooltip-wrapper {
+  min-width: 18px;
+}
+
+/* TWITCH */
+.msg.platform-twitch .text {
+  padding-left: 2px;
+}
+
+.msg.platform-twitch .badges img {
+  min-width: 20px;
+}
+
+/* YOUTUBE */
+.msg.platform-youtube .text {
+  padding-left: 0px;
+}
+
+.msg.platform-youtube .badges img {
+  min-width: 22px;
+}
+
+/* KICK */
+.msg.platform-kick .text {
+  padding-left: 3px;
+}
+
+.msg.platform-kick .badges img {
+  min-width: 20px;
+}
+
+/* RUMBLE */
+.msg.platform-rumble .text {
+  padding-left: 4px;
+}
+
+.msg.platform-rumble .badges img {
+  min-width: 18px;
+}
+
+/* VELORA */
+.msg.platform-velora .text {
+  padding-left: 0px;
+}
+
+.msg.platform-velora .badges img {
+  min-width: 22px;
+}
+
+/* BEAM */
+.msg.platform-beam .text {
+  padding-left: 2px;
+}
+
+.msg.platform-beam .badges img {
+  min-width: 20px;
 }
