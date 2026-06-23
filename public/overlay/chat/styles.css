@@ -55,7 +55,7 @@ body {
 }
 
 /* ---------------------------------------------------------
-   ⭐ BUBBLE (GRID LAYOUT ADDED HERE)
+   ⭐ BUBBLE
 --------------------------------------------------------- */
 .bubble {
   background: rgba(0,0,0,0.85);
@@ -64,36 +64,11 @@ body {
   border-radius: 14px;
   font-size: 20px;
   max-width: 90%;
-  display: grid; /* ⭐ NEW: grid layout */
-  grid-template-columns: auto 1fr; /* avatar | content */
-  grid-template-rows: auto auto;   /* username/badges | text */
-  column-gap: 6px;
-  align-items: center;
+  display: inline-block;
   backdrop-filter: blur(6px);
   animation: fadeIn 0.8s ease-out;
   word-break: break-word;
   white-space: normal;
-}
-
-/* Avatar sits in column 1, spanning both rows */
-.inline-avatar {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-}
-
-/* Username + badges sit in row 1, col 2 */
-.username,
-.badges-wrapper {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-/* Message text sits in row 2, col 2 */
-.text {
-  grid-column: 2;
-  grid-row: 2;
-  padding-left: 4px; /* ⭐ NOW this works */
-  display: block;
 }
 
 .username {
@@ -101,6 +76,11 @@ body {
   margin-bottom: 4px;
   display: inline-block;
   line-height: 1;
+}
+
+.text {
+  padding-left: 32px;
+  display: block;
 }
 
 /* ---------------------------------------------------------
@@ -338,6 +318,7 @@ body {
 
 /* ---------------------------------------------------------
    ⭐ PLATFORM ALIGNMENT PACK
+   (Blaze + future platforms)
 --------------------------------------------------------- */
 
 /* BLAZE */
@@ -356,7 +337,7 @@ body {
 }
 
 .msg.platform-twitch .badges img {
- min-width: 20px;
+  min-width: 20px;
 }
 
 /* YOUTUBE */
