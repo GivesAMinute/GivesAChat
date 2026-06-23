@@ -323,7 +323,7 @@ body {
 
 /* BLAZE */
 .msg.platform-blaze .text {
-  padding-left: 4px;
+  padding-left: 40px;
 }
 
 .msg.platform-blaze .badges img,
