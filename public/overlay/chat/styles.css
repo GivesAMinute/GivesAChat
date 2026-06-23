@@ -211,7 +211,7 @@ body {
 }
 
 /* ---------------------------------------------------------
-   ⭐ SLIDE-LEFT EXIT
+   ⭐ ORIGINAL SLIDE-LEFT EXIT (kept for wrapper)
 --------------------------------------------------------- */
 @keyframes swipeLeft {
   from {
@@ -228,7 +228,34 @@ body {
   animation: swipeLeft 0.6s ease-out forwards;
 }
 
-/* Emotes */
+/* ---------------------------------------------------------
+   ⭐ NEW STAGGERED EXIT ANIMATIONS
+--------------------------------------------------------- */
+
+/* Bubble leaves first */
+.bubble.fade-out {
+  animation: bubbleSwipeLeft 0.6s ease-out forwards;
+}
+
+@keyframes bubbleSwipeLeft {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-220px); }
+}
+
+/* Icon leaves slightly after */
+.platform-icon.fade-out {
+  animation: iconSwipeLeft 0.6s ease-out forwards;
+  animation-delay: 0.15s;
+}
+
+@keyframes iconSwipeLeft {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-180px); }
+}
+
+/* ---------------------------------------------------------
+   ⭐ EMOTES
+--------------------------------------------------------- */
 .bubble img.chat-image {
   width: 64px;
   height: 64px;
@@ -318,7 +345,6 @@ body {
 
 /* ---------------------------------------------------------
    ⭐ PLATFORM ALIGNMENT PACK
-   (Blaze + future platforms)
 --------------------------------------------------------- */
 
 /* BLAZE */

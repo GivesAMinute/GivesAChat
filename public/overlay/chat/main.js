@@ -79,7 +79,14 @@ function handleBroadcast(payload) {
   // Fade-out after 45 seconds
   setTimeout(() => {
     el.classList.add("fade-out");
-    setTimeout(() => el.remove(), 600);
+
+    const bubble = el.querySelector(".bubble");
+    const iconEl = el.querySelector(".platform-icon");
+
+    if (bubble) bubble.classList.add("fade-out");
+    if (iconEl) iconEl.classList.add("fade-out");
+
+    setTimeout(() => el.remove(), 800);
   }, 45000);
 }
 
