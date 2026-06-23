@@ -88,4 +88,3 @@ export function colorForUsername(name, platform) {
   const hue = index % 360;
   return `hsl(${hue}, 70%, 60%)`;
 }
-

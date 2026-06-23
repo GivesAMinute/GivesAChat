@@ -1,6 +1,7 @@
+// Corrected imports for public/overlay/chat structure
 import _shared from "../shared/_shared.js";
 import { renderBlazeBadges } from "./badges/blaze/index.js";
-import { colorForUsername } from "../../src/utils/usernameColors.js";   // ⭐ VERIFIED CORRECT PATH
+import { colorForUsername } from "./utils/usernameColors.js";
 
 const MESSAGES_ID = "messages";
 
@@ -66,7 +67,7 @@ function handleBroadcast(payload) {
     </div>
   `;
 
-  // ⭐ APPLY USERNAME COLOUR — CORRECT ARG ORDER
+  // Username colour
   const usernameSpan = el.querySelector(".username");
   if (usernameSpan) {
     const color = colorForUsername(payload.username, payload.platform);
