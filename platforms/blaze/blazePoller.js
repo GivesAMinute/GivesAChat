@@ -1,12 +1,12 @@
-// backend/blaze/blazePoller.js
+// platforms/blaze/blazePoller.js
 import axios from "axios";
 import { transformBlazeMessage } from "./blazeTransform.js";
+import { getBlazeAccessToken, refreshBlazeToken } from "./blazeAuth.js";
 
 export class BlazePoller {
-  constructor({ channelId, clientId, accessToken, intervalMs = 1000, onMessages }) {
+  constructor({ channelId, clientId, intervalMs = 1000, onMessages }) {
     this.channelId = channelId;
     this.clientId = clientId;
-    this.accessToken = accessToken;
     this.intervalMs = intervalMs;
     this.onMessages = onMessages;
     this.timer = null;
@@ -14,10 +14,22 @@ export class BlazePoller {
     this.lastSeenIds = new Set();
   }
 
+  async _ensureValidToken() {
+    let token = getBlazeAccessToken();
+
+    // If no token or obviously bad, refresh immediately
+    if (!token || token.length < 10) {
+      console.log("[BLAZE] No valid token found, refreshing...");
+      token = await refreshBlazeToken();
+    }
+
+    return token;
+  }
+
   async _fetchMessages() {
     const url = "https://api.blaze.stream/v1/chats/messages";
 
-    const tokenToUse = globalThis.blazeAccessToken || this.accessToken;
+    const tokenToUse = await this._ensureValidToken();
 
     const res = await axios.get(url, {
       headers: {
@@ -67,7 +79,20 @@ export class BlazePoller {
         this.onMessages(normalized);
       }
     } catch (err) {
-      console.error("[BLAZE] Poll error:", err?.response?.status, err?.response?.data || err.message);
+      const status = err?.response?.status;
+      const data = err?.response?.data;
+
+      console.error("[BLAZE] Poll error:", status, data || err.message);
+
+      // If unauthorized, try to refresh token
+      if (status === 401) {
+        console.log("[BLAZE] 401 detected — refreshing token...");
+        try {
+          await refreshBlazeToken();
+        } catch (refreshErr) {
+          console.error("[BLAZE] Token refresh failed:", refreshErr);
+        }
+      }
     }
 
     if (this.running) {
@@ -75,9 +100,15 @@ export class BlazePoller {
     }
   }
 
-  start() {
+  async start() {
     if (this.running) return;
     this.running = true;
+
+    console.log("[BLAZE] Poller starting…");
+
+    // Make sure we have a valid token before first poll
+    await this._ensureValidToken();
+
     console.log("[BLAZE] Poller started");
     this._tick();
   }

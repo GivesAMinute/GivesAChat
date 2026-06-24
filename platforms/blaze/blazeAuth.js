@@ -1,15 +1,16 @@
-// backend/blaze/blazeAuth.js
+// platforms/blaze/blazeAuth.js
 import axios from "axios";
 
-let accessToken = process.env.BLAZE_ACCESS_TOKEN;
-let refreshToken = process.env.BLAZE_REFRESH_TOKEN;
+// Load from env on startup into globals
+globalThis.blazeAccessToken = process.env.BLAZE_ACCESS_TOKEN || null;
+globalThis.blazeRefreshToken = process.env.BLAZE_REFRESH_TOKEN || null;
 
 export function getBlazeAccessToken() {
-  return globalThis.blazeAccessToken || accessToken;
+  return globalThis.blazeAccessToken;
 }
 
 export function getBlazeRefreshToken() {
-  return globalThis.blazeRefreshToken || refreshToken;
+  return globalThis.blazeRefreshToken;
 }
 
 export async function refreshBlazeToken() {
@@ -33,6 +34,10 @@ export async function refreshBlazeToken() {
     // Update globals
     globalThis.blazeAccessToken = newAccess;
     globalThis.blazeRefreshToken = newRefresh;
+
+    // Update in-memory env (so anything else reading process.env sees the latest)
+    process.env.BLAZE_ACCESS_TOKEN = newAccess;
+    process.env.BLAZE_REFRESH_TOKEN = newRefresh;
 
     console.log("🔥 Blaze token refreshed successfully");
 
