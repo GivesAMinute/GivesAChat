@@ -2,25 +2,29 @@
 import axios from "axios";
 import { io } from "socket.io-client";
 import { extractMessage } from "./blazeTransform.js";
+import { getBlazeAccessToken, refreshBlazeToken } from "../../backend/blaze/blazeAuth.js";
 
 export function startBlazeEventSub(broadcast) {
   const channelId = process.env.BLAZE_CHANNEL_ID;
   const clientId = process.env.BLAZE_CLIENT_ID;
-  const accessToken = process.env.BLAZE_ACCESS_TOKEN;
 
   let currentSessionId = null;
 
-  const socket = io("https://blaze.stream", {
-    path: "/ws",
-    transports: ["websocket"],
-    auth: {
-      token: accessToken,
-      "client-id": clientId
-    },
-    reconnection: true,
-    reconnectionAttempts: Infinity,
-    reconnectionDelay: 2000
-  });
+  function buildSocket() {
+    return io("https://blaze.stream", {
+      path: "/ws",
+      transports: ["websocket"],
+      auth: {
+        token: getBlazeAccessToken(),
+        "client-id": clientId
+      },
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 2000
+    });
+  }
+
+  let socket = buildSocket();
 
   // -----------------------------
   // AUTO-SUBSCRIBE FUNCTION
@@ -54,7 +58,7 @@ export function startBlazeEventSub(broadcast) {
             {
               headers: {
                 "client-id": clientId,
-                Authorization: `Bearer ${accessToken}`,
+                Authorization: `Bearer ${getBlazeAccessToken()}`,
                 "Content-Type": "application/json"
               }
             }
@@ -64,6 +68,14 @@ export function startBlazeEventSub(broadcast) {
           break;
         } catch (err) {
           attempts++;
+
+          // 🔥 Auto-refresh on 401
+          if (err.response?.status === 401) {
+            console.log("[BLAZE] 401 during subscription — refreshing token...");
+            await refreshBlazeToken();
+            continue; // retry immediately
+          }
+
           const msg = err.response?.data || err.message;
           console.error(`[BLAZE] Subscription error (${type}) attempt ${attempts}:`, msg);
 
@@ -98,8 +110,17 @@ export function startBlazeEventSub(broadcast) {
     console.log(`[BLAZE] Reconnect attempt ${n}`);
   });
 
-  socket.on("connect_error", (err) => {
+  socket.on("connect_error", async (err) => {
     console.error("[BLAZE] Socket connection error:", err.message);
+
+    // 🔥 Auto-refresh on 401
+    if (err.message.includes("401")) {
+      console.log("[BLAZE] 401 on socket — refreshing token...");
+      await refreshBlazeToken();
+
+      console.log("[BLAZE] Rebuilding socket with new token...");
+      socket = buildSocket();
+    }
   });
 
   // -----------------------------
