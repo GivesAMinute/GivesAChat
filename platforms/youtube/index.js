@@ -25,7 +25,7 @@ export async function startYouTube(broadcast) {
 async function watchForLiveChatId(broadcast, apiKey, channelId) {
   try {
     const liveUrl =
-      `https://www.googleapis.com/youtube/v3/liveBroadcasts` +
+      `https://content.googleapis.com/youtube/v3/liveBroadcasts` +
       `?part=snippet,contentDetails,status` +
       `&broadcastStatus=active` +
       `&broadcastType=all` +
@@ -56,7 +56,7 @@ async function watchForLiveChatId(broadcast, apiKey, channelId) {
 async function pollYouTubeChat(broadcast, apiKey, liveChatId, nextPageToken = "") {
   try {
     const chatUrl =
-      `https://www.googleapis.com/youtube/v3/liveChat/messages` +
+      `https://content.googleapis.com/youtube/v3/liveChat/messages` +
       `?liveChatId=${liveChatId}` +
       `&part=snippet,authorDetails` +
       `&key=${apiKey}` +
