@@ -1,12 +1,13 @@
 // platforms/youtube/index.js
 import fetch from "node-fetch";
+import { sanitizeHTML } from "../../public/overlay/chat/utils/sanitizeHTML.js";
 
 export async function startYouTube(broadcast) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const channelId = process.env.YOUTUBE_CHANNEL_ID;
 
   if (!apiKey || !channelId) {
-    console.log("YouTube disabled: missing YOUTUBE_API_KEY or YOUTUBE_CHANNEL_ID");
+    console.log("[YouTube] Disabled: missing YOUTUBE_API_KEY or YOUTUBE_CHANNEL_ID");
     return;
   }
 
@@ -20,7 +21,13 @@ export async function startYouTube(broadcast) {
     `&channelId=${channelId}` +
     `&key=${apiKey}`;
 
-  const liveData = await fetch(liveUrl).then(r => r.json()).catch(() => null);
+  let liveData;
+  try {
+    liveData = await fetch(liveUrl).then(r => r.json());
+  } catch (err) {
+    console.error("[YouTube] Failed to fetch live broadcast:", err);
+    return;
+  }
 
   const live = liveData?.items?.[0];
   const liveChatId = live?.snippet?.liveChatId;
@@ -53,17 +60,20 @@ export async function startYouTube(broadcast) {
           const snippet = item.snippet;
 
           broadcast({
+            type: "chat",
             platform: "youtube",
             username: user.displayName,
             avatar: user.profileImageUrl,
-            html: snippet.displayMessage
+            html: sanitizeHTML(snippet.displayMessage)
           });
         }
       }
 
       const delay = data.pollingIntervalMillis || 1500;
       setTimeout(poll, delay);
-    } catch {
+
+    } catch (err) {
+      console.error("[YouTube] Poll error:", err);
       setTimeout(poll, 5000);
     }
   }

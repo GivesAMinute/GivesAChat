@@ -1,3 +1,5 @@
+// utils/sanitizeHTML.js
+
 export function sanitizeHTML(html) {
   const template = document.createElement("template");
   template.innerHTML = html;
