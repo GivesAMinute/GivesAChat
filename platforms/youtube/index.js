@@ -6,6 +6,10 @@ const RETRY_DELAY = 10000;     // 10 seconds
 const ERROR_DELAY = 5000;      // 5 seconds
 const DEFAULT_POLL = 1500;     // 1.5 seconds
 
+// Bypass domain + suffix to prevent translation proxy from altering JSON
+const YT_API_BASE = "https://content-googleapis-com.translate.goog/youtube/v3";
+const YT_SUFFIX = "&_x_tr_sl=en&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=wapp";
+
 export async function startYouTube(broadcast) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const channelId = process.env.YOUTUBE_CHANNEL_ID;
@@ -25,12 +29,13 @@ export async function startYouTube(broadcast) {
 async function watchForLiveChatId(broadcast, apiKey, channelId) {
   try {
     const liveUrl =
-      `https://content.googleapis.com/youtube/v3/liveBroadcasts` +
+      `${YT_API_BASE}/liveBroadcasts` +
       `?part=snippet,contentDetails,status` +
       `&broadcastStatus=active` +
       `&broadcastType=all` +
       `&channelId=${channelId}` +
-      `&key=${apiKey}`;
+      `&key=${apiKey}` +
+      YT_SUFFIX;
 
     const liveData = await fetch(liveUrl).then(r => r.json());
     const live = liveData?.items?.[0];
@@ -56,11 +61,12 @@ async function watchForLiveChatId(broadcast, apiKey, channelId) {
 async function pollYouTubeChat(broadcast, apiKey, liveChatId, nextPageToken = "") {
   try {
     const chatUrl =
-      `https://content.googleapis.com/youtube/v3/liveChat/messages` +
+      `${YT_API_BASE}/liveChat/messages` +
       `?liveChatId=${liveChatId}` +
       `&part=snippet,authorDetails` +
       `&key=${apiKey}` +
-      (nextPageToken ? `&pageToken=${nextPageToken}` : "");
+      (nextPageToken ? `&pageToken=${nextPageToken}` : "") +
+      YT_SUFFIX;
 
     const data = await fetch(chatUrl).then(r => r.json());
 
