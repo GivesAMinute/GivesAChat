@@ -5,9 +5,7 @@ import { fileURLToPath } from "url";
 
 // PLATFORM MODULES
 import { startBlaze } from "./platforms/blaze/index.js";
-import { startAdditional1 } from "./platforms/additional1/index.js";
-import { startAdditional2 } from "./platforms/additional2/index.js";
-import { startAdditional3 } from "./platforms/additional3/index.js";
+import { startYouTube } from "./platforms/youtube/index.js";
 
 // TTS + EVENTS (dummy for now)
 import { refreshBlazeToken } from "./platforms/blaze/blazeAuth.js";
@@ -100,9 +98,7 @@ async function init() {
 
     // Start platforms
     startBlaze(broadcast);
-    startAdditional1(broadcast);
-    startAdditional2(broadcast);
-    startAdditional3(broadcast);
+    startYouTube(broadcast);
 
     console.log("[Backend] All platforms initialized");
   } catch (err) {
