@@ -9,7 +9,7 @@ const DEFAULT_POLL = 1500;
 export async function startYouTube(broadcast) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const channelId = process.env.YOUTUBE_CHANNEL_ID;
-  const proxyUrl = process.env.YOUTUBE_PROXY_URL; // Cloudflare Worker
+  const proxyUrl = process.env.YOUTUBE_PROXY_URL;
 
   if (!apiKey || !channelId || !proxyUrl) {
     console.log("[YouTube] Disabled: missing YOUTUBE_API_KEY, YOUTUBE_CHANNEL_ID, or YOUTUBE_PROXY_URL");
@@ -20,13 +20,10 @@ export async function startYouTube(broadcast) {
   watchForLiveChatId(broadcast, apiKey, channelId, proxyUrl);
 }
 
-/**
- * Continuously checks for an active broadcast until one appears.
- */
 async function watchForLiveChatId(broadcast, apiKey, channelId, proxyUrl) {
   try {
     const googleUrl =
-      `https://content.googleapis.com/youtube/v3/liveBroadcasts` +
+      `https://www.googleapis.com/youtube/v3/liveBroadcasts` +
       `?part=snippet,contentDetails,status` +
       `&broadcastStatus=active` +
       `&broadcastType=all` +
@@ -54,13 +51,10 @@ async function watchForLiveChatId(broadcast, apiKey, channelId, proxyUrl) {
   }
 }
 
-/**
- * Polls YouTube chat forever.
- */
 async function pollYouTubeChat(broadcast, apiKey, liveChatId, proxyUrl, nextPageToken = "") {
   try {
     const googleUrl =
-      `https://content.googleapis.com/youtube/v3/liveChat/messages` +
+      `https://www.googleapis.com/youtube/v3/liveChat/messages` +
       `?liveChatId=${liveChatId}` +
       `&part=snippet,authorDetails` +
       `&key=${apiKey}` +
