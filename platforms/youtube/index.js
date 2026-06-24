@@ -2,13 +2,20 @@
 import fetch from "node-fetch";
 import { sanitizeHTML } from "../../public/overlay/chat/utils/sanitizeHTML.js";
 
-const RETRY_DELAY = 10000;     // 10 seconds
-const ERROR_DELAY = 5000;      // 5 seconds
-const DEFAULT_POLL = 1500;     // 1.5 seconds
+const RETRY_DELAY = 10000;
+const ERROR_DELAY = 5000;
+const DEFAULT_POLL = 1500;
 
-// Bypass domain + suffix to prevent translation proxy from altering JSON
+// Bypass domain + suffix
 const YT_API_BASE = "https://content-googleapis-com.translate.goog/youtube/v3";
 const YT_SUFFIX = "&_x_tr_sl=en&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=wapp";
+
+// Required headers to force JSON instead of HTML
+const HEADERS = {
+  "Accept": "application/json",
+  "X-Requested-With": "XMLHttpRequest",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+};
 
 export async function startYouTube(broadcast) {
   const apiKey = process.env.YOUTUBE_API_KEY;
@@ -23,9 +30,6 @@ export async function startYouTube(broadcast) {
   watchForLiveChatId(broadcast, apiKey, channelId);
 }
 
-/**
- * Continuously checks for an active broadcast until one appears.
- */
 async function watchForLiveChatId(broadcast, apiKey, channelId) {
   try {
     const liveUrl =
@@ -37,7 +41,7 @@ async function watchForLiveChatId(broadcast, apiKey, channelId) {
       `&key=${apiKey}` +
       YT_SUFFIX;
 
-    const liveData = await fetch(liveUrl).then(r => r.json());
+    const liveData = await fetch(liveUrl, { headers: HEADERS }).then(r => r.json());
     const live = liveData?.items?.[0];
     const liveChatId = live?.snippet?.liveChatId;
 
@@ -55,9 +59,6 @@ async function watchForLiveChatId(broadcast, apiKey, channelId) {
   }
 }
 
-/**
- * Polls YouTube chat forever.
- */
 async function pollYouTubeChat(broadcast, apiKey, liveChatId, nextPageToken = "") {
   try {
     const chatUrl =
@@ -68,9 +69,8 @@ async function pollYouTubeChat(broadcast, apiKey, liveChatId, nextPageToken = ""
       (nextPageToken ? `&pageToken=${nextPageToken}` : "") +
       YT_SUFFIX;
 
-    const data = await fetch(chatUrl).then(r => r.json());
+    const data = await fetch(chatUrl, { headers: HEADERS }).then(r => r.json());
 
-    // Handle expired or invalid liveChatId
     if (data.error) {
       console.error("[YouTube] Chat error:", data.error);
       console.log("[YouTube] Restarting broadcast watcher in 10s…");
