@@ -2,7 +2,7 @@
 import axios from "axios";
 import { io } from "socket.io-client";
 import { extractMessage } from "./blazeTransform.js";
-import { getBlazeAccessToken, refreshBlazeToken } from "../../backend/blaze/blazeAuth.js";
+import { getBlazeAccessToken, refreshBlazeToken } from "./blazeAuth.js";
 
 export function startBlazeEventSub(broadcast) {
   const channelId = process.env.BLAZE_CHANNEL_ID;
