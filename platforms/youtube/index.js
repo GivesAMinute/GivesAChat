@@ -6,70 +6,70 @@ const RETRY_DELAY = 10000;
 const ERROR_DELAY = 5000;
 const DEFAULT_POLL = 1500;
 
-// Bypass domain + suffix
-const YT_API_BASE = "https://content-googleapis-com.translate.goog/youtube/v3";
-const YT_SUFFIX = "&_x_tr_sl=en&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=wapp";
-
-// Required headers to force JSON instead of HTML
-const HEADERS = {
-  "Accept": "application/json",
-  "X-Requested-With": "XMLHttpRequest",
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-};
-
 export async function startYouTube(broadcast) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const channelId = process.env.YOUTUBE_CHANNEL_ID;
+  const proxyUrl = process.env.YOUTUBE_PROXY_URL; // Cloudflare Worker
 
-  if (!apiKey || !channelId) {
-    console.log("[YouTube] Disabled: missing YOUTUBE_API_KEY or YOUTUBE_CHANNEL_ID");
+  if (!apiKey || !channelId || !proxyUrl) {
+    console.log("[YouTube] Disabled: missing YOUTUBE_API_KEY, YOUTUBE_CHANNEL_ID, or YOUTUBE_PROXY_URL");
     return;
   }
 
   console.log("[YouTube] Starting YouTube watcher…");
-  watchForLiveChatId(broadcast, apiKey, channelId);
+  watchForLiveChatId(broadcast, apiKey, channelId, proxyUrl);
 }
 
-async function watchForLiveChatId(broadcast, apiKey, channelId) {
+/**
+ * Continuously checks for an active broadcast until one appears.
+ */
+async function watchForLiveChatId(broadcast, apiKey, channelId, proxyUrl) {
   try {
-    const liveUrl =
-      `${YT_API_BASE}/liveBroadcasts` +
+    const googleUrl =
+      `https://content.googleapis.com/youtube/v3/liveBroadcasts` +
       `?part=snippet,contentDetails,status` +
       `&broadcastStatus=active` +
       `&broadcastType=all` +
       `&channelId=${channelId}` +
-      `&key=${apiKey}` +
-      YT_SUFFIX;
+      `&key=${apiKey}`;
 
-    const liveData = await fetch(liveUrl, { headers: HEADERS }).then(r => r.json());
+    const encoded = encodeURIComponent(googleUrl);
+    const workerUrl = `${proxyUrl}/?url=${encoded}`;
+
+    const liveData = await fetch(workerUrl).then(r => r.json());
     const live = liveData?.items?.[0];
     const liveChatId = live?.snippet?.liveChatId;
 
     if (!liveChatId) {
       console.log("[YouTube] No active broadcast. Retrying in 10s…");
-      return setTimeout(() => watchForLiveChatId(broadcast, apiKey, channelId), RETRY_DELAY);
+      return setTimeout(() => watchForLiveChatId(broadcast, apiKey, channelId, proxyUrl), RETRY_DELAY);
     }
 
     console.log("[YouTube] liveChatId:", liveChatId);
-    pollYouTubeChat(broadcast, apiKey, liveChatId);
+    pollYouTubeChat(broadcast, apiKey, liveChatId, proxyUrl);
 
   } catch (err) {
     console.error("[YouTube] Broadcast lookup failed:", err);
-    setTimeout(() => watchForLiveChatId(broadcast, apiKey, channelId), ERROR_DELAY);
+    setTimeout(() => watchForLiveChatId(broadcast, apiKey, channelId, proxyUrl), ERROR_DELAY);
   }
 }
 
-async function pollYouTubeChat(broadcast, apiKey, liveChatId, nextPageToken = "") {
+/**
+ * Polls YouTube chat forever.
+ */
+async function pollYouTubeChat(broadcast, apiKey, liveChatId, proxyUrl, nextPageToken = "") {
   try {
-    const chatUrl =
-      `${YT_API_BASE}/liveChat/messages` +
+    const googleUrl =
+      `https://content.googleapis.com/youtube/v3/liveChat/messages` +
       `?liveChatId=${liveChatId}` +
       `&part=snippet,authorDetails` +
       `&key=${apiKey}` +
-      (nextPageToken ? `&pageToken=${nextPageToken}` : "") +
-      YT_SUFFIX;
+      (nextPageToken ? `&pageToken=${nextPageToken}` : "");
 
-    const data = await fetch(chatUrl, { headers: HEADERS }).then(r => r.json());
+    const encoded = encodeURIComponent(googleUrl);
+    const workerUrl = `${proxyUrl}/?url=${encoded}`;
+
+    const data = await fetch(workerUrl).then(r => r.json());
 
     if (data.error) {
       console.error("[YouTube] Chat error:", data.error);
@@ -95,10 +95,10 @@ async function pollYouTubeChat(broadcast, apiKey, liveChatId, nextPageToken = ""
     }
 
     const delay = data.pollingIntervalMillis || DEFAULT_POLL;
-    setTimeout(() => pollYouTubeChat(broadcast, apiKey, liveChatId, nextPageToken), delay);
+    setTimeout(() => pollYouTubeChat(broadcast, apiKey, liveChatId, proxyUrl, nextPageToken), delay);
 
   } catch (err) {
     console.error("[YouTube] Poll error:", err);
-    setTimeout(() => pollYouTubeChat(broadcast, apiKey, liveChatId, nextPageToken), ERROR_DELAY);
+    setTimeout(() => pollYouTubeChat(broadcast, apiKey, liveChatId, proxyUrl, nextPageToken), ERROR_DELAY);
   }
 }
