@@ -2,7 +2,6 @@
 import axios from "axios";
 import { transformBlazeMessage } from "./blazeTransform.js";
 import { getBlazeAccessToken, refreshBlazeToken } from "./blazeAuth.js";
-import { sanitizeNodeHTML } from "./sanitizeNodeHTML.js";
 
 export class BlazePoller {
   constructor({ channelId, clientId, intervalMs = 1000, onMessages }) {
@@ -18,10 +17,14 @@ export class BlazePoller {
   async _ensureValidToken() {
     let token = getBlazeAccessToken();
 
-    // If no token or obviously bad, refresh immediately
     if (!token || token.length < 10) {
-      console.log("[BLAZE] No valid token found, refreshing...");
+      console.log("[BLAZE] No valid access token; attempting refresh...");
       token = await refreshBlazeToken();
+    }
+
+    if (!token || token.length < 10) {
+      console.warn("[BLAZE] Still no valid access token after refresh");
+      return null;
     }
 
     return token;
@@ -31,6 +34,10 @@ export class BlazePoller {
     const url = "https://api.blaze.stream/v1/chats/messages";
 
     const tokenToUse = await this._ensureValidToken();
+    if (!tokenToUse) {
+      // No token — skip this tick, do not crash
+      return [];
+    }
 
     const res = await axios.get(url, {
       headers: {
@@ -76,17 +83,8 @@ export class BlazePoller {
 
       if (newOnes.length && this.onMessages) {
         console.log("[BLAZE] New messages to broadcast:", newOnes.length);
-
-        // Normalize Blaze messages
         const normalized = newOnes.map(transformBlazeMessage);
-
-        // Sanitize HTML for each message
-        const sanitized = normalized.map(msg => ({
-          ...msg,
-          html: sanitizeNodeHTML(msg.html)
-        }));
-
-        this.onMessages(sanitized);
+        this.onMessages(normalized);
       }
     } catch (err) {
       const status = err?.response?.status;
@@ -94,14 +92,9 @@ export class BlazePoller {
 
       console.error("[BLAZE] Poll error:", status, data || err.message);
 
-      // If unauthorized, try to refresh token
       if (status === 401) {
-        console.log("[BLAZE] 401 detected — refreshing token...");
-        try {
-          await refreshBlazeToken();
-        } catch (refreshErr) {
-          console.error("[BLAZE] Token refresh failed:", refreshErr);
-        }
+        console.log("[BLAZE] 401 detected — attempting token refresh...");
+        await refreshBlazeToken();
       }
     }
 
@@ -116,7 +109,7 @@ export class BlazePoller {
 
     console.log("[BLAZE] Poller starting…");
 
-    // Make sure we have a valid token before first poll
+    // Try to ensure we have a token, but do not crash if we don't
     await this._ensureValidToken();
 
     console.log("[BLAZE] Poller started");
