@@ -1,52 +1,18 @@
 // platforms/velora/veloraAuth.js
 import axios from "axios";
-import fs from "fs";
-import path from "path";
-
-const TOKENS_PATH = path.resolve("./velora_tokens.json");
 
 let accessToken = null;
 let refreshToken = null;
 
-function loadTokensFromDisk() {
-  try {
-    if (fs.existsSync(TOKENS_PATH)) {
-      const raw = fs.readFileSync(TOKENS_PATH, "utf8");
-      const parsed = JSON.parse(raw);
-
-      accessToken = parsed.accessToken || null;
-      refreshToken = parsed.refreshToken || null;
-
-      console.log("[VELORA] Loaded tokens from disk");
-      return;
-    }
-  } catch (err) {
-    console.error("[VELORA] Failed to load tokens:", err.message);
-  }
-
+export function initVeloraTokens() {
   accessToken = process.env.VELORA_ACCESS_TOKEN || null;
   refreshToken = process.env.VELORA_REFRESH_TOKEN || null;
 
-  if (accessToken || refreshToken) {
-    console.log("[VELORA] Loaded tokens from env (initial run)");
+  if (refreshToken) {
+    console.log("[VELORA] Loaded refresh token from env");
+  } else {
+    console.warn("[VELORA] No refresh token found in env");
   }
-}
-
-function saveTokensToDisk() {
-  try {
-    fs.writeFileSync(
-      TOKENS_PATH,
-      JSON.stringify({ accessToken, refreshToken }, null, 2),
-      "utf8"
-    );
-    console.log("[VELORA] Saved tokens to disk");
-  } catch (err) {
-    console.error("[VELORA] Failed to save tokens:", err.message);
-  }
-}
-
-export function initVeloraTokens() {
-  loadTokensFromDisk();
 }
 
 export function getVeloraAccessToken() {
@@ -84,8 +50,6 @@ export async function refreshVeloraToken() {
 
     accessToken = res.data.access_token;
     refreshToken = res.data.refresh_token;
-
-    saveTokensToDisk();
 
     console.log("[VELORA] Token refresh successful");
     return accessToken;
