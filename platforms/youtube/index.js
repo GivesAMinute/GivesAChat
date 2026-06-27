@@ -1,6 +1,6 @@
 // platforms/youtube/index.js
 import fetch from "node-fetch";
-import { sanitizeHTML } from "../../public/overlay/chat/utils/sanitizeHTML.js";
+import { sanitizeNodeHTML as sanitizeHTML } from "./sanitizeNodeHTML.js";
 
 const RETRY_DELAY = 10000;
 const ERROR_DELAY = 5000;
