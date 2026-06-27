@@ -2,6 +2,7 @@
 import axios from "axios";
 import { transformBlazeMessage } from "./blazeTransform.js";
 import { getBlazeAccessToken, refreshBlazeToken } from "./blazeAuth.js";
+import { sanitizeNodeHTML } from "./sanitizeNodeHTML.js";
 
 export class BlazePoller {
   constructor({ channelId, clientId, intervalMs = 1000, onMessages }) {
@@ -75,8 +76,17 @@ export class BlazePoller {
 
       if (newOnes.length && this.onMessages) {
         console.log("[BLAZE] New messages to broadcast:", newOnes.length);
+
+        // Normalize Blaze messages
         const normalized = newOnes.map(transformBlazeMessage);
-        this.onMessages(normalized);
+
+        // Sanitize HTML for each message
+        const sanitized = normalized.map(msg => ({
+          ...msg,
+          html: sanitizeNodeHTML(msg.html)
+        }));
+
+        this.onMessages(sanitized);
       }
     } catch (err) {
       const status = err?.response?.status;
