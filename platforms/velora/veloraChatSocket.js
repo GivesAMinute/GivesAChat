@@ -6,34 +6,53 @@ import { transformVeloraChatMessage } from "./veloraTransform.js";
 export function startVeloraChatSocket({ channelId, onMessage }) {
   let token = getVeloraAccessToken();
 
-  const socket = io("wss://api.velora.tv/chat", {
-    transports: ["websocket"],
-    auth: { token }
-  });
-
-  socket.on("connect_error", async (err) => {
-    console.error("[VELORA CHAT] Connect error:", err.message);
-
-    const newToken = await refreshVeloraToken();
-    if (newToken) {
-      socket.auth = { token: newToken };
-      socket.connect();
+  // If we don't have an access token yet, refresh it first
+  const ensureToken = async () => {
+    if (!token) {
+      token = await refreshVeloraToken();
     }
-  });
+    return token;
+  };
 
-  socket.on("connected", () => {
-    console.log("[VELORA CHAT] Connected");
-    socket.emit("joinChannel", { channelId });
-  });
+  const connectSocket = async () => {
+    const authToken = await ensureToken();
+    if (!authToken) {
+      console.error("[VELORA CHAT] No token available, cannot connect.");
+      return;
+    }
 
-  socket.on("newMessage", (payload) => {
-    const normalized = transformVeloraChatMessage(payload);
-    onMessage(normalized);
-  });
+    const socket = io("https://api.velora.tv", {
+      path: "/chat",
+      transports: ["websocket"],
+      auth: { token: authToken }
+    });
 
-  socket.on("disconnect", (reason) => {
-    console.log("[VELORA CHAT] Disconnected:", reason);
-  });
+    socket.on("connect_error", async (err) => {
+      console.error("[VELORA CHAT] Connect error:", err.message);
 
-  return socket;
+      const newToken = await refreshVeloraToken();
+      if (newToken) {
+        socket.auth = { token: newToken };
+        socket.connect();
+      }
+    });
+
+    socket.on("connect", () => {
+      console.log("[VELORA CHAT] Connected");
+      socket.emit("joinChannel", { channelId });
+    });
+
+    socket.on("newMessage", (payload) => {
+      const normalized = transformVeloraChatMessage(payload);
+      onMessage(normalized);
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log("[VELORA CHAT] Disconnected:", reason);
+    });
+
+    return socket;
+  };
+
+  connectSocket();
 }
