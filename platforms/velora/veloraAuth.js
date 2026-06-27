@@ -37,7 +37,6 @@ export async function refreshVeloraToken() {
       {
         grant_type: "refresh_token",
         client_id: process.env.VELORA_CLIENT_ID,
-        client_secret: process.env.VELORA_CLIENT_SECRET,
         refresh_token: refreshToken
       },
       {
