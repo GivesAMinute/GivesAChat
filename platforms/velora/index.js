@@ -5,6 +5,7 @@ import { startVeloraEventsSocket } from "./veloraEventsSocket.js";
 export function startVeloraPlatform({ channelId, broadcast }) {
   console.log("[VELORA] Initializing…");
 
+  // ⭐ Load tokens from env ONLY — do NOT refresh here
   initVeloraTokens();
 
   if (!channelId) {
@@ -12,11 +13,13 @@ export function startVeloraPlatform({ channelId, broadcast }) {
     return;
   }
 
+  // ⭐ Start chat socket
   startVeloraChatSocket({
     channelId,
     onMessage: (msg) => broadcast(msg)
   });
 
+  // ⭐ Start events socket
   startVeloraEventsSocket({
     onMessage: (msg) => broadcast(msg)
   });

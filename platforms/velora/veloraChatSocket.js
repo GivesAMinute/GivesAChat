@@ -1,3 +1,4 @@
+// veloraChatSocket.js
 import { io } from "socket.io-client";
 import { getVeloraAccessToken, refreshVeloraToken } from "./veloraAuth.js";
 import { transformVeloraChatMessage } from "./veloraTransform.js";
@@ -13,7 +14,7 @@ export function startVeloraChatSocket({ channelId, onMessage }) {
     }
 
     const socket = io("https://api.velora.tv", {
-      path: "/chat",
+      path: "/chat/socket",
       transports: ["websocket"],
       auth: { token }
     });

@@ -1,3 +1,4 @@
+// veloraEventsSocket.js
 import { io } from "socket.io-client";
 import { getVeloraAccessToken, refreshVeloraToken } from "./veloraAuth.js";
 import { transformVeloraEvent } from "./veloraTransform.js";
@@ -13,7 +14,7 @@ export function startVeloraEventsSocket({ onMessage }) {
     }
 
     const socket = io("https://api.velora.tv", {
-      path: "/ws/events",
+      path: "/events/socket",
       transports: ["websocket"],
       auth: { token }
     });
