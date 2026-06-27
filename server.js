@@ -6,11 +6,11 @@ import { fileURLToPath } from "url";
 // PLATFORM MODULES
 import { startBlaze } from "./platforms/blaze/index.js";
 import { startYouTube } from "./platforms/youtube/index.js";
+import { startVeloraPlatform } from "./platforms/velora/index.js";
 
 // TTS + EVENTS (dummy for now)
 import { refreshBlazeToken } from "./platforms/blaze/blazeAuth.js";
 import "./tts/engine.js";
-import "./events/velora.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,6 +99,12 @@ async function init() {
     // Start platforms
     startBlaze(broadcast);
     startYouTube(broadcast);
+
+    // ⭐ NEW: Start Velora
+    startVeloraPlatform({
+      channelId: "GivesAMinute",
+      broadcast
+    });
 
     console.log("[Backend] All platforms initialized");
   } catch (err) {
