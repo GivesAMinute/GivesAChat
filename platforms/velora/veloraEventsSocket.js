@@ -3,18 +3,11 @@ import { getVeloraAccessToken, refreshVeloraToken } from "./veloraAuth.js";
 import { transformVeloraEvent } from "./veloraTransform.js";
 
 export function startVeloraEventsSocket({ onMessage }) {
-  let token = getVeloraAccessToken();
-
-  const ensureToken = async () => {
-    if (!token) {
-      token = await refreshVeloraToken();
-    }
-    return token;
-  };
-
   const connectSocket = async () => {
-    const authToken = await ensureToken();
-    if (!authToken) {
+    let token = getVeloraAccessToken();
+    if (!token) token = await refreshVeloraToken();
+
+    if (!token) {
       console.error("[VELORA EVENTS] No token available, cannot connect.");
       return;
     }
@@ -22,21 +15,16 @@ export function startVeloraEventsSocket({ onMessage }) {
     const socket = io("https://api.velora.tv", {
       path: "/ws/events",
       transports: ["websocket"],
-      auth: { token: authToken }
-    });
-
-    socket.on("connect_error", async (err) => {
-      console.error("[VELORA EVENTS] Connect error:", err.message);
-
-      const newToken = await refreshVeloraToken();
-      if (newToken) {
-        socket.auth = { token: newToken };
-        socket.connect();
-      }
+      auth: { token }
     });
 
     socket.on("connect", () => {
       console.log("[VELORA EVENTS] Connected");
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("[VELORA EVENTS] Connect error:", err.message);
+      setTimeout(connectSocket, 3000); // retry WITHOUT refreshing
     });
 
     socket.on("event", (payload) => {
@@ -44,11 +32,9 @@ export function startVeloraEventsSocket({ onMessage }) {
       if (normalized) onMessage(normalized);
     });
 
-    socket.on("disconnect", (reason) => {
-      console.log("[VELORA EVENTS] Disconnected:", reason);
+    socket.on("disconnect", () => {
+      console.log("[VELORA EVENTS] Disconnected");
     });
-
-    return socket;
   };
 
   connectSocket();

@@ -3,18 +3,11 @@ import { getVeloraAccessToken, refreshVeloraToken } from "./veloraAuth.js";
 import { transformVeloraChatMessage } from "./veloraTransform.js";
 
 export function startVeloraChatSocket({ channelId, onMessage }) {
-  let token = getVeloraAccessToken();
-
-  const ensureToken = async () => {
-    if (!token) {
-      token = await refreshVeloraToken();
-    }
-    return token;
-  };
-
   const connectSocket = async () => {
-    const authToken = await ensureToken();
-    if (!authToken) {
+    let token = getVeloraAccessToken();
+    if (!token) token = await refreshVeloraToken();
+
+    if (!token) {
       console.error("[VELORA CHAT] No token available, cannot connect.");
       return;
     }
@@ -22,17 +15,7 @@ export function startVeloraChatSocket({ channelId, onMessage }) {
     const socket = io("https://api.velora.tv", {
       path: "/chat",
       transports: ["websocket"],
-      auth: { token: authToken }
-    });
-
-    socket.on("connect_error", async (err) => {
-      console.error("[VELORA CHAT] Connect error:", err.message);
-
-      const newToken = await refreshVeloraToken();
-      if (newToken) {
-        socket.auth = { token: newToken };
-        socket.connect();
-      }
+      auth: { token }
     });
 
     socket.on("connect", () => {
@@ -40,16 +23,19 @@ export function startVeloraChatSocket({ channelId, onMessage }) {
       socket.emit("joinChannel", { channelId });
     });
 
+    socket.on("connect_error", (err) => {
+      console.error("[VELORA CHAT] Connect error:", err.message);
+      setTimeout(connectSocket, 3000); // retry WITHOUT refreshing
+    });
+
     socket.on("newMessage", (payload) => {
       const normalized = transformVeloraChatMessage(payload);
       onMessage(normalized);
     });
 
-    socket.on("disconnect", (reason) => {
-      console.log("[VELORA CHAT] Disconnected:", reason);
+    socket.on("disconnect", () => {
+      console.log("[VELORA CHAT] Disconnected");
     });
-
-    return socket;
   };
 
   connectSocket();
