@@ -134,10 +134,16 @@ async function pollYouTubeChat(broadcast, liveChatId, nextPageToken = "") {
         const user = item.authorDetails;
         const snippet = item.snippet;
 
+        // Remove @ prefix from YouTube usernames
+        let username = user.displayName;
+        if (username.startsWith("@")) {
+          username = username.substring(1);
+        }
+
         broadcast({
           type: "chat",
           platform: "youtube",
-          username: user.displayName,
+          username,
           avatar: user.profileImageUrl,
           html: sanitizeHTML(snippet.displayMessage)
         });
