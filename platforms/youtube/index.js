@@ -6,10 +6,22 @@ const RETRY_DELAY = 10000;
 const ERROR_DELAY = 5000;
 const DEFAULT_POLL = 1500;
 
+// Simple in-memory access token cache
+let cachedAccessToken = null;
+let cachedAccessTokenExpiry = 0;
+
 /**
  * Exchanges your refresh token for a short-lived access token.
+ * Uses in-memory caching to avoid hammering Google's token endpoint.
  */
 async function getAccessToken() {
+  const now = Date.now();
+
+  // If we have a token and it's not close to expiry, reuse it
+  if (cachedAccessToken && now < cachedAccessTokenExpiry - 60_000) {
+    return cachedAccessToken;
+  }
+
   const clientId = process.env.YOUTUBE_CLIENT_ID;
   const clientSecret = process.env.YOUTUBE_CLIENT_SECRET;
   const refreshToken = process.env.YOUTUBE_REFRESH_TOKEN;
@@ -36,7 +48,11 @@ async function getAccessToken() {
     throw new Error("YouTube token refresh failed");
   }
 
-  return data.access_token;
+  cachedAccessToken = data.access_token;
+  // access_token typically lasts 3600s; be conservative
+  cachedAccessTokenExpiry = Date.now() + (data.expires_in || 3600) * 1000;
+
+  return cachedAccessToken;
 }
 
 /**
@@ -79,7 +95,20 @@ async function watchForLiveChatId(broadcast, channelId) {
 
     if (!res.ok) {
       console.error("[YouTube] liveBroadcasts error:", data);
-      return setTimeout(() => watchForLiveChatId(broadcast, channelId), ERROR_DELAY);
+
+      // If quota exceeded, back off harder
+      if (data?.error?.code === 403) {
+        console.log("[YouTube] Quota exceeded. Backing off for 60s…");
+        return setTimeout(
+          () => watchForLiveChatId(broadcast, channelId),
+          60_000
+        );
+      }
+
+      return setTimeout(
+        () => watchForLiveChatId(broadcast, channelId),
+        ERROR_DELAY
+      );
     }
 
     const live = data.items?.[0];
@@ -87,7 +116,10 @@ async function watchForLiveChatId(broadcast, channelId) {
 
     if (!liveChatId) {
       console.log("[YouTube] No active broadcast. Retrying in 10s…");
-      return setTimeout(() => watchForLiveChatId(broadcast, channelId), RETRY_DELAY);
+      return setTimeout(
+        () => watchForLiveChatId(broadcast, channelId),
+        RETRY_DELAY
+      );
     }
 
     console.log("[YouTube] liveChatId:", liveChatId);
@@ -101,6 +133,7 @@ async function watchForLiveChatId(broadcast, channelId) {
 
 /**
  * Polls YouTube live chat forever.
+ * Optimized to avoid quota exhaustion and duplicate history.
  */
 async function pollYouTubeChat(broadcast, liveChatId, nextPageToken = "") {
   try {
@@ -123,11 +156,23 @@ async function pollYouTubeChat(broadcast, liveChatId, nextPageToken = "") {
 
     if (!res.ok) {
       console.error("[YouTube] Chat error:", data);
-      console.log("[YouTube] Restarting broadcast watcher in 10s…");
-      return setTimeout(() => startYouTube(broadcast), RETRY_DELAY);
+
+      // If quota exceeded, back off but DO NOT restart watcher
+      if (data?.error?.code === 403) {
+        console.log("[YouTube] Chat quota exceeded. Backing off for 60s…");
+        return setTimeout(
+          () => pollYouTubeChat(broadcast, liveChatId, nextPageToken),
+          60_000
+        );
+      }
+
+      return setTimeout(
+        () => pollYouTubeChat(broadcast, liveChatId, nextPageToken),
+        ERROR_DELAY
+      );
     }
 
-    nextPageToken = data.nextPageToken || "";
+    nextPageToken = data.nextPageToken || nextPageToken;
 
     if (data.items) {
       for (const item of data.items) {
@@ -135,7 +180,7 @@ async function pollYouTubeChat(broadcast, liveChatId, nextPageToken = "") {
         const snippet = item.snippet;
 
         // Remove @ prefix from YouTube usernames
-        let username = user.displayName;
+        let username = user.displayName || "";
         if (username.startsWith("@")) {
           username = username.substring(1);
         }
@@ -145,16 +190,25 @@ async function pollYouTubeChat(broadcast, liveChatId, nextPageToken = "") {
           platform: "youtube",
           username,
           avatar: user.profileImageUrl,
-          html: sanitizeHTML(snippet.displayMessage)
+          html: sanitizeHTML(snippet.displayMessage || "")
         });
       }
     }
 
-    const delay = data.pollingIntervalMillis || DEFAULT_POLL;
-    setTimeout(() => pollYouTubeChat(broadcast, liveChatId, nextPageToken), delay);
+    // Respect YouTube's suggested interval, but enforce a minimum to save quota
+    const rawDelay = data.pollingIntervalMillis || DEFAULT_POLL;
+    const delay = Math.max(rawDelay, 2000);
+
+    setTimeout(
+      () => pollYouTubeChat(broadcast, liveChatId, nextPageToken),
+      delay
+    );
 
   } catch (err) {
     console.error("[YouTube] Poll error:", err);
-    setTimeout(() => pollYouTubeChat(broadcast, liveChatId, nextPageToken), ERROR_DELAY);
+    setTimeout(
+      () => pollYouTubeChat(broadcast, liveChatId, nextPageToken),
+      ERROR_DELAY
+    );
   }
 }
