@@ -1,4 +1,3 @@
-// platforms/velora/veloraEventsSocket.js
 import { io } from "socket.io-client";
 import { getVeloraAccessToken, refreshVeloraToken } from "./veloraAuth.js";
 import { transformVeloraEvent } from "./veloraTransform.js";

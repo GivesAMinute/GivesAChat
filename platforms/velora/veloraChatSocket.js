@@ -1,4 +1,3 @@
-// platforms/velora/veloraChatSocket.js
 import { io } from "socket.io-client";
 import { getVeloraAccessToken, refreshVeloraToken } from "./veloraAuth.js";
 import { transformVeloraChatMessage } from "./veloraTransform.js";
@@ -6,7 +5,6 @@ import { transformVeloraChatMessage } from "./veloraTransform.js";
 export function startVeloraChatSocket({ channelId, onMessage }) {
   let token = getVeloraAccessToken();
 
-  // If we don't have an access token yet, refresh it first
   const ensureToken = async () => {
     if (!token) {
       token = await refreshVeloraToken();
