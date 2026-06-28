@@ -4,6 +4,7 @@ import {
   transformVeloraChatMessage,
   transformVeloraEvent
 } from "./veloraTransform.js";
+import { dedupeVeloraChat } from "./veloraDedupe.js";
 
 export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
   if (!accessToken) {
@@ -29,18 +30,18 @@ export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
     });
 
     // ---------------------------------------------------------
-    // ⭐ FIXED: Handle chat messages ONCE
+    // ⭐ Chat WebSocket: newMessage → transform → dedupe → overlay
     // ---------------------------------------------------------
     socket.on("newMessage", (payload) => {
       const msg = transformVeloraChatMessage(payload);
-      if (msg) onMessage(msg);
+      if (msg) dedupeVeloraChat(msg, onMessage);
     });
 
     // ---------------------------------------------------------
-    // ⭐ Handle all other Velora events
+    // ⭐ All other Velora chat-related events
     // ---------------------------------------------------------
     socket.onAny((event, payload) => {
-      if (event === "newMessage") return; // prevent double-processing
+      if (event === "newMessage") return; // already handled above
 
       const evt = transformVeloraEvent(event, payload);
       if (evt) onMessage(evt);
