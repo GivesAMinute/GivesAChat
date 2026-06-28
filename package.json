@@ -1,6 +1,6 @@
 {
-  "name": "headless-chat-browser",
-  "version": "2.0.0",
+  "name": "gac-backend",
+  "version": "1.0.0",
   "type": "module",
   "main": "server.js",
   "scripts": {
