@@ -1,22 +1,18 @@
 // platforms/velora/veloraChatSocket.js
 import { io } from "socket.io-client";
-import { getVeloraAccessToken, refreshVeloraToken } from "./veloraAuth.js";
 import { transformVeloraChatMessage, transformVeloraEvent } from "./veloraTransform.js";
 
-export function startVeloraChatSocket({ channelId, onMessage }) {
-  const connectSocket = async () => {
-    let token = getVeloraAccessToken();
-    if (!token) token = await refreshVeloraToken();
+export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
+  if (!accessToken) {
+    console.error("[VELORA] No access token provided to chat socket");
+    return;
+  }
 
-    if (!token) {
-      console.error("[VELORA] No token available, cannot connect.");
-      return;
-    }
-
+  const connectSocket = () => {
     const socket = io("https://api.velora.tv/chat", {
       path: "/socket.io",
       transports: ["websocket"],
-      auth: { token }
+      auth: { token: accessToken }
     });
 
     socket.on("connect", () => {
@@ -30,7 +26,7 @@ export function startVeloraChatSocket({ channelId, onMessage }) {
     });
 
     socket.onAny((event, payload) => {
-      // Chat
+      // Chat messages
       if (event === "newMessage") {
         const msg = transformVeloraChatMessage(payload);
         if (msg) onMessage(msg);
