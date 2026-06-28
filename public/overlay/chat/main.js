@@ -91,6 +91,13 @@ function handleBroadcast(payload) {
 }
 
 function initOverlay() {
+  // ⭐ Prevent duplicate WebSocket connections
+  if (window.__overlaySocketInitialized) {
+    console.log("[Overlay] Socket already initialized — skipping duplicate");
+    return;
+  }
+  window.__overlaySocketInitialized = true;
+
   if (!getMessagesContainer()) return;
   setupSocket();
 }
