@@ -50,6 +50,14 @@ app.get("/", (req, res) => {
 --------------------------------------------------------- */
 const server = app.listen(8080, () => {
   console.log("[Backend] Running on port 8080");
+
+  // ⭐ LOCAL TEST MESSAGE — lets you verify double-up instantly
+  broadcast({
+    type: "chat",
+    platform: "local",
+    username: "LocalTester",
+    html: "Hello from local test"
+  });
 });
 
 const wss = new WebSocketServer({ server });
