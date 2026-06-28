@@ -70,21 +70,6 @@ export function broadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ LOCAL TEST MESSAGE (no Blaze auth needed)
---------------------------------------------------------- */
-setTimeout(() => {
-  broadcast({
-    type: "chat",
-    platform: "blaze",
-    username: "LocalTester",
-    message: "This is a local test message",
-    avatar: null,
-    badges: []
-  });
-  console.log("[LocalTest] Sent test chat message");
-}, 2000);
-
-/* ---------------------------------------------------------
    ⭐ STARTUP (PLATFORMS + TOKENS)
 --------------------------------------------------------- */
 async function init() {
