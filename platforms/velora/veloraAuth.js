@@ -2,6 +2,10 @@
 import axios from "axios";
 import { saveRefreshToken } from "./veloraTokenStore.js";
 
+/**
+ * Refresh the Velora token using the refresh token.
+ * Saves the new refresh token to disk.
+ */
 export async function refreshVeloraToken(refreshToken) {
   try {
     console.log("[VELORA] Refreshing Velora token…");
@@ -22,4 +26,15 @@ export async function refreshVeloraToken(refreshToken) {
     console.log("[VELORA] Failed to refresh token:", err.response?.data || err);
     return null;
   }
+}
+
+/**
+ * Legacy compatibility for veloraChatSocket.js
+ * Your socket code still imports this, so we provide a harmless stub.
+ *
+ * The new Velora flow passes access tokens directly into the socket,
+ * so this function no longer needs to return anything meaningful.
+ */
+export function getVeloraAccessToken() {
+  return null;
 }
