@@ -6,8 +6,8 @@ import { startVeloraChatSocket } from "./veloraChatSocket.js";
 export async function startVeloraPlatform({ channelId, broadcast }) {
   console.log("[VELORA] Initializing…");
 
-  // 1. Load refresh token (file first, env fallback)
-  let refreshToken = loadRefreshToken();
+  // 1. Load refresh token (ENV only)
+  const refreshToken = loadRefreshToken();
 
   if (!refreshToken) {
     console.log("[VELORA] No refresh token available at startup");
