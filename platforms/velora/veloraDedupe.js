@@ -1,22 +1,22 @@
+// platforms/velora/veloraDedupe.js
+
 // Simple dedupe memory
 const seen = new Set();
 
 // Unified handler for all Velora chat messages
-function dedupeVeloraChat(msg, broadcast) {
-    if (!msg || !msg.messageId) return;
+export function dedupeVeloraChat(msg, broadcast) {
+  if (!msg || !msg.messageId) return;
 
-    if (seen.has(msg.messageId)) return;
-    seen.add(msg.messageId);
+  if (seen.has(msg.messageId)) return;
+  seen.add(msg.messageId);
 
-    broadcast({
-        platform: "velora",
-        ...msg
-    });
+  broadcast({
+    platform: "velora",
+    ...msg
+  });
 }
 
 // Clear memory every minute to avoid growth
 setInterval(() => {
-    seen.clear();
+  seen.clear();
 }, 60 * 1000);
-
-module.exports = { dedupeVeloraChat };
