@@ -1,80 +1,25 @@
+// platforms/velora/veloraAuth.js
 import axios from "axios";
-import { loadStoredRefreshToken, storeRefreshToken } from "./veloraTokenStore.js";
+import { saveRefreshToken } from "./veloraTokenStore.js";
 
-let accessToken = null;
-let refreshToken = null;
-let refreshPromise = null;
-
-export function initVeloraTokens() {
-  // 1. Try persistent storage first
-  const stored = loadStoredRefreshToken();
-  if (stored) {
-    refreshToken = stored;
-    console.log("[VELORA] Loaded refresh token from file");
-    return;
-  }
-
-  // 2. Fallback to Railway env (first-time only)
-  refreshToken = process.env.VELORA_REFRESH_TOKEN || null;
-
-  if (refreshToken) {
-    console.log("[VELORA] Loaded refresh token from env");
-  } else {
-    console.warn("[VELORA] No refresh token found");
-  }
-}
-
-export function getVeloraAccessToken() {
-  return accessToken;
-}
-
-export async function refreshVeloraToken() {
-  if (!refreshToken) {
-    console.warn("[VELORA] No refresh token available");
-    return null;
-  }
-
-  if (refreshPromise) return refreshPromise;
-
-  refreshPromise = (async () => {
+export async function refreshVeloraToken(refreshToken) {
+  try {
     console.log("[VELORA] Refreshing Velora token…");
 
-    try {
-      const res = await axios.post(
-        "https://api.velora.tv/api/developer/oauth/token",
-        {
-          grant_type: "refresh_token",
-          client_id: process.env.VELORA_CLIENT_ID,
-          client_secret: process.env.VELORA_CLIENT_SECRET,
-          refresh_token: refreshToken
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json"
-          }
-        }
-      );
+    const res = await axios.post("https://api.velora.live/oauth/token", {
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: process.env.VELORA_CLIENT_ID
+    });
 
-      accessToken = res.data.access_token;
-      refreshToken = res.data.refresh_token;
+    const newRefresh = res.data.refresh_token;
+    saveRefreshToken(newRefresh);
 
-      // ⭐ Persist the new refresh token
-      storeRefreshToken(refreshToken);
+    console.log("[VELORA] Token refreshed successfully");
+    return res.data.access_token;
 
-      console.log("[VELORA] Token refresh successful");
-      return accessToken;
-    } catch (err) {
-      console.error(
-        "[VELORA] Failed to refresh token:",
-        err?.response?.status,
-        err?.response?.data || err.message
-      );
-      return null;
-    } finally {
-      refreshPromise = null;
-    }
-  })();
-
-  return refreshPromise;
+  } catch (err) {
+    console.log("[VELORA] Failed to refresh token:", err.response?.data || err);
+    return null;
+  }
 }
