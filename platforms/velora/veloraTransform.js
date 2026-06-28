@@ -1,106 +1,37 @@
-// platforms/velora/veloraTransform.js
-import { sanitizeHtml } from "./sanitizeNodeHTML.js";
-
-/* ---------------------------------------------------------
-   ⭐ Transform Velora Chat WebSocket messages
---------------------------------------------------------- */
 export function transformVeloraChatMessage(msg) {
-  if (!msg) return null;
+  if (!msg || !msg.data) return null;
+
+  const data = msg.data;
+  const user = data.user || {};
 
   return {
     type: "chat",
     platform: "velora",
 
     // Dedupe key
-    messageId: msg.messageId,
+    messageId: data.messageId,
 
     // User identity
-    username: msg.displayName || msg.username,
-    avatar: msg.avatarUrl || null,
+    username: user.displayName || user.username,
+    avatar: user.avatar || null,
 
-    // Badges → convert slugs to icon URLs
+    // Badges
     badges:
-      msg.badges?.map((slug) => ({
+      user.badges?.map((slug) => ({
         icon: `https://cdn.velora.tv/badges/${slug}.png`,
         label: slug
       })) || [],
 
-    // Message content
-    html: sanitizeHtml(msg.message),
+    // Message content (Velora now sends HTML)
+    html: sanitizeHtml(data.content?.html || ""),
 
     // User flags
-    isMod: msg.isMod,
-    isVip: msg.isVip,
-    isSubscriber: msg.isSubscriber,
-    subscriberMonths: msg.subscriberMonths || 0,
+    isMod: user.roles?.mod || false,
+    isVip: user.roles?.vip || false,
+    isSubscriber: user.roles?.subscriber || false,
+    subscriberMonths: user.subscriberMonths || 0,
 
     // Accent color
-    color: msg.color || null
+    color: user.color || null
   };
-}
-
-/* ---------------------------------------------------------
-   ⭐ Transform Velora Events API messages
---------------------------------------------------------- */
-export function transformVeloraEvent(event, payload) {
-  if (!payload) return null;
-
-  const { data } = payload;
-
-  /* ---------------------------------------------------------
-     ⭐ Chat messages from Events API (chat.message)
-     These MUST match the chat WebSocket shape exactly.
-  --------------------------------------------------------- */
-  if (event === "chat.message") {
-    return {
-      type: "chat",
-      platform: "velora",
-
-      // Dedupe key
-      messageId: data.messageId,
-
-      // User identity
-      username: data.displayName || data.username,
-      avatar: data.avatarUrl || null,
-
-      // Badges
-      badges:
-        data.badges?.map((slug) => ({
-          icon: `https://cdn.velora.tv/badges/${slug}.png`,
-          label: slug
-        })) || [],
-
-      // Message content
-      html: sanitizeHtml(data.message),
-
-      // User flags
-      isMod: data.isMod,
-      isVip: data.isVip,
-      isSubscriber: data.isSubscriber,
-      subscriberMonths: data.subscriberMonths || 0,
-
-      // Accent color
-      color: data.color || null
-    };
-  }
-
-  /* ---------------------------------------------------------
-     ⭐ Channel Points Redemption (reward cards)
-  --------------------------------------------------------- */
-  if (event === "channel.channel_points_redemption") {
-    return {
-      type: "reward",
-      platform: "velora",
-
-      redemptionId: data.redemptionId,
-      rewardName: data.rewardTitle,
-      rewardIcon: data.rewardIcon || null,
-      rewardColor: data.rewardColor || null,
-      cardDesign: data.cardDesign || null,
-
-      username: data.displayName || data.username
-    };
-  }
-
-  return null;
 }
