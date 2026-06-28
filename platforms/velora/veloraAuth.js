@@ -1,18 +1,26 @@
-// veloraAuth.js
 import axios from "axios";
+import { loadStoredRefreshToken, storeRefreshToken } from "./veloraTokenStore.js";
 
 let accessToken = null;
 let refreshToken = null;
 let refreshPromise = null;
 
 export function initVeloraTokens() {
-  accessToken = process.env.VELORA_ACCESS_TOKEN || null;
+  // 1. Try persistent storage first
+  const stored = loadStoredRefreshToken();
+  if (stored) {
+    refreshToken = stored;
+    console.log("[VELORA] Loaded refresh token from file");
+    return;
+  }
+
+  // 2. Fallback to Railway env (first-time only)
   refreshToken = process.env.VELORA_REFRESH_TOKEN || null;
 
   if (refreshToken) {
     console.log("[VELORA] Loaded refresh token from env");
   } else {
-    console.warn("[VELORA] No refresh token found in env");
+    console.warn("[VELORA] No refresh token found");
   }
 }
 
@@ -26,7 +34,6 @@ export async function refreshVeloraToken() {
     return null;
   }
 
-  // ⭐ Prevent multiple simultaneous refreshes
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
@@ -51,6 +58,9 @@ export async function refreshVeloraToken() {
 
       accessToken = res.data.access_token;
       refreshToken = res.data.refresh_token;
+
+      // ⭐ Persist the new refresh token
+      storeRefreshToken(refreshToken);
 
       console.log("[VELORA] Token refresh successful");
       return accessToken;
