@@ -91,7 +91,7 @@ function handleBroadcast(payload) {
 }
 
 function initOverlay() {
-  // ⭐ Prevent duplicate WebSocket connections
+  // ⭐ THIS IS THE FIX — prevents double WebSocket connections
   if (window.__overlaySocketInitialized) {
     console.log("[Overlay] Socket already initialized — skipping duplicate");
     return;
