@@ -6,16 +6,19 @@ import { saveRefreshToken } from "./veloraTokenStore.js";
  * Refresh the Velora token using the refresh token.
  * Saves the new refresh token to disk.
  *
- * NOTE:
- * - No client_secret (Velora removed it)
- * - New endpoint: https://api.velora.live/oauth/token
- * - No auto-refresh on startup — only refresh when explicitly called
+ * Correct endpoint:
+ *   https://api.velora.tv/oauth/token
+ *
+ * PKCE rules:
+ * - No client_secret
+ * - Only client_id + refresh_token
+ * - No auto-refresh on startup (your platform code calls this manually)
  */
 export async function refreshVeloraToken(refreshToken) {
   try {
     console.log("[VELORA] Refreshing Velora token…");
 
-    const res = await axios.post("https://api.velora.live/oauth/token", {
+    const res = await axios.post("https://api.velora.tv/oauth/token", {
       grant_type: "refresh_token",
       refresh_token: refreshToken,
       client_id: process.env.VELORA_CLIENT_ID
