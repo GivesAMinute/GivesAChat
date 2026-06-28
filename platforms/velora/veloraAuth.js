@@ -10,11 +10,15 @@ export async function refreshVeloraToken(refreshToken) {
   try {
     console.log("[VELORA] Refreshing Velora token…");
 
-    const res = await axios.post("https://api.velora.live/oauth/token", {
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-      client_id: process.env.VELORA_CLIENT_ID
-    });
+    const res = await axios.post(
+      "https://api.velora.tv/api/developer/oauth/token",
+      {
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+        client_id: process.env.VELORA_CLIENT_ID,
+        client_secret: process.env.VELORA_CLIENT_SECRET
+      }
+    );
 
     const newRefresh = res.data.refresh_token;
     saveRefreshToken(newRefresh);
