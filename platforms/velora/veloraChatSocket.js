@@ -1,6 +1,9 @@
 // platforms/velora/veloraChatSocket.js
 import { io } from "socket.io-client";
-import { transformVeloraChatMessage, transformVeloraEvent } from "./veloraTransform.js";
+import {
+  transformVeloraChatMessage,
+  transformVeloraEvent
+} from "./veloraTransform.js";
 
 export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
   if (!accessToken) {
@@ -25,15 +28,20 @@ export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
       setTimeout(connectSocket, 3000);
     });
 
-    socket.onAny((event, payload) => {
-      // Chat messages
-      if (event === "newMessage") {
-        const msg = transformVeloraChatMessage(payload);
-        if (msg) onMessage(msg);
-        return;
-      }
+    // ---------------------------------------------------------
+    // ⭐ FIXED: Handle chat messages ONCE
+    // ---------------------------------------------------------
+    socket.on("newMessage", (payload) => {
+      const msg = transformVeloraChatMessage(payload);
+      if (msg) onMessage(msg);
+    });
 
-      // Rewards / Events
+    // ---------------------------------------------------------
+    // ⭐ Handle all other Velora events
+    // ---------------------------------------------------------
+    socket.onAny((event, payload) => {
+      if (event === "newMessage") return; // prevent double-processing
+
       const evt = transformVeloraEvent(event, payload);
       if (evt) onMessage(evt);
     });
