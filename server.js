@@ -25,18 +25,8 @@ app.use(express.static(path.join(__dirname, "public")));
 /* ---------------------------------------------------------
    ⭐ OVERLAY ROUTES (MATCHES YOUR REAL FOLDERS)
 --------------------------------------------------------- */
-const overlayRoot = path.join(__dirname, "overlay");
-
-// /overlay → redirect to /overlay/chat
-app.get("/overlay", (req, res) => {
-  res.redirect("/overlay/chat");
-});
-
-// Serve each overlay subfolder
-app.use("/overlay/chat", express.static(path.join(overlayRoot, "chat")));
-app.use("/overlay/tts", express.static(path.join(overlayRoot, "tts")));
-app.use("/overlay/events", express.static(path.join(overlayRoot, "events")));
-app.use("/overlay/shared", express.static(path.join(overlayRoot, "shared")));
+// Serve overlay directly from public/overlay
+app.use("/overlay", express.static(path.join(__dirname, "public/overlay")));
 
 /* ---------------------------------------------------------
    ROOT ROUTE
