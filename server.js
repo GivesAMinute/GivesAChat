@@ -18,17 +18,13 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 /* ---------------------------------------------------------
-   ⭐ STATIC ASSETS (icons, audio, tts output)
+   ⭐ STATIC ASSETS
 --------------------------------------------------------- */
 app.use(express.static(path.join(__dirname, "public")));
-
-/* ---------------------------------------------------------
-   ⭐ OVERLAY ROUTES (MATCHES YOUR REAL FOLDERS)
---------------------------------------------------------- */
 app.use("/overlay", express.static(path.join(__dirname, "public/overlay")));
 
 /* ---------------------------------------------------------
-   ⭐ HEALTHCHECK (Railway needs this to stop SIGTERM restarts)
+   ⭐ HEALTHCHECK (prevents Railway restart loops)
 --------------------------------------------------------- */
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
@@ -47,7 +43,7 @@ app.get("/", (req, res) => {
 const server = app.listen(8080, () => {
   console.log("[Backend] Running on port 8080");
 
-  // ⭐ LOCAL TEST MESSAGE — lets you verify double-up instantly
+  // Local test message
   broadcast({
     type: "chat",
     platform: "local",
@@ -64,13 +60,11 @@ wss.on("connection", (ws) => {
 });
 
 /* ---------------------------------------------------------
-   ⭐ BROADCAST HELPER (CRASH-PROOF)
+   ⭐ BROADCAST (safe + crash-proof)
 --------------------------------------------------------- */
 export function broadcast(payload) {
   try {
-    // Strip out any non‑serializable fields (functions, symbols, circular refs)
     const safe = JSON.parse(JSON.stringify(payload));
-
     const json = JSON.stringify(safe);
 
     wss.clients.forEach((client) => {
@@ -86,22 +80,24 @@ export function broadcast(payload) {
 --------------------------------------------------------- */
 async function init() {
   try {
-    // Blaze OAuth tokens (production only)
     globalThis.blazeAccessToken = process.env.BLAZE_ACCESS_TOKEN;
     globalThis.blazeRefreshToken = process.env.BLAZE_REFRESH_TOKEN;
 
-    // Blaze token refresh every 12 hours
     setInterval(refreshBlazeToken, 12 * 60 * 60 * 1000);
 
     // Start platforms
     startBlaze(broadcast);
     startYouTube(broadcast);
 
-    // ⭐ Correct Velora channel identifier (username resolves to channel)
-    startVeloraPlatform({
+    // ⭐ Velora platform (chat + events)
+    const veloraSockets = startVeloraPlatform({
       channelId: "GivesAMinute",
       broadcast
     });
+
+    // Store sockets globally for graceful shutdown
+    globalThis.veloraChatSocket = veloraSockets.chat;
+    globalThis.veloraEventsSocket = veloraSockets.events;
 
     console.log("[Backend] All platforms initialized");
   } catch (err) {
@@ -110,3 +106,33 @@ async function init() {
 }
 
 init();
+
+/* ---------------------------------------------------------
+   ⭐ GRACEFUL SHUTDOWN (fixes Railway SIGTERM kills)
+--------------------------------------------------------- */
+function gracefulShutdown() {
+  console.log("[Backend] Received SIGTERM — shutting down gracefully…");
+
+  try {
+    if (globalThis.veloraChatSocket) {
+      console.log("[Backend] Closing Velora chat socket…");
+      globalThis.veloraChatSocket.close();
+    }
+
+    if (globalThis.veloraEventsSocket) {
+      console.log("[Backend] Closing Velora events socket…");
+      globalThis.veloraEventsSocket.close();
+    }
+  } catch (err) {
+    console.error("[Backend] Error closing Velora sockets:", err);
+  }
+
+  // Allow final broadcasts to flush
+  setTimeout(() => {
+    console.log("[Backend] Shutdown complete");
+    process.exit(0);
+  }, 500);
+}
+
+process.on("SIGTERM", gracefulShutdown);
+process.on("SIGINT", gracefulShutdown);
