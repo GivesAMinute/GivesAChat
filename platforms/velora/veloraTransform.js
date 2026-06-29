@@ -1,15 +1,15 @@
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 
 /* ---------------------------------------------------------
-   ⭐ Velora badge map (REAL Velora icons)
+   ⭐ Velora badge map (REAL Velora icons — absolute URLs)
 --------------------------------------------------------- */
 const VELORA_BADGE_MAP = {
-  broadcaster: "/velora-badges/StreamerBroadcasterBadge.png",
-  moderator: "/velora-badges/ModeratorBadge.png",
-  vip: "/velora-badges/VIPBadge.png",
-  staff: "/velora-badges/StaffBadge.png",
-  founder: "/velora-badges/FounderBadge.png",
-  bot: "/velora-badges/BotBadge.png"
+  broadcaster: "https://velora.tv/velora-badges/StreamerBroadcasterBadge.png",
+  moderator: "https://velora.tv/velora-badges/ModeratorBadge.png",
+  vip: "https://velora.tv/velora-badges/VIPBadge.png",
+  staff: "https://velora.tv/velora-badges/StaffBadge.png",
+  founder: "https://velora.tv/velora-badges/FounderBadge.png",
+  bot: "https://velora.tv/velora-badges/BotBadge.png"
 };
 
 /* ---------------------------------------------------------
@@ -103,8 +103,9 @@ export function transformVeloraEvent(event, payload) {
 
         badges: Array.isArray(user.badges)
           ? user.badges.map((slug) => ({
-              icon: VELORA_BADGE_MAP[slug] ||
-                    `https://cdn.velora.tv/badges/${slug}.png`,
+              icon:
+                VELORA_BADGE_MAP[slug] ||
+                `https://cdn.velora.tv/badges/${slug}.png`,
               label: slug
             }))
           : [],
