@@ -25,7 +25,6 @@ app.use(express.static(path.join(__dirname, "public")));
 /* ---------------------------------------------------------
    ⭐ OVERLAY ROUTES (MATCHES YOUR REAL FOLDERS)
 --------------------------------------------------------- */
-// Serve overlay directly from public/overlay
 app.use("/overlay", express.static(path.join(__dirname, "public/overlay")));
 
 /* ---------------------------------------------------------
@@ -90,9 +89,9 @@ async function init() {
     startBlaze(broadcast);
     startYouTube(broadcast);
 
-    // ⭐ NEW: Start Velora with REAL channel ID
+    // ⭐ Correct Velora channel identifier (username resolves to channel)
     startVeloraPlatform({
-      channelId: "4f1cb975-eace-4650-8246-053007bd0036",
+      channelId: "GivesAMinute",
       broadcast
     });
 
