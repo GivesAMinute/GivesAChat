@@ -48,7 +48,7 @@ export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
     });
 
     /* ---------------------------------------------------------
-       ⭐ MESSAGE HANDLING (uses transform + dedupe)
+       ⭐ MESSAGE HANDLING (transform + dedupe)
     --------------------------------------------------------- */
     socket.on("newMessage", (payload) => {
       console.log("[VELORA RAW CHAT]", payload);
