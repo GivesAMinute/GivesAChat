@@ -5,38 +5,60 @@ import { sanitizeHtml } from "./sanitizeNodeHTML.js";
    Schema: https://api.velora.tv/chat
 --------------------------------------------------------- */
 export function transformVeloraChatMessage(msg) {
-  if (!msg) return null;
+  try {
+    if (!msg) return null;
 
-  return {
-    type: "chat",
-    platform: "velora",
+    // Velora Chat WS schema:
+    // {
+    //   id,
+    //   sender: { username, displayName, avatar, badges, channelRole, ... },
+    //   content: { text, html },
+    //   replyTo: { ... }
+    // }
 
-    // Dedupe key
-    messageId: msg.messageId,
+    const sender = msg.sender || {};
+    const content = msg.content || {};
 
-    // User identity
-    username: msg.displayName || msg.username,
-    avatar: msg.avatarUrl || null,
+    return {
+      type: "chat",
+      platform: "velora",
 
-    // Badges
-    badges:
-      msg.badges?.map((slug) => ({
-        icon: `https://cdn.velora.tv/badges/${slug}.png`,
-        label: slug
-      })) || [],
+      // Dedupe key
+      messageId: msg.id || msg.messageId || null,
 
-    // Message content (Chat WS uses plain text)
-    html: sanitizeHtml(msg.message || ""),
+      // User identity
+      username: sender.displayName || sender.username || null,
+      avatar: sender.avatarUrl || sender.avatar || null,
 
-    // User flags
-    isMod: msg.isMod || false,
-    isVip: msg.isVip || false,
-    isSubscriber: msg.isSubscriber || false,
-    subscriberMonths: msg.subscriberMonths || 0,
+      // Badges
+      badges: Array.isArray(sender.badges)
+        ? sender.badges.map((slug) => ({
+            icon: `https://cdn.velora.tv/badges/${slug}.png`,
+            label: slug
+          }))
+        : [],
 
-    // Accent color
-    color: msg.color || null
-  };
+      // Message content (Chat WS uses text or html)
+      html: sanitizeHtml(
+        content.html ||
+          content.text ||
+          msg.message || // fallback for older schema
+          ""
+      ),
+
+      // User flags (channelRole is authoritative)
+      isMod: sender.channelRole === "mod",
+      isVip: sender.channelRole === "vip",
+      isSubscriber: sender.channelRole === "subscriber",
+      subscriberMonths: sender.subscriberMonths || 0,
+
+      // Accent color
+      color: sender.color || null
+    };
+  } catch (err) {
+    console.error("[VELORA] transformVeloraChatMessage error:", err);
+    return null;
+  }
 }
 
 /* ---------------------------------------------------------
@@ -44,74 +66,78 @@ export function transformVeloraChatMessage(msg) {
    Schema: https://api.velora.tv/ws/events
 --------------------------------------------------------- */
 export function transformVeloraEvent(event, payload) {
-  if (!payload || !payload.data) return null;
+  try {
+    if (!payload || !payload.data) return null;
 
-  const data = payload.data;
-  const user = data.user || {};
+    const data = payload.data;
+    const user = data.user || {};
 
-  /* ---------------------------------------------------------
-     ⭐ Chat messages from Events API (chat.message)
-     These include stickers, sounds, celebrations, etc.
-  --------------------------------------------------------- */
-  if (event === "chat.message") {
-    return {
-      type: "chat",
-      platform: "velora",
+    /* ---------------------------------------------------------
+       ⭐ Chat messages from Events API (chat.message)
+       These include stickers, sounds, celebrations, etc.
+    --------------------------------------------------------- */
+    if (event === "chat.message") {
+      return {
+        type: "chat",
+        platform: "velora",
 
-      messageId: data.messageId,
-      username: user.displayName || user.username,
-      avatar: user.avatar || null,
+        messageId: data.messageId || data.id || null,
+        username: user.displayName || user.username || null,
+        avatar: user.avatar || null,
 
-      badges:
-        user.badges?.map((slug) => ({
-          icon: `https://cdn.velora.tv/badges/${slug}.png`,
-          label: slug
-        })) || [],
+        badges: Array.isArray(user.badges)
+          ? user.badges.map((slug) => ({
+              icon: `https://cdn.velora.tv/badges/${slug}.png`,
+              label: slug
+            }))
+          : [],
 
-      // Events API uses HTML content
-      html: sanitizeHtml(data.content?.html || ""),
+        // Events API uses HTML content
+        html: sanitizeHtml(data.content?.html || ""),
 
-      isMod: user.roles?.mod || false,
-      isVip: user.roles?.vip || false,
-      isSubscriber: user.roles?.subscriber || false,
-      subscriberMonths: user.subscriberMonths || 0,
+        isMod: user.roles?.mod || false,
+        isVip: user.roles?.vip || false,
+        isSubscriber: user.roles?.subscriber || false,
+        subscriberMonths: user.subscriberMonths || 0,
 
-      color: user.color || null,
+        color: user.color || null,
 
-      // Card messages (stickers, sounds, celebrations)
-      card: data.card || null
-    };
+        // Card messages (stickers, sounds, celebrations)
+        card: data.card || null
+      };
+    }
+
+    /* ---------------------------------------------------------
+       ⭐ Channel Points Redemption (reward cards)
+    --------------------------------------------------------- */
+    if (event === "channel.channel_points_redemption") {
+      return {
+        type: "reward",
+        platform: "velora",
+
+        redemptionId: data.redemptionId,
+        rewardName: data.rewardTitle,
+        rewardCost: data.rewardCost,
+        rewardId: data.rewardId,
+
+        username: user.displayName || user.username,
+        avatar: user.avatar || null,
+
+        userInput: data.userInput || null,
+        redeemedAt: data.redeemedAt || null,
+
+        rewardIcon: data.rewardIcon || null,
+        rewardColor: data.rewardColor || null,
+        cardDesign: data.cardDesign || null
+      };
+    }
+
+    /* ---------------------------------------------------------
+       ⭐ Other Events API events (subs, follows, raids, etc.)
+    --------------------------------------------------------- */
+    return null;
+  } catch (err) {
+    console.error("[VELORA] transformVeloraEvent error:", err);
+    return null;
   }
-
-  /* ---------------------------------------------------------
-     ⭐ Channel Points Redemption (reward cards)
-  --------------------------------------------------------- */
-  if (event === "channel.channel_points_redemption") {
-    return {
-      type: "reward",
-      platform: "velora",
-
-      redemptionId: data.redemptionId,
-      rewardName: data.rewardTitle,
-      rewardCost: data.rewardCost,
-      rewardId: data.rewardId,
-
-      username: user.displayName || user.username,
-      avatar: user.avatar || null,
-
-      userInput: data.userInput || null,
-      redeemedAt: data.redeemedAt || null,
-
-      // Optional card design fields
-      rewardIcon: data.rewardIcon || null,
-      rewardColor: data.rewardColor || null,
-      cardDesign: data.cardDesign || null
-    };
-  }
-
-  /* ---------------------------------------------------------
-     ⭐ Other Events API events (subs, follows, raids, etc.)
-     You can expand this later if needed.
-  --------------------------------------------------------- */
-  return null;
 }
