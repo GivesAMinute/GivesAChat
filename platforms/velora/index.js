@@ -8,6 +8,7 @@ import {
 import { refreshVeloraToken } from "./veloraAuth.js";
 import { startVeloraChatSocket } from "./veloraChatSocket.js";
 import { startVeloraEventsSocket } from "./veloraEventsSocket.js";
+import { loadVeloraEmotes } from "./veloraEmotes.js";
 
 export async function startVeloraPlatform({ channelId, broadcast }) {
   console.log("[VELORA] Initializing…");
@@ -37,14 +38,21 @@ export async function startVeloraPlatform({ channelId, broadcast }) {
     saveAccessToken(accessToken);
   }
 
-  // 4. Start Velora Chat WebSocket (newMessage)
+  // ⭐ 4. Load Velora emotes BEFORE starting sockets
+  try {
+    await loadVeloraEmotes(channelId);
+  } catch (err) {
+    console.error("[VELORA] Failed to load emotes:", err);
+  }
+
+  // 5. Start Velora Chat WebSocket (newMessage)
   startVeloraChatSocket({
     channelId,
     accessToken,
     onMessage: (msg) => broadcast(msg)
   });
 
-  // 5. Start Velora Events API WebSocket (event: "chat.message", subs, follows, raids, etc.)
+  // 6. Start Velora Events API WebSocket (event: "chat.message", subs, follows, raids, etc.)
   startVeloraEventsSocket({
     accessToken,
     onMessage: (msg) => broadcast(msg)
