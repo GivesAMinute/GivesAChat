@@ -1,7 +1,13 @@
 // platforms/velora/index.js
-import { loadRefreshToken, loadAccessToken, saveAccessToken } from "./veloraTokenStore.js";
+import {
+  loadRefreshToken,
+  loadAccessToken,
+  saveAccessToken
+} from "./veloraTokenStore.js";
+
 import { refreshVeloraToken } from "./veloraAuth.js";
 import { startVeloraChatSocket } from "./veloraChatSocket.js";
+import { startVeloraEventsSocket } from "./veloraEventsSocket.js";
 
 export async function startVeloraPlatform({ channelId, broadcast }) {
   console.log("[VELORA] Initializing…");
@@ -19,6 +25,7 @@ export async function startVeloraPlatform({ channelId, broadcast }) {
   // 3. If no access token exists, THEN refresh once
   if (!accessToken) {
     console.log("[VELORA] No access token found, refreshing once…");
+
     accessToken = await refreshVeloraToken(refreshToken);
 
     if (!accessToken) {
@@ -30,9 +37,15 @@ export async function startVeloraPlatform({ channelId, broadcast }) {
     saveAccessToken(accessToken);
   }
 
-  // 4. Start Velora chat socket
+  // 4. Start Velora Chat WebSocket (newMessage)
   startVeloraChatSocket({
     channelId,
+    accessToken,
+    onMessage: (msg) => broadcast(msg)
+  });
+
+  // 5. Start Velora Events API WebSocket (event: "chat.message", subs, follows, raids, etc.)
+  startVeloraEventsSocket({
     accessToken,
     onMessage: (msg) => broadcast(msg)
   });
