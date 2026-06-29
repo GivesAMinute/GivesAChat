@@ -1,12 +1,54 @@
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 
 /* ---------------------------------------------------------
+   ⭐ Velora badge map (REAL Velora icons)
+--------------------------------------------------------- */
+const VELORA_BADGE_MAP = {
+  broadcaster: "/velora-badges/StreamerBroadcasterBadge.png",
+  moderator: "/velora-badges/ModeratorBadge.png",
+  vip: "/velora-badges/VIPBadge.png",
+  staff: "/velora-badges/StaffBadge.png",
+  founder: "/velora-badges/FounderBadge.png",
+  bot: "/velora-badges/BotBadge.png"
+};
+
+/* ---------------------------------------------------------
    ⭐ Transform Velora Chat WebSocket messages (newMessage)
    Matches REAL payload shape from your logs.
 --------------------------------------------------------- */
 export function transformVeloraChatMessage(msg) {
   try {
     if (!msg) return null;
+
+    /* ---------------------------------------------------------
+       ⭐ Build badge list
+    --------------------------------------------------------- */
+    const badges = [];
+
+    // Slug badges (broadcaster, moderator, vip, etc.)
+    if (Array.isArray(msg.badges)) {
+      for (const slug of msg.badges) {
+        // Subscriber slug → handled separately
+        if (slug === "subscriber") continue;
+
+        const icon = VELORA_BADGE_MAP[slug];
+        if (icon) {
+          badges.push({
+            icon,
+            label: slug
+          });
+        }
+      }
+    }
+
+    // Subscriber badge (special object)
+    if (msg.subscriptionBadge?.staticAssetUrl) {
+      badges.push({
+        icon: msg.subscriptionBadge.staticAssetUrl,
+        label: msg.subscriptionBadge.label || "Subscriber",
+        months: msg.subscriptionBadge.tenureMonths || 0
+      });
+    }
 
     return {
       type: "chat",
@@ -19,22 +61,8 @@ export function transformVeloraChatMessage(msg) {
       username: msg.displayName || msg.username || "Unknown",
       avatar: msg.avatarUrl || null,
 
-      // Badges (Velora uses slugs)
-      badges: Array.isArray(msg.badges)
-        ? msg.badges.map((slug) => ({
-            icon: `https://cdn.velora.tv/badges/${slug}.png`,
-            label: slug
-          }))
-        : [],
-
-      // Subscriber badge (special case)
-      subscriberBadge: msg.subscriptionBadge
-        ? {
-            icon: msg.subscriptionBadge.staticAssetUrl || null,
-            label: msg.subscriptionBadge.label || null,
-            months: msg.subscriptionBadge.tenureMonths || 0
-          }
-        : null,
+      // All badges combined
+      badges,
 
       // Message content
       html: sanitizeHtml(msg.message || ""),
@@ -75,7 +103,8 @@ export function transformVeloraEvent(event, payload) {
 
         badges: Array.isArray(user.badges)
           ? user.badges.map((slug) => ({
-              icon: `https://cdn.velora.tv/badges/${slug}.png`,
+              icon: VELORA_BADGE_MAP[slug] ||
+                    `https://cdn.velora.tv/badges/${slug}.png`,
               label: slug
             }))
           : [],
