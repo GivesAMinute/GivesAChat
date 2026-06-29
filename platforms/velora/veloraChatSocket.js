@@ -13,42 +13,42 @@ export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
   }
 
   const connectSocket = () => {
-    const socket = io("https://api.velora.tv/chat", {
-      path: "/socket.io",
+    // ⭐ Correct Velora Chat WebSocket namespace
+    const socket = io("wss://api.velora.tv/chat", {
       transports: ["websocket"],
       auth: { token: accessToken }
     });
 
     socket.on("connect", () => {
-      console.log("[VELORA] Connected to Velora chat/events");
+      console.log("[VELORA] Connected to Velora chat");
       socket.emit("joinChannel", { channelId });
     });
 
     socket.on("connect_error", (err) => {
-      console.error("[VELORA] Connect error:", err.message);
+      console.error("[VELORA] Chat connect error:", err.message);
       setTimeout(connectSocket, 3000);
     });
 
-    // ---------------------------------------------------------
-    // ⭐ Chat WebSocket: newMessage → transform → dedupe → overlay
-    // ---------------------------------------------------------
+    /* ---------------------------------------------------------
+       ⭐ Chat WebSocket: newMessage → transform → dedupe → overlay
+    --------------------------------------------------------- */
     socket.on("newMessage", (payload) => {
       const msg = transformVeloraChatMessage(payload);
       if (msg) dedupeVeloraChat(msg, onMessage);
     });
 
-    // ---------------------------------------------------------
-    // ⭐ All other Velora chat-related events
-    // ---------------------------------------------------------
+    /* ---------------------------------------------------------
+       ⭐ Other chat-related events (rare but supported)
+    --------------------------------------------------------- */
     socket.onAny((event, payload) => {
-      if (event === "newMessage") return; // already handled above
+      if (event === "newMessage") return; // already handled
 
       const evt = transformVeloraEvent(event, payload);
       if (evt) onMessage(evt);
     });
 
     socket.on("disconnect", () => {
-      console.log("[VELORA] Disconnected");
+      console.log("[VELORA] Chat socket disconnected");
     });
   };
 
