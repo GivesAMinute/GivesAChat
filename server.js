@@ -90,9 +90,9 @@ async function init() {
     startBlaze(broadcast);
     startYouTube(broadcast);
 
-    // ⭐ NEW: Start Velora
+    // ⭐ NEW: Start Velora with REAL channel ID
     startVeloraPlatform({
-      channelId: "GivesAMinute",
+      channelId: "4f1cb975-eace-4650-8246-053007bd0036",
       broadcast
     });
 
