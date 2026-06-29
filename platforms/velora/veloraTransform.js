@@ -91,7 +91,7 @@ export function transformVeloraChatMessage(msg) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Transform Velora Events API messages (event: "chat.message")
+   ⭐ Transform Velora Events API messages
 --------------------------------------------------------- */
 export function transformVeloraEvent(event, payload) {
   try {
@@ -100,6 +100,7 @@ export function transformVeloraEvent(event, payload) {
     const data = payload.data;
     const user = data.user || {};
 
+    /* ----------------- Chat message ----------------- */
     if (event === "chat.message") {
       const htmlMessage = sanitizeHtml(
         replaceVeloraEmotes(data.content?.html || "")
@@ -135,6 +136,7 @@ export function transformVeloraEvent(event, payload) {
       };
     }
 
+    /* ----------------- Legacy channel points redemption ----------------- */
     if (event === "channel.channel_points_redemption") {
       return {
         type: "reward",
@@ -153,6 +155,46 @@ export function transformVeloraEvent(event, payload) {
 
         rewardIcon: data.rewardIcon || null,
         rewardColor: data.rewardColor || null,
+        cardDesign: data.cardDesign || null
+      };
+    }
+
+    /* ----------------- Points Celebration (new reward cards) ----------------- */
+    if (event === "pointsCelebration") {
+      const cd = data.cardDesign || {};
+      const bg = cd.background || {};
+      const iconCfg = cd.icon || {};
+
+      // Gradient colours
+      const gradientColors = Array.isArray(bg.colors) && bg.colors.length
+        ? bg.colors
+        : [bg.color || "#ff0055", "#0066ff"];
+
+      // Icon resolution priority
+      const rewardIcon =
+        iconCfg.customIconUrl ||
+        iconCfg.emoteUrl ||
+        data.itemIconUrl ||
+        null;
+
+      return {
+        type: "reward",
+        platform: "velora",
+
+        redemptionId: data.id,
+        rewardName: data.itemName,
+        rewardCost: data.cost,
+        rewardId: data.itemId,
+
+        username: data.displayName || data.username,
+        avatar: data.avatarUrl || null,
+
+        userInput: data.message || null,
+        redeemedAt: data.createdAt || null,
+
+        rewardIcon,
+        // Use first gradient colour as primary
+        rewardColor: gradientColors[0],
         cardDesign: data.cardDesign || null
       };
     }
