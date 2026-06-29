@@ -1,4 +1,5 @@
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
+import { getVeloraEmoteUrl } from "./veloraEmotes.js";
 
 /* ---------------------------------------------------------
    ⭐ Velora badge map (REAL Velora icons — absolute URLs)
@@ -13,22 +14,31 @@ const VELORA_BADGE_MAP = {
 };
 
 /* ---------------------------------------------------------
+   ⭐ Replace emote codes with <img> tags
+--------------------------------------------------------- */
+function replaceVeloraEmotes(text) {
+  if (!text) return "";
+
+  return text.replace(/\b([A-Za-z0-9]+)\b/g, (match) => {
+    const url = getVeloraEmoteUrl(match);
+    if (!url) return match;
+
+    return `<img class="velora-emote" src="${url}" alt="${match}">`;
+  });
+}
+
+/* ---------------------------------------------------------
    ⭐ Transform Velora Chat WebSocket messages (newMessage)
-   Matches REAL payload shape from your logs.
 --------------------------------------------------------- */
 export function transformVeloraChatMessage(msg) {
   try {
     if (!msg) return null;
 
-    /* ---------------------------------------------------------
-       ⭐ Build badge list
-    --------------------------------------------------------- */
     const badges = [];
 
     // Slug badges (broadcaster, moderator, vip, etc.)
     if (Array.isArray(msg.badges)) {
       for (const slug of msg.badges) {
-        // Subscriber slug → handled separately
         if (slug === "subscriber") continue;
 
         const icon = VELORA_BADGE_MAP[slug];
@@ -50,29 +60,28 @@ export function transformVeloraChatMessage(msg) {
       });
     }
 
+    // ⭐ Replace emotes inside message text
+    const htmlMessage = sanitizeHtml(
+      replaceVeloraEmotes(msg.message || "")
+    );
+
     return {
       type: "chat",
       platform: "velora",
 
-      // Dedupe key
       messageId: msg.id || msg.messageId || null,
 
-      // User identity
       username: msg.displayName || msg.username || "Unknown",
       avatar: msg.avatarUrl || null,
 
-      // All badges combined
       badges,
 
-      // Message content
-      html: sanitizeHtml(msg.message || ""),
+      html: htmlMessage,
 
-      // User flags
       isMod: msg.isModerator || false,
       isVip: msg.isVip || false,
       isSubscriber: msg.isSubscriber || false,
 
-      // Accent color
       color: msg.accentColor || null
     };
   } catch (err) {
@@ -83,7 +92,6 @@ export function transformVeloraChatMessage(msg) {
 
 /* ---------------------------------------------------------
    ⭐ Transform Velora Events API messages (event: "chat.message")
-   (unchanged — Events API uses a different schema)
 --------------------------------------------------------- */
 export function transformVeloraEvent(event, payload) {
   try {
@@ -93,6 +101,10 @@ export function transformVeloraEvent(event, payload) {
     const user = data.user || {};
 
     if (event === "chat.message") {
+      const htmlMessage = sanitizeHtml(
+        replaceVeloraEmotes(data.content?.html || "")
+      );
+
       return {
         type: "chat",
         platform: "velora",
@@ -110,7 +122,7 @@ export function transformVeloraEvent(event, payload) {
             }))
           : [],
 
-        html: sanitizeHtml(data.content?.html || ""),
+        html: htmlMessage,
 
         isMod: user.roles?.mod || false,
         isVip: user.roles?.vip || false,
@@ -123,9 +135,6 @@ export function transformVeloraEvent(event, payload) {
       };
     }
 
-    /* ---------------------------------------------------------
-       ⭐ Channel Points Redemption (reward cards)
-    --------------------------------------------------------- */
     if (event === "channel.channel_points_redemption") {
       return {
         type: "reward",
