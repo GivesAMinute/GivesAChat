@@ -2,6 +2,7 @@
 import _shared from "../shared/_shared.js";
 import { renderBlazeBadges } from "./badges/blaze/index.js";
 import { renderVeloraBadges } from "./badges/velora/index.js";
+import { renderVeloraRewardCard } from "./renderers/veloraRewardCard.js";
 import { colorForUsername } from "./utils/usernameColors.js";
 
 const MESSAGES_ID = "messages";
@@ -38,8 +39,28 @@ function setupSocket() {
 function handleBroadcast(payload) {
   const container = getMessagesContainer();
   if (!container) return;
+  if (!payload) return;
 
-  if (!payload || payload.type !== "chat") return;
+  /* ---------------------------------------------------------
+     ⭐ Velora Reward Cards (Channel Points / Volts)
+  --------------------------------------------------------- */
+  if (payload.type === "reward" && payload.platform === "velora") {
+    const card = renderVeloraRewardCard(payload);
+    container.appendChild(card);
+
+    // Fade-out after 15 seconds
+    setTimeout(() => {
+      card.classList.add("fade-out");
+      setTimeout(() => card.remove(), 800);
+    }, 15000);
+
+    return;
+  }
+
+  /* ---------------------------------------------------------
+     ⭐ Normal Chat Messages
+  --------------------------------------------------------- */
+  if (payload.type !== "chat") return;
 
   const el = document.createElement("div");
   el.className = "chat-message";
