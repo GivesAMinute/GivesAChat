@@ -2,7 +2,7 @@ import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 import { getVeloraEmoteUrl } from "./veloraEmotes.js";
 
 /* ---------------------------------------------------------
-   ⭐ Velora badge map (REAL Velora icons — absolute URLs)
+   ⭐ Velora badge map
 --------------------------------------------------------- */
 const VELORA_BADGE_MAP = {
   broadcaster: "https://velora.tv/velora-badges/StreamerBroadcasterBadge.png",
@@ -14,44 +14,76 @@ const VELORA_BADGE_MAP = {
 };
 
 /* ---------------------------------------------------------
-   ⭐ Replace emote codes with <img> tags
+   ⭐ Emote replacement
 --------------------------------------------------------- */
 function replaceVeloraEmotes(text) {
   if (!text) return "";
-
   return text.replace(/\b([A-Za-z0-9]+)\b/g, (match) => {
     const url = getVeloraEmoteUrl(match);
-    if (!url) return match;
-
-    return `<img class="velora-emote" src="${url}" alt="${match}">`;
+    return url ? `<img class="velora-emote" src="${url}" alt="${match}">` : match;
   });
 }
 
 /* ---------------------------------------------------------
-   ⭐ Transform Velora Chat WebSocket messages (newMessage)
+   ⭐ Transform Velora Chat WebSocket messages
 --------------------------------------------------------- */
 export function transformVeloraChatMessage(msg) {
   try {
     if (!msg) return null;
 
+    /* ---------------------------------------------------------
+       ⭐ Detect points-celebration inside chat metadata
+    --------------------------------------------------------- */
+    if (msg.metadata?.card?.type === "points-celebration") {
+      const payload = msg.metadata.card.payload;
+      const cd = payload.cardDesign || {};
+      const bg = cd.background || {};
+      const iconCfg = cd.icon || {};
+
+      const gradientColors = Array.isArray(bg.colors) && bg.colors.length
+        ? bg.colors
+        : [bg.color || "#ff0055", "#0066ff"];
+
+      const rewardIcon =
+        iconCfg.customIconUrl ||
+        iconCfg.emoteUrl ||
+        payload.itemIconUrl ||
+        null;
+
+      return {
+        type: "reward",
+        platform: "velora",
+
+        redemptionId: payload.id,
+        rewardName: payload.itemName,
+        rewardCost: payload.cost,
+        rewardId: payload.itemId,
+
+        username: payload.displayName || payload.username,
+        avatar: payload.avatarUrl || null,
+
+        userInput: payload.message || null,
+        redeemedAt: payload.createdAt || null,
+
+        rewardIcon,
+        rewardColor: gradientColors[0],
+        cardDesign: payload.cardDesign || null
+      };
+    }
+
+    /* ---------------------------------------------------------
+       ⭐ Normal chat message
+    --------------------------------------------------------- */
     const badges = [];
 
-    // Slug badges (broadcaster, moderator, vip, etc.)
     if (Array.isArray(msg.badges)) {
       for (const slug of msg.badges) {
         if (slug === "subscriber") continue;
-
         const icon = VELORA_BADGE_MAP[slug];
-        if (icon) {
-          badges.push({
-            icon,
-            label: slug
-          });
-        }
+        if (icon) badges.push({ icon, label: slug });
       }
     }
 
-    // Subscriber badge (special object)
     if (msg.subscriptionBadge?.staticAssetUrl) {
       badges.push({
         icon: msg.subscriptionBadge.staticAssetUrl,
@@ -60,7 +92,6 @@ export function transformVeloraChatMessage(msg) {
       });
     }
 
-    // ⭐ Replace emotes inside message text
     const htmlMessage = sanitizeHtml(
       replaceVeloraEmotes(msg.message || "")
     );
@@ -68,20 +99,14 @@ export function transformVeloraChatMessage(msg) {
     return {
       type: "chat",
       platform: "velora",
-
       messageId: msg.id || msg.messageId || null,
-
       username: msg.displayName || msg.username || "Unknown",
       avatar: msg.avatarUrl || null,
-
       badges,
-
       html: htmlMessage,
-
       isMod: msg.isModerator || false,
       isVip: msg.isVip || false,
       isSubscriber: msg.isSubscriber || false,
-
       color: msg.accentColor || null
     };
   } catch (err) {
@@ -109,30 +134,21 @@ export function transformVeloraEvent(event, payload) {
       return {
         type: "chat",
         platform: "velora",
-
         messageId: data.messageId || data.id || null,
         username: user.displayName || user.username || null,
         avatar: user.avatar || null,
-
         badges: Array.isArray(user.badges)
           ? user.badges.map((slug) => ({
-              icon:
-                VELORA_BADGE_MAP[slug] ||
-                `https://cdn.velora.tv/badges/${slug}.png`,
+              icon: VELORA_BADGE_MAP[slug] || `https://cdn.velora.tv/badges/${slug}.png`,
               label: slug
             }))
           : [],
-
         html: htmlMessage,
-
         isMod: user.roles?.mod || false,
         isVip: user.roles?.vip || false,
         isSubscriber: user.roles?.subscriber || false,
         subscriberMonths: user.subscriberMonths || 0,
-
-        color: user.color || null,
-
-        card: data.card || null
+        color: user.color || null
       };
     }
 
@@ -141,36 +157,30 @@ export function transformVeloraEvent(event, payload) {
       return {
         type: "reward",
         platform: "velora",
-
         redemptionId: data.redemptionId,
         rewardName: data.rewardTitle,
         rewardCost: data.rewardCost,
         rewardId: data.rewardId,
-
         username: user.displayName || user.username,
         avatar: user.avatar || null,
-
         userInput: data.userInput || null,
         redeemedAt: data.redeemedAt || null,
-
         rewardIcon: data.rewardIcon || null,
         rewardColor: data.rewardColor || null,
         cardDesign: data.cardDesign || null
       };
     }
 
-    /* ----------------- Points Celebration (new reward cards) ----------------- */
+    /* ----------------- Points Celebration (new cards) ----------------- */
     if (event === "pointsCelebration") {
       const cd = data.cardDesign || {};
       const bg = cd.background || {};
       const iconCfg = cd.icon || {};
 
-      // Gradient colours
       const gradientColors = Array.isArray(bg.colors) && bg.colors.length
         ? bg.colors
         : [bg.color || "#ff0055", "#0066ff"];
 
-      // Icon resolution priority
       const rewardIcon =
         iconCfg.customIconUrl ||
         iconCfg.emoteUrl ||
@@ -180,20 +190,15 @@ export function transformVeloraEvent(event, payload) {
       return {
         type: "reward",
         platform: "velora",
-
         redemptionId: data.id,
         rewardName: data.itemName,
         rewardCost: data.cost,
         rewardId: data.itemId,
-
         username: data.displayName || data.username,
         avatar: data.avatarUrl || null,
-
         userInput: data.message || null,
         redeemedAt: data.createdAt || null,
-
         rewardIcon,
-        // Use first gradient colour as primary
         rewardColor: gradientColors[0],
         cardDesign: data.cardDesign || null
       };
