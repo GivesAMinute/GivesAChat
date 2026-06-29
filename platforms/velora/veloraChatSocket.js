@@ -48,9 +48,12 @@ export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
     });
 
     /* ---------------------------------------------------------
-       ⭐ SAFE MESSAGE HANDLING
+       ⭐ SAFE MESSAGE HANDLING + RAW PAYLOAD LOG
     --------------------------------------------------------- */
     socket.on("newMessage", (payload) => {
+      // ⭐ THIS IS THE IMPORTANT LINE ⭐
+      console.log("[VELORA RAW CHAT]", JSON.stringify(payload, null, 2));
+
       try {
         const msg = transformVeloraChatMessage(payload);
         if (msg) dedupeVeloraChat(msg, onMessage);
@@ -86,12 +89,10 @@ export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
     socket.on("disconnect", (reason) => {
       console.log("[VELORA] Chat socket disconnected:", reason);
 
-      // Prevent Node from exiting
       try {
         socket.close();
       } catch {}
 
-      // Reconnect after short delay
       setTimeout(connectSocket, 3000);
     });
 
