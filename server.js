@@ -29,6 +29,13 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/overlay", express.static(path.join(__dirname, "public/overlay")));
 
 /* ---------------------------------------------------------
+   ⭐ HEALTHCHECK (Railway needs this to stop SIGTERM restarts)
+--------------------------------------------------------- */
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+/* ---------------------------------------------------------
    ROOT ROUTE
 --------------------------------------------------------- */
 app.get("/", (req, res) => {
