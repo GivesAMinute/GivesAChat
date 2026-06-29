@@ -28,7 +28,7 @@ export function transformVeloraChatMessage(msg) {
 
       // User identity
       username: sender.displayName || sender.username || null,
-      avatar: sender.avatarUrl || sender.avatar || null,
+      avatar: sender.avatar || sender.avatarUrl || null,
 
       // Badges
       badges: Array.isArray(sender.badges)
