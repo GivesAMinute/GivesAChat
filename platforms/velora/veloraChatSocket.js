@@ -48,11 +48,11 @@ export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
     });
 
     /* ---------------------------------------------------------
-       ⭐ SAFE MESSAGE HANDLING + RAW PAYLOAD LOG
+       ⭐ SAFE MESSAGE HANDLING + SAFE RAW LOG
     --------------------------------------------------------- */
     socket.on("newMessage", (payload) => {
-      // ⭐ THIS IS THE IMPORTANT LINE ⭐
-      console.log("[VELORA RAW CHAT]", JSON.stringify(payload, null, 2));
+      // ⭐ SAFE RAW LOG — cannot crash
+      console.log("[VELORA RAW CHAT]", payload);
 
       try {
         const msg = transformVeloraChatMessage(payload);
