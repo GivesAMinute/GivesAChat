@@ -64,13 +64,21 @@ wss.on("connection", (ws) => {
 });
 
 /* ---------------------------------------------------------
-   ⭐ BROADCAST HELPER
+   ⭐ BROADCAST HELPER (CRASH-PROOF)
 --------------------------------------------------------- */
 export function broadcast(payload) {
-  const json = JSON.stringify(payload);
-  wss.clients.forEach((client) => {
-    if (client.readyState === 1) client.send(json);
-  });
+  try {
+    // Strip out any non‑serializable fields (functions, symbols, circular refs)
+    const safe = JSON.parse(JSON.stringify(payload));
+
+    const json = JSON.stringify(safe);
+
+    wss.clients.forEach((client) => {
+      if (client.readyState === 1) client.send(json);
+    });
+  } catch (err) {
+    console.error("[Broadcast] Error serializing payload:", err);
+  }
 }
 
 /* ---------------------------------------------------------
