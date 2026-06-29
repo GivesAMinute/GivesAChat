@@ -2,22 +2,11 @@ import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 
 /* ---------------------------------------------------------
    ⭐ Transform Velora Chat WebSocket messages (newMessage)
-   Schema: https://api.velora.tv/chat
+   Matches REAL payload shape from your logs.
 --------------------------------------------------------- */
 export function transformVeloraChatMessage(msg) {
   try {
     if (!msg) return null;
-
-    // Velora Chat WS schema:
-    // {
-    //   id,
-    //   sender: { username, displayName, avatar, badges, channelRole, ... },
-    //   content: { text, html },
-    //   replyTo: { ... }
-    // }
-
-    const sender = msg.sender || {};
-    const content = msg.content || {};
 
     return {
       type: "chat",
@@ -27,33 +16,36 @@ export function transformVeloraChatMessage(msg) {
       messageId: msg.id || msg.messageId || null,
 
       // User identity
-      username: sender.displayName || sender.username || null,
-      avatar: sender.avatar || sender.avatarUrl || null,
+      username: msg.displayName || msg.username || "Unknown",
+      avatar: msg.avatarUrl || null,
 
-      // Badges
-      badges: Array.isArray(sender.badges)
-        ? sender.badges.map((slug) => ({
+      // Badges (Velora uses slugs)
+      badges: Array.isArray(msg.badges)
+        ? msg.badges.map((slug) => ({
             icon: `https://cdn.velora.tv/badges/${slug}.png`,
             label: slug
           }))
         : [],
 
-      // Message content (Chat WS uses text or html)
-      html: sanitizeHtml(
-        content.html ||
-          content.text ||
-          msg.message || // fallback for older schema
-          ""
-      ),
+      // Subscriber badge (special case)
+      subscriberBadge: msg.subscriptionBadge
+        ? {
+            icon: msg.subscriptionBadge.staticAssetUrl || null,
+            label: msg.subscriptionBadge.label || null,
+            months: msg.subscriptionBadge.tenureMonths || 0
+          }
+        : null,
 
-      // User flags (channelRole is authoritative)
-      isMod: sender.channelRole === "mod",
-      isVip: sender.channelRole === "vip",
-      isSubscriber: sender.channelRole === "subscriber",
-      subscriberMonths: sender.subscriberMonths || 0,
+      // Message content
+      html: sanitizeHtml(msg.message || ""),
+
+      // User flags
+      isMod: msg.isModerator || false,
+      isVip: msg.isVip || false,
+      isSubscriber: msg.isSubscriber || false,
 
       // Accent color
-      color: sender.color || null
+      color: msg.accentColor || null
     };
   } catch (err) {
     console.error("[VELORA] transformVeloraChatMessage error:", err);
@@ -63,7 +55,7 @@ export function transformVeloraChatMessage(msg) {
 
 /* ---------------------------------------------------------
    ⭐ Transform Velora Events API messages (event: "chat.message")
-   Schema: https://api.velora.tv/ws/events
+   (unchanged — Events API uses a different schema)
 --------------------------------------------------------- */
 export function transformVeloraEvent(event, payload) {
   try {
@@ -72,10 +64,6 @@ export function transformVeloraEvent(event, payload) {
     const data = payload.data;
     const user = data.user || {};
 
-    /* ---------------------------------------------------------
-       ⭐ Chat messages from Events API (chat.message)
-       These include stickers, sounds, celebrations, etc.
-    --------------------------------------------------------- */
     if (event === "chat.message") {
       return {
         type: "chat",
@@ -92,7 +80,6 @@ export function transformVeloraEvent(event, payload) {
             }))
           : [],
 
-        // Events API uses HTML content
         html: sanitizeHtml(data.content?.html || ""),
 
         isMod: user.roles?.mod || false,
@@ -102,7 +89,6 @@ export function transformVeloraEvent(event, payload) {
 
         color: user.color || null,
 
-        // Card messages (stickers, sounds, celebrations)
         card: data.card || null
       };
     }
@@ -132,9 +118,6 @@ export function transformVeloraEvent(event, payload) {
       };
     }
 
-    /* ---------------------------------------------------------
-       ⭐ Other Events API events (subs, follows, raids, etc.)
-    --------------------------------------------------------- */
     return null;
   } catch (err) {
     console.error("[VELORA] transformVeloraEvent error:", err);
