@@ -1,6 +1,7 @@
 // Corrected imports for public/overlay/chat structure
 import _shared from "../shared/_shared.js";
 import { renderBlazeBadges } from "./badges/blaze/index.js";
+import { renderVeloraBadges } from "./badges/velora/index.js";
 import { colorForUsername } from "./utils/usernameColors.js";
 
 const MESSAGES_ID = "messages";
@@ -53,8 +54,13 @@ function handleBroadcast(payload) {
     ? `<img class="inline-avatar" src="${payload.avatar}">`
     : "";
 
-  // Blaze badges
-  const badgesHTML = renderBlazeBadges(payload);
+  // Platform-specific badges
+  let badgesHTML = "";
+  if (payload.platform === "blaze") {
+    badgesHTML = renderBlazeBadges(payload);
+  } else if (payload.platform === "velora") {
+    badgesHTML = renderVeloraBadges(payload);
+  }
 
   // Build bubble
   el.innerHTML = `
@@ -91,7 +97,6 @@ function handleBroadcast(payload) {
 }
 
 function initOverlay() {
-  // ⭐ THIS IS THE FIX — prevents double WebSocket connections
   if (window.__overlaySocketInitialized) {
     console.log("[Overlay] Socket already initialized — skipping duplicate");
     return;
