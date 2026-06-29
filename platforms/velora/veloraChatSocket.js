@@ -13,42 +13,97 @@ export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
   }
 
   const connectSocket = () => {
-    // ⭐ Correct Velora Chat WebSocket namespace
-    const socket = io("wss://api.velora.tv/chat", {
-      transports: ["websocket"],
-      auth: { token: accessToken }
-    });
+    let socket;
 
+    try {
+      socket = io("wss://api.velora.tv/chat", {
+        transports: ["websocket"],
+        auth: { token: accessToken }
+      });
+    } catch (err) {
+      console.error("[VELORA] Chat socket init error:", err);
+      return setTimeout(connectSocket, 3000);
+    }
+
+    /* ---------------------------------------------------------
+       ⭐ CONNECT
+    --------------------------------------------------------- */
     socket.on("connect", () => {
       console.log("[VELORA] Connected to Velora chat");
-      socket.emit("joinChannel", { channelId });
+
+      try {
+        socket.emit("joinChannel", { channelId });
+      } catch (err) {
+        console.error("[VELORA] joinChannel error:", err);
+      }
     });
 
+    /* ---------------------------------------------------------
+       ⭐ CONNECT ERROR → RECONNECT
+    --------------------------------------------------------- */
     socket.on("connect_error", (err) => {
       console.error("[VELORA] Chat connect error:", err.message);
+      socket.close();
       setTimeout(connectSocket, 3000);
     });
 
     /* ---------------------------------------------------------
-       ⭐ Chat WebSocket: newMessage → transform → dedupe → overlay
+       ⭐ SAFE MESSAGE HANDLING
     --------------------------------------------------------- */
     socket.on("newMessage", (payload) => {
-      const msg = transformVeloraChatMessage(payload);
-      if (msg) dedupeVeloraChat(msg, onMessage);
+      try {
+        const msg = transformVeloraChatMessage(payload);
+        if (msg) dedupeVeloraChat(msg, onMessage);
+      } catch (err) {
+        console.error("[VELORA] newMessage handler error:", err);
+      }
     });
 
     /* ---------------------------------------------------------
-       ⭐ Other chat-related events (rare but supported)
+       ⭐ SAFE EVENT HANDLING
     --------------------------------------------------------- */
     socket.onAny((event, payload) => {
-      if (event === "newMessage") return; // already handled
+      if (event === "newMessage") return;
 
-      const evt = transformVeloraEvent(event, payload);
-      if (evt) onMessage(evt);
+      try {
+        const evt = transformVeloraEvent(event, payload);
+        if (evt) onMessage(evt);
+      } catch (err) {
+        console.error(`[VELORA] Event handler error (${event}):`, err);
+      }
     });
 
-    socket.on("disconnect", () => {
-      console.log("[VELORA] Chat socket disconnected");
+    /* ---------------------------------------------------------
+       ⭐ ERROR HANDLER (CRITICAL)
+    --------------------------------------------------------- */
+    socket.on("error", (err) => {
+      console.error("[VELORA] Chat socket error:", err);
+    });
+
+    /* ---------------------------------------------------------
+       ⭐ DISCONNECT → RECONNECT
+    --------------------------------------------------------- */
+    socket.on("disconnect", (reason) => {
+      console.log("[VELORA] Chat socket disconnected:", reason);
+
+      // Prevent Node from exiting
+      try {
+        socket.close();
+      } catch {}
+
+      // Reconnect after short delay
+      setTimeout(connectSocket, 3000);
+    });
+
+    /* ---------------------------------------------------------
+       ⭐ PING/PONG (Velora uses heartbeats)
+    --------------------------------------------------------- */
+    socket.on("ping", () => {
+      try {
+        socket.emit("pong");
+      } catch (err) {
+        console.error("[VELORA] pong error:", err);
+      }
     });
   };
 
