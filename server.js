@@ -48,7 +48,7 @@ app.get("/", (req, res) => {
 });
 
 /* ---------------------------------------------------------
-   ⭐ HTTP + WEBSOCKET SERVER (Railway FIXED)
+   ⭐ HTTP SERVER (Railway FIXED)
 --------------------------------------------------------- */
 const PORT = process.env.PORT || 8080;
 
@@ -64,11 +64,27 @@ const server = app.listen(PORT, () => {
   });
 });
 
-const wss = new WebSocketServer({ server });
+/* ---------------------------------------------------------
+   ⭐ WEBSOCKET SERVER (NOW ON /ws)
+--------------------------------------------------------- */
+const wss = new WebSocketServer({ noServer: true });
+
+server.on("upgrade", (req, socket, head) => {
+  if (req.url === "/ws") {
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit("connection", ws, req);
+    });
+  } else {
+    socket.destroy();
+  }
+});
 
 wss.on("connection", (ws) => {
   console.log("[WS] Overlay connected");
-  ws.on("close", () => console.log("[WS] Overlay disconnected"));
+
+  ws.on("close", () => {
+    console.log("[WS] Overlay disconnected");
+  });
 });
 
 /* ---------------------------------------------------------
