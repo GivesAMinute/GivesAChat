@@ -1,3 +1,14 @@
+/* ---------------------------------------------------------
+   ⭐ GLOBAL CRASH LOGGING (reveals silent Railway crashes)
+--------------------------------------------------------- */
+process.on("uncaughtException", (err) => {
+  console.error("❌ Uncaught Exception:", err);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error("❌ Unhandled Promise Rejection:", err);
+});
+
 import express from "express";
 import { WebSocketServer } from "ws";
 import path from "path";
@@ -8,8 +19,7 @@ import { startBlaze } from "./platforms/blaze/index.js";
 import { startYouTube } from "./platforms/youtube/index.js";
 import { startVeloraPlatform } from "./platforms/velora/index.js";
 
-// TTS + EVENTS (dummy for now)
-import { refreshBlazeToken } from "./platforms/blaze/blazeAuth.js";
+// TTS (dummy)
 import "./tts/engine.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -81,6 +91,8 @@ export function broadcast(payload) {
    ⭐ STARTUP (PLATFORMS + TOKENS)
 --------------------------------------------------------- */
 async function init() {
+  console.log("[Backend] init() starting…");
+
   try {
     globalThis.blazeAccessToken = process.env.BLAZE_ACCESS_TOKEN;
     globalThis.blazeRefreshToken = process.env.BLAZE_REFRESH_TOKEN;
@@ -105,6 +117,8 @@ async function init() {
   } catch (err) {
     console.error("❌ Fatal startup error:", err);
   }
+
+  console.log("[Backend] init() completed");
 }
 
 init();
