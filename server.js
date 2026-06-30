@@ -38,10 +38,12 @@ app.get("/", (req, res) => {
 });
 
 /* ---------------------------------------------------------
-   HTTP + WEBSOCKET SERVER
+   ⭐ HTTP + WEBSOCKET SERVER (Railway FIXED)
 --------------------------------------------------------- */
-const server = app.listen(8080, () => {
-  console.log("[Backend] Running on port 8080");
+const PORT = process.env.PORT || 8080;
+
+const server = app.listen(PORT, () => {
+  console.log(`[Backend] Running on port ${PORT}`);
 
   // Local test message
   broadcast({
