@@ -1,5 +1,5 @@
 // platforms/velora/veloraEventsSocket.js
-import WebSocket from "ws";
+import { io } from "socket.io-client";
 import { transformVeloraEvent } from "./veloraTransform.js";
 
 export function startVeloraEventsSocket({ accessToken, onMessage }) {
@@ -12,7 +12,10 @@ export function startVeloraEventsSocket({ accessToken, onMessage }) {
     let socket;
 
     try {
-      socket = new WebSocket(`wss://api.velora.tv/ws/events?token=${accessToken}`);
+      socket = io("wss://api.velora.tv/ws/events", {
+        transports: ["websocket"],
+        auth: { token: accessToken }
+      });
     } catch (err) {
       console.error("[VELORA] Events API init error:", err);
       return setTimeout(connectSocket, 3000);
@@ -21,40 +24,44 @@ export function startVeloraEventsSocket({ accessToken, onMessage }) {
     /* ---------------------------------------------------------
        ⭐ CONNECT
     --------------------------------------------------------- */
-    socket.on("open", () => {
-      console.log("[VELORA] Connected to Events API");
+    socket.on("connected", (data) => {
+      console.log("[VELORA] Connected to Events API:", data?.channelUsername);
     });
 
     /* ---------------------------------------------------------
-       ⭐ MESSAGE HANDLING (CORRECT)
+       ⭐ EVENT HANDLING (CORRECT)
     --------------------------------------------------------- */
-    socket.on("message", (raw) => {
+    socket.on("event", (payload) => {
       try {
-        const payload = JSON.parse(raw);
-
-        // Velora sends: { event: "pointsCelebration", data: {...} }
-        const { event, data } = payload;
-
-        const evt = transformVeloraEvent(event, data);
+        const evt = transformVeloraEvent(payload.event, payload.data);
         if (evt) onMessage(evt);
       } catch (err) {
-        console.error("[VELORA] Events API message error:", err);
+        console.error("[VELORA] Events API event handler error:", err);
       }
     });
 
     /* ---------------------------------------------------------
        ⭐ ERROR → RECONNECT
     --------------------------------------------------------- */
+    socket.on("connect_error", (err) => {
+      console.error("[VELORA] Events API connect error:", err.message);
+      try { socket.close(); } catch {}
+      setTimeout(connectSocket, 3000);
+    });
+
+    /* ---------------------------------------------------------
+       ⭐ ERROR HANDLER
+    --------------------------------------------------------- */
     socket.on("error", (err) => {
       console.error("[VELORA] Events API socket error:", err);
-      try { socket.close(); } catch {}
     });
 
     /* ---------------------------------------------------------
        ⭐ DISCONNECT → RECONNECT
     --------------------------------------------------------- */
-    socket.on("close", () => {
-      console.log("[VELORA] Events API disconnected");
+    socket.on("disconnect", (reason) => {
+      console.log("[VELORA] Events API disconnected:", reason);
+      try { socket.close(); } catch {}
       setTimeout(connectSocket, 3000);
     });
 
