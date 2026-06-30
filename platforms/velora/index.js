@@ -9,10 +9,11 @@ import { refreshVeloraToken } from "./veloraAuth.js";
 import { startVeloraChatSocket } from "./veloraChatSocket.js";
 import { startVeloraEventsSocket } from "./veloraEventsSocket.js";
 import { loadVeloraEmotes } from "./veloraEmotes.js";
+
 import {
   transformVeloraChatMessage,
   transformVeloraEvent
-} from "./veloraTransform.js"; // adjust filename if different
+} from "./veloraTransform.js"; // adjust path if needed
 
 export async function startVeloraPlatform({ channelId, broadcast }) {
   console.log("[VELORA] Initializing…");
@@ -49,7 +50,7 @@ export async function startVeloraPlatform({ channelId, broadcast }) {
     console.error("[VELORA] Failed to load emotes:", err);
   }
 
-  // 5. Start Velora Chat WebSocket (raw chat → transformed → broadcast)
+  // 5. Start Velora Chat WebSocket (newMessage)
   const chat = startVeloraChatSocket({
     channelId,
     accessToken,
@@ -59,7 +60,7 @@ export async function startVeloraPlatform({ channelId, broadcast }) {
     }
   });
 
-  // 6. Start Velora Events API WebSocket (chat.message + channel.channel_points_redemption)
+  // 6. Start Velora Events API WebSocket (event: "chat.message", subs, follows, raids, etc.)
   const events = startVeloraEventsSocket({
     accessToken,
     onMessage: (rawEvent) => {
@@ -71,6 +72,6 @@ export async function startVeloraPlatform({ channelId, broadcast }) {
 
   console.log("[VELORA] Platform started");
 
-  // ⭐ RETURN SOCKETS (for graceful shutdown)
+  // ⭐ RETURN SOCKETS (critical for graceful shutdown)
   return { chat, events };
 }
