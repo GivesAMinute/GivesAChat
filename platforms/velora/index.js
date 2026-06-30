@@ -40,14 +40,14 @@ export async function startVeloraPlatform({ channelId, broadcast }) {
     console.error("[VELORA] Failed to load emotes:", err);
   }
 
-  // ⭐ Chat socket ALREADY transforms messages internally
+  // ⭐ Chat socket transforms internally
   const chat = startVeloraChatSocket({
     channelId,
     accessToken,
     onMessage: (msg) => broadcast(msg)
   });
 
-  // ⭐ Events socket ALREADY transforms events internally
+  // ⭐ Events socket transforms internally (FIXED)
   const events = startVeloraEventsSocket({
     accessToken,
     onMessage: (msg) => broadcast(msg)
