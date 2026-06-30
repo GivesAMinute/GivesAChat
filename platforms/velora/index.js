@@ -17,7 +17,7 @@ export async function startVeloraPlatform({ channelId, broadcast }) {
   const refreshToken = loadRefreshToken();
   if (!refreshToken) {
     console.log("[VELORA] No refresh token available at startup");
-    return;
+    return { chat: null, events: null };
   }
 
   // 2. Try loading an existing access token first
@@ -31,7 +31,7 @@ export async function startVeloraPlatform({ channelId, broadcast }) {
 
     if (!accessToken) {
       console.log("[VELORA] Refresh failed, cannot connect.");
-      return;
+      return { chat: null, events: null };
     }
 
     // Save new access token so next restart does NOT refresh again
@@ -46,17 +46,20 @@ export async function startVeloraPlatform({ channelId, broadcast }) {
   }
 
   // 5. Start Velora Chat WebSocket (newMessage)
-  startVeloraChatSocket({
+  const chat = startVeloraChatSocket({
     channelId,
     accessToken,
     onMessage: (msg) => broadcast(msg)
   });
 
   // 6. Start Velora Events API WebSocket (event: "chat.message", subs, follows, raids, etc.)
-  startVeloraEventsSocket({
+  const events = startVeloraEventsSocket({
     accessToken,
     onMessage: (msg) => broadcast(msg)
   });
 
   console.log("[VELORA] Platform started");
+
+  // ⭐ RETURN SOCKETS (critical for graceful shutdown + stability)
+  return { chat, events };
 }
