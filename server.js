@@ -48,26 +48,28 @@ app.get("/", (req, res) => {
 });
 
 /* ---------------------------------------------------------
-   ⭐ HTTP + WEBSOCKET SERVER (Railpack)
+   ⭐ HTTP SERVER
 --------------------------------------------------------- */
 const PORT = process.env.PORT || 8080;
 
 const server = app.listen(PORT, () => {
   console.log(`[Backend] Running on port ${PORT}`);
-
-  // Local test message
-  broadcast({
-    type: "chat",
-    platform: "local",
-    username: "LocalTester",
-    html: "Hello from local test"
-  });
 });
 
 /* ---------------------------------------------------------
-   ⭐ WEBSOCKET SERVER (ROOT PATH — Railpack compatible)
+   ⭐ WEBSOCKET SERVER (REQUIRED FOR RAILPACK v0.30.0)
 --------------------------------------------------------- */
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ noServer: true });
+
+server.on("upgrade", (req, socket, head) => {
+  if (req.url === "/ws") {
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit("connection", ws, req);
+    });
+  } else {
+    socket.destroy();
+  }
+});
 
 wss.on("connection", (ws) => {
   console.log("[WS] Overlay connected");
@@ -78,7 +80,7 @@ wss.on("connection", (ws) => {
 });
 
 /* ---------------------------------------------------------
-   ⭐ BROADCAST (safe + crash-proof)
+   ⭐ BROADCAST
 --------------------------------------------------------- */
 export function broadcast(payload) {
   try {
@@ -94,7 +96,7 @@ export function broadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ STARTUP (PLATFORMS + TOKENS)
+   ⭐ STARTUP
 --------------------------------------------------------- */
 async function init() {
   console.log("[Backend] init() starting…");
@@ -105,11 +107,9 @@ async function init() {
 
     setInterval(refreshBlazeToken, 12 * 60 * 60 * 1000);
 
-    // Start platforms
     startBlaze(broadcast);
     startYouTube(broadcast);
 
-    // ⭐ Velora platform (chat + events)
     const veloraSockets = startVeloraPlatform({
       channelId: "GivesAMinute",
       broadcast
@@ -136,12 +136,10 @@ function gracefulShutdown() {
 
   try {
     if (globalThis.veloraChatSocket) {
-      console.log("[Backend] Closing Velora chat socket…");
       globalThis.veloraChatSocket.close();
     }
 
     if (globalThis.veloraEventsSocket) {
-      console.log("[Backend] Closing Velora events socket…");
       globalThis.veloraEventsSocket.close();
     }
   } catch (err) {
