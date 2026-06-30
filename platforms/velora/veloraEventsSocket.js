@@ -15,7 +15,6 @@ export function startVeloraEventsSocket({ accessToken, onMessage }) {
       socket = io("wss://api.velora.tv/ws/events", {
         transports: ["websocket"],
         auth: { token: accessToken }
-        // You may also use: query: { token: accessToken }
       });
     } catch (err) {
       console.error("[VELORA] Events API init error:", err);
@@ -23,20 +22,15 @@ export function startVeloraEventsSocket({ accessToken, onMessage }) {
     }
 
     /* ---------------------------------------------------------
-       ⭐ CONNECTED
+       ⭐ CONNECT
     --------------------------------------------------------- */
     socket.on("connected", (data) => {
       console.log("[VELORA] Connected to Events API:", data?.channelUsername);
     });
 
     /* ---------------------------------------------------------
-       ⭐ EVENT HANDLING
-       Velora always sends:
-       {
-         event: "pointsCelebration",
-         data: { ... },
-         timestamp: "..."
-       }
+       ⭐ EVENT HANDLING (FIXED)
+       Pass FULL payload, not payload.data
     --------------------------------------------------------- */
     socket.on("event", (payload) => {
       try {
