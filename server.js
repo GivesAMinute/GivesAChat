@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------
-   ⭐ GLOBAL CRASH LOGGING (reveals silent Railway crashes)
+   ⭐ GLOBAL CRASH LOGGING
 --------------------------------------------------------- */
 process.on("uncaughtException", (err) => {
   console.error("❌ Uncaught Exception:", err);
@@ -34,7 +34,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/overlay", express.static(path.join(__dirname, "public/overlay")));
 
 /* ---------------------------------------------------------
-   ⭐ HEALTHCHECK (prevents Railway restart loops)
+   ⭐ HEALTHCHECK
 --------------------------------------------------------- */
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
@@ -48,7 +48,7 @@ app.get("/", (req, res) => {
 });
 
 /* ---------------------------------------------------------
-   ⭐ HTTP SERVER (Railway FIXED)
+   ⭐ HTTP + WEBSOCKET SERVER (Railpack)
 --------------------------------------------------------- */
 const PORT = process.env.PORT || 8080;
 
@@ -65,19 +65,9 @@ const server = app.listen(PORT, () => {
 });
 
 /* ---------------------------------------------------------
-   ⭐ WEBSOCKET SERVER (NOW ON /ws)
+   ⭐ WEBSOCKET SERVER (ROOT PATH — Railpack compatible)
 --------------------------------------------------------- */
-const wss = new WebSocketServer({ noServer: true });
-
-server.on("upgrade", (req, socket, head) => {
-  if (req.url === "/ws") {
-    wss.handleUpgrade(req, socket, head, (ws) => {
-      wss.emit("connection", ws, req);
-    });
-  } else {
-    socket.destroy();
-  }
-});
+const wss = new WebSocketServer({ server });
 
 wss.on("connection", (ws) => {
   console.log("[WS] Overlay connected");
@@ -125,7 +115,6 @@ async function init() {
       broadcast
     });
 
-    // Store sockets globally for graceful shutdown
     globalThis.veloraChatSocket = veloraSockets.chat;
     globalThis.veloraEventsSocket = veloraSockets.events;
 
@@ -140,7 +129,7 @@ async function init() {
 init();
 
 /* ---------------------------------------------------------
-   ⭐ GRACEFUL SHUTDOWN (fixes Railway SIGTERM kills)
+   ⭐ GRACEFUL SHUTDOWN
 --------------------------------------------------------- */
 function gracefulShutdown() {
   console.log("[Backend] Received SIGTERM — shutting down gracefully…");
@@ -159,7 +148,6 @@ function gracefulShutdown() {
     console.error("[Backend] Error closing Velora sockets:", err);
   }
 
-  // Allow final broadcasts to flush
   setTimeout(() => {
     console.log("[Backend] Shutdown complete");
     process.exit(0);
