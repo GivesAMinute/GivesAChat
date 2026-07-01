@@ -6,7 +6,8 @@ import { transformVeloraEvent } from "./veloraTransform.js";
 /**
  * Velora Events WebSocket
  * Endpoint: wss://api.velora.tv/ws/events
- * Emits unified events: chat.message, channel_points_redemption, volts, subs, etc.
+ * Emits unified events: chat.message, channel_points_redemption,
+ * volts, subs, raids, stickers, celebrations, etc.
  */
 
 export function startVeloraEventsSocket({ onMessage }) {
@@ -15,7 +16,7 @@ export function startVeloraEventsSocket({ onMessage }) {
 
     const accessToken = await getVeloraAccessToken();
     if (!accessToken) {
-      console.error("[VELORA] Cannot connect events — no access token");
+      console.error("[VELORA] Cannot connect Events API — no access token");
       return setTimeout(connectSocket, 5000);
     }
 
@@ -24,16 +25,26 @@ export function startVeloraEventsSocket({ onMessage }) {
         transports: ["websocket"],
         auth: { token: accessToken }
       });
+
+      // ⭐ CRITICAL: Keep socket alive across GC + shutdown
+      globalThis.veloraEventsSocket = socket;
+
     } catch (err) {
       console.error("[VELORA] Events socket init error:", err);
       return setTimeout(connectSocket, 3000);
     }
 
+    /* ---------------------------------------------------------
+       ⭐ CONNECTED
+    --------------------------------------------------------- */
     socket.on("connected", (data) => {
       console.log("[VELORA] Connected to Events API");
       console.log("[VELORA] Channel:", data.channelUsername);
     });
 
+    /* ---------------------------------------------------------
+       ⭐ EVENT HANDLING
+    --------------------------------------------------------- */
     socket.on("event", async (payload) => {
       console.log(`[VELORA RAW EVENT] ${payload.event}`, payload);
 
@@ -45,10 +56,16 @@ export function startVeloraEventsSocket({ onMessage }) {
       }
     });
 
+    /* ---------------------------------------------------------
+       ⭐ ERROR
+    --------------------------------------------------------- */
     socket.on("error", (err) => {
       console.error("[VELORA] Events socket error:", err);
     });
 
+    /* ---------------------------------------------------------
+       ⭐ DISCONNECT → RECONNECT
+    --------------------------------------------------------- */
     socket.on("disconnect", async (reason) => {
       console.log("[VELORA] Events socket disconnected:", reason);
 
@@ -56,7 +73,9 @@ export function startVeloraEventsSocket({ onMessage }) {
         socket.close();
       } catch {}
 
+      // Refresh token before reconnect
       await getVeloraAccessToken();
+
       setTimeout(connectSocket, 3000);
     });
   };
