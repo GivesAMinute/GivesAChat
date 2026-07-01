@@ -16,6 +16,7 @@ console.log("[Backend] server.js starting…");
 
 let express, WebSocketServer, path, fileURLToPath;
 let startBlaze, startYouTube, startVeloraPlatform;
+let generateAuthorizationUrl, exchangeAuthCode;
 
 try {
   console.log("[Backend] Importing core modules…");
@@ -34,6 +35,7 @@ try {
   ({ startBlaze } = await import("./platforms/blaze/index.js"));
   ({ startYouTube } = await import("./platforms/youtube/index.js"));
   ({ startVeloraPlatform } = await import("./platforms/velora/index.js"));
+  ({ generateAuthorizationUrl, exchangeAuthCode } = await import("./platforms/velora/veloraAuth.js"));
   console.log("[Backend] Platform modules imported.");
 } catch (err) {
   console.error("❌ Fatal import error (platform modules):", err);
@@ -74,6 +76,42 @@ app.get("/health", (req, res) => {
 --------------------------------------------------------- */
 app.get("/", (req, res) => {
   res.send("GivesAChat backend is running");
+});
+
+/* ---------------------------------------------------------
+   ⭐ VELORA OAUTH ROUTES
+--------------------------------------------------------- */
+
+// Helper route to start Velora OAuth (optional)
+app.get("/velora/login", (req, res) => {
+  try {
+    const url = generateAuthorizationUrl();
+    res.redirect(url);
+  } catch (err) {
+    console.error("[VELORA] Error generating authorization URL:", err);
+    res.status(500).send("Failed to start Velora authorization");
+  }
+});
+
+// OAuth callback route (must match VELORA_REDIRECT_URI)
+app.get("/velora/callback", async (req, res) => {
+  const { code } = req.query;
+
+  if (!code) {
+    return res.status(400).send("Missing code");
+  }
+
+  try {
+    const accessToken = await exchangeAuthCode(code);
+    if (!accessToken) {
+      return res.status(500).send("Failed to authorize Velora");
+    }
+
+    res.send("Velora authorized. You can close this window.");
+  } catch (err) {
+    console.error("[VELORA] Error in callback:", err);
+    res.status(500).send("Velora callback error");
+  }
 });
 
 /* ---------------------------------------------------------
@@ -157,13 +195,10 @@ async function init() {
     startYouTube(broadcast);
 
     console.log("[Backend] Starting Velora…");
-    const veloraSockets = await startVeloraPlatform({
+    await startVeloraPlatform({
       channelId: "GivesAMinute",
-      broadcast
+      onMessage: broadcast
     });
-
-    globalThis.veloraChatSocket = veloraSockets.chat;
-    globalThis.veloraEventsSocket = veloraSockets.events;
 
     console.log("[Backend] All platforms initialized.");
   } catch (err) {

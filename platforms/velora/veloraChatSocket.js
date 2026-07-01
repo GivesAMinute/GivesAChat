@@ -8,24 +8,17 @@ import {
 import { dedupeVeloraChat } from "./veloraDedupe.js";
 
 /**
- * Velora Chat WebSocket (Client Credentials OAuth)
- *
- * - Fetches a fresh access token on startup
- * - Re-fetches token on reconnect
- * - Joins channel after connect
- * - Handles chat + events
- * - Dedupes messages
+ * Velora Chat WebSocket
+ * Namespace: wss://api.velora.tv/chat
  */
 
 export function startVeloraChatSocket({ channelId, onMessage }) {
   const connectSocket = async () => {
     let socket;
 
-    // Always fetch a fresh access token before connecting
     const accessToken = await getVeloraAccessToken();
-
     if (!accessToken) {
-      console.error("[VELORA] Cannot connect — no access token available");
+      console.error("[VELORA] Cannot connect chat — no access token");
       return setTimeout(connectSocket, 5000);
     }
 
@@ -39,9 +32,6 @@ export function startVeloraChatSocket({ channelId, onMessage }) {
       return setTimeout(connectSocket, 3000);
     }
 
-    /* ---------------------------------------------------------
-       ⭐ CONNECT
-    --------------------------------------------------------- */
     socket.on("connect", () => {
       console.log("[VELORA] Connected to Velora chat");
 
@@ -52,9 +42,6 @@ export function startVeloraChatSocket({ channelId, onMessage }) {
       }
     });
 
-    /* ---------------------------------------------------------
-       ⭐ CONNECT ERROR → RECONNECT
-    --------------------------------------------------------- */
     socket.on("connect_error", async (err) => {
       console.error("[VELORA] Chat connect error:", err.message);
 
@@ -62,15 +49,10 @@ export function startVeloraChatSocket({ channelId, onMessage }) {
         socket.close();
       } catch {}
 
-      // Fetch a new token on reconnect
       await getVeloraAccessToken();
-
       setTimeout(connectSocket, 3000);
     });
 
-    /* ---------------------------------------------------------
-       ⭐ CHAT MESSAGES
-    --------------------------------------------------------- */
     socket.on("newMessage", (payload) => {
       console.log("[VELORA RAW CHAT]", payload);
 
@@ -82,9 +64,6 @@ export function startVeloraChatSocket({ channelId, onMessage }) {
       }
     });
 
-    /* ---------------------------------------------------------
-       ⭐ EVENTS (non-chat)
-    --------------------------------------------------------- */
     socket.onAny((event, payload) => {
       if (event === "newMessage") return;
 
@@ -98,16 +77,10 @@ export function startVeloraChatSocket({ channelId, onMessage }) {
       }
     });
 
-    /* ---------------------------------------------------------
-       ⭐ ERROR HANDLER
-    --------------------------------------------------------- */
     socket.on("error", (err) => {
       console.error("[VELORA] Chat socket error:", err);
     });
 
-    /* ---------------------------------------------------------
-       ⭐ DISCONNECT → RECONNECT
-    --------------------------------------------------------- */
     socket.on("disconnect", async (reason) => {
       console.log("[VELORA] Chat socket disconnected:", reason);
 
@@ -115,15 +88,10 @@ export function startVeloraChatSocket({ channelId, onMessage }) {
         socket.close();
       } catch {}
 
-      // Fetch a new token before reconnecting
       await getVeloraAccessToken();
-
       setTimeout(connectSocket, 3000);
     });
 
-    /* ---------------------------------------------------------
-       ⭐ HEARTBEAT (Velora uses ping/pong)
-    --------------------------------------------------------- */
     socket.on("ping", () => {
       try {
         socket.emit("pong");
