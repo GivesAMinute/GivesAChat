@@ -9,29 +9,58 @@ process.on("unhandledRejection", (err) => {
   console.error("❌ Unhandled Promise Rejection:", err);
 });
 
-import express from "express";
-import { WebSocketServer } from "ws";
-import path from "path";
-import { fileURLToPath } from "url";
+/* ---------------------------------------------------------
+   ⭐ TOP‑LEVEL IMPORT CRASH DETECTOR
+--------------------------------------------------------- */
+console.log("[Backend] server.js starting…");
 
-// PLATFORM MODULES
-import { startBlaze } from "./platforms/blaze/index.js";
-import { startYouTube } from "./platforms/youtube/index.js";
-import { startVeloraPlatform } from "./platforms/velora/index.js";
+let express, WebSocketServer, path, fileURLToPath;
+let startBlaze, startYouTube, startVeloraPlatform;
 
-// TTS (dummy)
-import "./tts/engine.js";
+try {
+  console.log("[Backend] Importing core modules…");
+  express = (await import("express")).default;
+  ({ WebSocketServer } = await import("ws"));
+  path = (await import("path")).default;
+  ({ fileURLToPath } = await import("url"));
+  console.log("[Backend] Core modules imported.");
+} catch (err) {
+  console.error("❌ Fatal import error (core modules):", err);
+  process.exit(1);
+}
 
+try {
+  console.log("[Backend] Importing platform modules…");
+  ({ startBlaze } = await import("./platforms/blaze/index.js"));
+  ({ startYouTube } = await import("./platforms/youtube/index.js"));
+  ({ startVeloraPlatform } = await import("./platforms/velora/index.js"));
+  console.log("[Backend] Platform modules imported.");
+} catch (err) {
+  console.error("❌ Fatal import error (platform modules):", err);
+  process.exit(1);
+}
+
+try {
+  console.log("[Backend] Importing TTS engine…");
+  await import("./tts/engine.js");
+  console.log("[Backend] TTS engine imported.");
+} catch (err) {
+  console.error("❌ Fatal import error (TTS engine):", err);
+  process.exit(1);
+}
+
+/* ---------------------------------------------------------
+   ⭐ EXPRESS + STATIC FILES
+--------------------------------------------------------- */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 
-/* ---------------------------------------------------------
-   ⭐ STATIC ASSETS
---------------------------------------------------------- */
+console.log("[Backend] Setting up static assets…");
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/overlay", express.static(path.join(__dirname, "public/overlay")));
+console.log("[Backend] Static assets ready.");
 
 /* ---------------------------------------------------------
    ⭐ HEALTHCHECK
@@ -52,13 +81,15 @@ app.get("/", (req, res) => {
 --------------------------------------------------------- */
 const PORT = process.env.PORT || 8080;
 
+console.log("[Backend] Starting HTTP server…");
 const server = app.listen(PORT, () => {
   console.log(`[Backend] Running on port ${PORT}`);
 });
 
 /* ---------------------------------------------------------
-   ⭐ WEBSOCKET SERVER (REQUIRED FOR RAILPACK v0.30.0)
+   ⭐ WEBSOCKET SERVER (Railpack v0.30.0)
 --------------------------------------------------------- */
+console.log("[Backend] Setting up WebSocket server…");
 const wss = new WebSocketServer({ noServer: true });
 
 server.on("upgrade", (req, socket, head) => {
@@ -74,7 +105,6 @@ server.on("upgrade", (req, socket, head) => {
 wss.on("connection", (ws) => {
   console.log("[WS] Overlay connected");
 
-  // Send a guaranteed test message to this client
   try {
     ws.send(
       JSON.stringify({
@@ -110,22 +140,24 @@ export function broadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ STARTUP
+   ⭐ STARTUP (init)
 --------------------------------------------------------- */
 async function init() {
   console.log("[Backend] init() starting…");
 
   try {
+    console.log("[Backend] Loading Blaze tokens…");
     globalThis.blazeAccessToken = process.env.BLAZE_ACCESS_TOKEN;
     globalThis.blazeRefreshToken = process.env.BLAZE_REFRESH_TOKEN;
 
-    // Blaze token refresh disabled — function not implemented
-    // setInterval(refreshBlazeToken, 12 * 60 * 60 * 1000);
-
+    console.log("[Backend] Starting Blaze…");
     startBlaze(broadcast);
+
+    console.log("[Backend] Starting YouTube…");
     startYouTube(broadcast);
 
-    const veloraSockets = startVeloraPlatform({
+    console.log("[Backend] Starting Velora…");
+    const veloraSockets = await startVeloraPlatform({
       channelId: "GivesAMinute",
       broadcast
     });
@@ -133,15 +165,20 @@ async function init() {
     globalThis.veloraChatSocket = veloraSockets.chat;
     globalThis.veloraEventsSocket = veloraSockets.events;
 
-    console.log("[Backend] All platforms initialized");
+    console.log("[Backend] All platforms initialized.");
   } catch (err) {
-    console.error("❌ Fatal startup error:", err);
+    console.error("❌ Fatal startup error inside init():", err);
   }
 
-  console.log("[Backend] init() completed");
+  console.log("[Backend] init() completed.");
 }
 
-init();
+try {
+  console.log("[Backend] Calling init()…");
+  init();
+} catch (err) {
+  console.error("❌ Fatal error calling init():", err);
+}
 
 /* ---------------------------------------------------------
    ⭐ GRACEFUL SHUTDOWN
