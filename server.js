@@ -143,18 +143,7 @@ server.on("upgrade", (req, socket, head) => {
 wss.on("connection", (ws) => {
   console.log("[WS] Overlay connected");
 
-  try {
-    ws.send(
-      JSON.stringify({
-        type: "chat",
-        platform: "local",
-        username: "WSTester",
-        html: "WebSocket is connected and sending data"
-      })
-    );
-  } catch (err) {
-    console.error("[WS] Error sending test message:", err);
-  }
+  // Removed WSTester test message
 
   ws.on("close", () => {
     console.log("[WS] Overlay disconnected");
