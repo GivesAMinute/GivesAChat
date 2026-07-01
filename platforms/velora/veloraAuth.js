@@ -81,7 +81,7 @@ export function generateAuthorizationUrl() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ EXCHANGE AUTH CODE → TOKENS
+   ⭐ EXCHANGE AUTH CODE → BROADCASTER TOKENS
 --------------------------------------------------------- */
 export async function exchangeAuthCode(code) {
   const verifier = loadPkceVerifier();
@@ -92,7 +92,7 @@ export async function exchangeAuthCode(code) {
 
   try {
     const res = await axios.post(
-      "https://api.velora.tv/api/developer/oauth/token",
+      "https://api.velora.tv/api/oauth/token",   // ⭐ FIXED ENDPOINT
       {
         grant_type: "authorization_code",
         client_id: process.env.VELORA_CLIENT_ID,
@@ -116,7 +116,7 @@ export async function exchangeAuthCode(code) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ REFRESH TOKEN → ACCESS TOKEN
+   ⭐ REFRESH TOKEN → BROADCASTER ACCESS TOKEN
 --------------------------------------------------------- */
 export async function refreshVeloraToken() {
   const refreshToken = loadRefreshToken();
@@ -124,7 +124,7 @@ export async function refreshVeloraToken() {
 
   try {
     const res = await axios.post(
-      "https://api.velora.tv/api/developer/oauth/token",
+      "https://api.velora.tv/api/oauth/token",   // ⭐ FIXED ENDPOINT
       {
         grant_type: "refresh_token",
         refresh_token: refreshToken,
