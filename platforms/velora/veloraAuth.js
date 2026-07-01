@@ -77,7 +77,7 @@ export function generateAuthorizationUrl() {
     code_challenge_method: "S256"
   });
 
-  return `https://velora.tv/oauth/authorize?${params.toString()}`;
+  return `https://velora.tv/api/oauth/authorize?${params.toString()}`;
 }
 
 /* ---------------------------------------------------------
