@@ -20,7 +20,7 @@ function ensureDir() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ PKCE STORAGE (PERSISTENT)
+   ⭐ PKCE STORAGE
 --------------------------------------------------------- */
 function savePkceVerifier(verifier) {
   ensureDir();
@@ -77,8 +77,8 @@ export function generateAuthorizationUrl() {
     code_challenge_method: "S256"
   });
 
-  // ⭐ FIXED: broadcaster OAuth endpoint
-  return `https://velora.tv/api/oauth/authorize?${params.toString()}`;
+  // ⭐ Correct broadcaster authorize URL
+  return `https://velora.tv/oauth/authorize?${params.toString()}`;
 }
 
 /* ---------------------------------------------------------
@@ -93,7 +93,7 @@ export async function exchangeAuthCode(code) {
 
   try {
     const res = await axios.post(
-      "https://api.velora.tv/api/oauth/token",   // ⭐ FIXED ENDPOINT
+      "https://api.velora.tv/api/oauth/token",   // ⭐ Correct token endpoint
       {
         grant_type: "authorization_code",
         client_id: process.env.VELORA_CLIENT_ID,
@@ -125,7 +125,7 @@ export async function refreshVeloraToken() {
 
   try {
     const res = await axios.post(
-      "https://api.velora.tv/api/oauth/token",   // ⭐ FIXED ENDPOINT
+      "https://api.velora.tv/api/oauth/token",   // ⭐ Correct token endpoint
       {
         grant_type: "refresh_token",
         refresh_token: refreshToken,
