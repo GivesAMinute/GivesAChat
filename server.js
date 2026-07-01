@@ -119,7 +119,8 @@ async function init() {
     globalThis.blazeAccessToken = process.env.BLAZE_ACCESS_TOKEN;
     globalThis.blazeRefreshToken = process.env.BLAZE_REFRESH_TOKEN;
 
-    setInterval(refreshBlazeToken, 12 * 60 * 60 * 1000);
+    // Blaze token refresh disabled — function not implemented
+    // setInterval(refreshBlazeToken, 12 * 60 * 60 * 1000);
 
     startBlaze(broadcast);
     startYouTube(broadcast);
