@@ -5,7 +5,8 @@
 const _shared = {
   wsURL:
     (location.protocol === "https:" ? "wss://" : "ws://") +
-    location.host
+    location.host +
+    "/ws"
 };
 
 export default _shared;
