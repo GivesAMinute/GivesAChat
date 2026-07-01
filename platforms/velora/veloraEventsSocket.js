@@ -5,7 +5,7 @@ import { transformVeloraEvent } from "./veloraTransform.js";
 export function startVeloraEventsSocket({ accessToken, onMessage }) {
   if (!accessToken) {
     console.error("[VELORA] No access token provided to Events API");
-    return null;
+    return;
   }
 
   const connectSocket = () => {
@@ -25,12 +25,15 @@ export function startVeloraEventsSocket({ accessToken, onMessage }) {
        ⭐ CONNECT
     --------------------------------------------------------- */
     socket.on("connected", (data) => {
-      console.log("[VELORA] Connected to Events API:", data?.channelUsername);
+      try {
+        console.log("[VELORA] Connected to Events API:", data?.channelUsername);
+      } catch (err) {
+        console.error("[VELORA] Events API connected handler error:", err);
+      }
     });
 
     /* ---------------------------------------------------------
-       ⭐ EVENT HANDLING (FIXED)
-       Pass FULL payload, not payload.data
+       ⭐ EVENT HANDLING (SAFE)
     --------------------------------------------------------- */
     socket.on("event", (payload) => {
       try {
@@ -46,12 +49,14 @@ export function startVeloraEventsSocket({ accessToken, onMessage }) {
     --------------------------------------------------------- */
     socket.on("connect_error", (err) => {
       console.error("[VELORA] Events API connect error:", err.message);
-      try { socket.close(); } catch {}
+      try {
+        socket.close();
+      } catch {}
       setTimeout(connectSocket, 3000);
     });
 
     /* ---------------------------------------------------------
-       ⭐ ERROR HANDLER
+       ⭐ ERROR HANDLER (CRITICAL)
     --------------------------------------------------------- */
     socket.on("error", (err) => {
       console.error("[VELORA] Events API socket error:", err);
@@ -62,12 +67,25 @@ export function startVeloraEventsSocket({ accessToken, onMessage }) {
     --------------------------------------------------------- */
     socket.on("disconnect", (reason) => {
       console.log("[VELORA] Events API disconnected:", reason);
-      try { socket.close(); } catch {}
+
+      try {
+        socket.close();
+      } catch {}
+
       setTimeout(connectSocket, 3000);
     });
 
-    return socket;
+    /* ---------------------------------------------------------
+       ⭐ HEARTBEAT HANDLING
+    --------------------------------------------------------- */
+    socket.on("ping", () => {
+      try {
+        socket.emit("pong");
+      } catch (err) {
+        console.error("[VELORA] Events API pong error:", err);
+      }
+    });
   };
 
-  return connectSocket();
+  connectSocket();
 }
