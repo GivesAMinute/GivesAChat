@@ -82,7 +82,6 @@ app.get("/", (req, res) => {
    ⭐ VELORA OAUTH ROUTES
 --------------------------------------------------------- */
 
-// Helper route to start Velora OAuth (optional)
 app.get("/velora/login", (req, res) => {
   try {
     const url = generateAuthorizationUrl();
@@ -93,7 +92,6 @@ app.get("/velora/login", (req, res) => {
   }
 });
 
-// OAuth callback route (must match VELORA_REDIRECT_URI)
 app.get("/velora/callback", async (req, res) => {
   const { code } = req.query;
 
@@ -125,7 +123,7 @@ const server = app.listen(PORT, () => {
 });
 
 /* ---------------------------------------------------------
-   ⭐ WEBSOCKET SERVER (Railpack v0.30.0)
+   ⭐ WEBSOCKET SERVER (Overlay)
 --------------------------------------------------------- */
 console.log("[Backend] Setting up WebSocket server…");
 const wss = new WebSocketServer({ noServer: true });
@@ -142,8 +140,6 @@ server.on("upgrade", (req, socket, head) => {
 
 wss.on("connection", (ws) => {
   console.log("[WS] Overlay connected");
-
-  // Removed WSTester test message
 
   ws.on("close", () => {
     console.log("[WS] Overlay disconnected");
@@ -211,10 +207,6 @@ function gracefulShutdown() {
   console.log("[Backend] Received SIGTERM — shutting down gracefully…");
 
   try {
-    if (globalThis.veloraChatSocket) {
-      globalThis.veloraChatSocket.close();
-    }
-
     if (globalThis.veloraEventsSocket) {
       globalThis.veloraEventsSocket.close();
     }

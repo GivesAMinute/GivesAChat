@@ -1,13 +1,13 @@
 // platforms/velora/index.js
 import { getVeloraAccessToken } from "./veloraAuth.js";
-import { startVeloraChatSocket } from "./veloraChatSocket.js";
 import { startVeloraEventsSocket } from "./veloraEventsSocket.js";
 
 /**
  * Velora Platform Initialization
  *
- * - Ensures access token is available (auth or refresh)
- * - Starts chat + events sockets
+ * - Ensures access token is available
+ * - Starts Events API socket (chat + rewards + celebrations)
+ * - Chat socket removed (Events API replaces it)
  */
 
 export async function startVeloraPlatform({ channelId, onMessage }) {
@@ -20,17 +20,12 @@ export async function startVeloraPlatform({ channelId, onMessage }) {
     return;
   }
 
-  console.log("[VELORA] Access token ready — starting sockets…");
+  console.log("[VELORA] Access token ready — starting Events API socket…");
 
-  // Chat socket
-  startVeloraChatSocket({
-    channelId,
-    onMessage
-  });
-
-  // Events socket
+  // ⭐ Unified Velora Events API socket
+  // Provides: chat.message, channel points, subs, raids, volts, celebrations, stickers, etc.
   startVeloraEventsSocket({
-    onEvent: onMessage
+    onMessage
   });
 
   console.log("[VELORA] Velora platform started");

@@ -3,85 +3,82 @@ import axios from "axios";
 import { getVeloraAccessToken } from "./veloraAuth.js";
 
 /* ---------------------------------------------------------
-   ⭐ Emote Cache (in-memory)
+   ⭐ Emote dictionary (in-memory)
 --------------------------------------------------------- */
-const emoteCache = new Map();
+const emoteDict = new Map();
+let emotesLoaded = false;
 
 /* ---------------------------------------------------------
-   ⭐ Extract emote codes from message
-   Velora emotes use :CodeName: format
+   ⭐ Load global + channel emotes once
 --------------------------------------------------------- */
-export function extractVeloraEmoteCodes(message) {
-  if (!message) return [];
+async function loadVeloraEmotes() {
+  if (emotesLoaded) return;
+  emotesLoaded = true;
 
-  // Match :EmoteCode: patterns
-  const matches = message.match(/:[A-Za-z0-9_]+:/g);
-  if (!matches) return [];
-
-  // Remove surrounding colons → :poggers: → poggers
-  return matches.map((m) => m.replace(/:/g, ""));
-}
-
-/* ---------------------------------------------------------
-   ⭐ Resolve emote codes → URLs (with caching)
---------------------------------------------------------- */
-export async function resolveVeloraEmotes(codes) {
-  if (!codes || codes.length === 0) return {};
-
-  // Only request codes not already cached
-  const uncached = codes.filter((c) => !emoteCache.has(c));
-
-  if (uncached.length > 0) {
-    const token = await getVeloraAccessToken();
-    if (!token) {
-      console.error("[VELORA] Cannot resolve emotes — no access token");
-      return {};
-    }
-
-    try {
-      const url = `https://api.velora.tv/api/emotes/resolve?codes=${uncached.join(",")}`;
-
-      const res = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      // Store resolved URLs in cache
-      Object.entries(res.data).forEach(([code, url]) => {
-        emoteCache.set(code, url);
-      });
-    } catch (err) {
-      console.error("[VELORA] Emote resolve error:", err.response?.data || err);
-    }
+  const token = await getVeloraAccessToken();
+  if (!token) {
+    console.error("[VELORA] Cannot load emotes — no access token");
+    return;
   }
 
-  // Build final result from cache
-  const result = {};
-  codes.forEach((c) => {
-    if (emoteCache.has(c)) result[c] = emoteCache.get(c);
-  });
+  try {
+    const headers = { Authorization: `Bearer ${token}` };
 
-  return result;
+    // Global emotes
+    const globalRes = await axios.get(
+      "https://api.velora.tv/api/emotes/global",
+      { headers }
+    );
+
+    // Channel emotes (GivesAMinute)
+    const channelRes = await axios.get(
+      "https://api.velora.tv/api/emotes/channel/GivesAMinute",
+      { headers }
+    );
+
+    const all = []
+      .concat(globalRes.data?.emotes || globalRes.data || [])
+      .concat(channelRes.data?.emotes || channelRes.data || []);
+
+    for (const emote of all) {
+      const code = emote.code || emote.name || emote.slug;
+      const url =
+        emote.staticAssetUrl ||
+        emote.url ||
+        emote.imageUrl ||
+        emote.assetUrl;
+
+      if (!code || !url) continue;
+      emoteDict.set(code, url);
+    }
+
+    console.log(
+      `[VELORA] Loaded ${emoteDict.size} emotes (global + channel)`
+    );
+  } catch (err) {
+    console.error("[VELORA] Emote preload error:", err.response?.data || err);
+  }
 }
 
 /* ---------------------------------------------------------
-   ⭐ Replace emote codes with <img> tags
+   ⭐ Apply emotes to a plain-text message
+   Matches bare words against known emote codes
 --------------------------------------------------------- */
 export async function applyVeloraEmotes(message) {
   if (!message) return "";
 
-  const codes = extractVeloraEmoteCodes(message);
-  if (codes.length === 0) return message;
+  await loadVeloraEmotes();
 
-  const resolved = await resolveVeloraEmotes(codes);
+  const tokens = message.split(/(\s+)/); // keep spaces
+  const out = tokens.map((token) => {
+    const trimmed = token.trim();
+    if (!trimmed) return token;
 
-  let html = message;
+    const url = emoteDict.get(trimmed);
+    if (!url) return token;
 
-  for (const [code, url] of Object.entries(resolved)) {
-    const imgTag = `<img class="velora-emote" src="${url}" alt=":${code}:" />`;
+    return `<img class="velora-emote" src="${url}" alt="${trimmed}" />`;
+  });
 
-    // Replace all occurrences of :code:
-    html = html.replace(new RegExp(`:${code}:`, "g"), imgTag);
-  }
-
-  return html;
+  return out.join("");
 }
