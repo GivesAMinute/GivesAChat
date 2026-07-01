@@ -1,4 +1,3 @@
-// platforms/velora/veloraEventsSocket.js
 import { io } from "socket.io-client";
 import { transformVeloraEvent } from "./veloraTransform.js";
 
@@ -21,17 +20,10 @@ export function startVeloraEventsSocket({ accessToken, onMessage }) {
       return setTimeout(connectSocket, 3000);
     }
 
-    /* ---------------------------------------------------------
-       ⭐ CONNECT
-    --------------------------------------------------------- */
     socket.on("connected", (data) => {
       console.log("[VELORA] Connected to Events API:", data?.channelUsername);
     });
 
-    /* ---------------------------------------------------------
-       ⭐ EVENT HANDLING (FIXED)
-       Pass FULL payload, not payload.data
-    --------------------------------------------------------- */
     socket.on("event", (payload) => {
       try {
         const evt = transformVeloraEvent(payload.event, payload);
@@ -41,25 +33,16 @@ export function startVeloraEventsSocket({ accessToken, onMessage }) {
       }
     });
 
-    /* ---------------------------------------------------------
-       ⭐ CONNECT ERROR → RECONNECT
-    --------------------------------------------------------- */
     socket.on("connect_error", (err) => {
       console.error("[VELORA] Events API connect error:", err.message);
       try { socket.close(); } catch {}
       setTimeout(connectSocket, 3000);
     });
 
-    /* ---------------------------------------------------------
-       ⭐ ERROR HANDLER
-    --------------------------------------------------------- */
     socket.on("error", (err) => {
       console.error("[VELORA] Events API socket error:", err);
     });
 
-    /* ---------------------------------------------------------
-       ⭐ DISCONNECT → RECONNECT
-    --------------------------------------------------------- */
     socket.on("disconnect", (reason) => {
       console.log("[VELORA] Events API disconnected:", reason);
       try { socket.close(); } catch {}

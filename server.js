@@ -48,7 +48,7 @@ app.get("/", (req, res) => {
 });
 
 /* ---------------------------------------------------------
-   ⭐ HTTP SERVER
+   ⭐ HTTP + WEBSOCKET SERVER (ORIGINAL WORKING VERSION)
 --------------------------------------------------------- */
 const PORT = process.env.PORT || 8080;
 
@@ -56,20 +56,7 @@ const server = app.listen(PORT, () => {
   console.log(`[Backend] Running on port ${PORT}`);
 });
 
-/* ---------------------------------------------------------
-   ⭐ WEBSOCKET SERVER (REQUIRED FOR RAILPACK v0.30.0)
---------------------------------------------------------- */
-const wss = new WebSocketServer({ noServer: true });
-
-server.on("upgrade", (req, socket, head) => {
-  if (req.url === "/ws") {
-    wss.handleUpgrade(req, socket, head, (ws) => {
-      wss.emit("connection", ws, req);
-    });
-  } else {
-    socket.destroy();
-  }
-});
+const wss = new WebSocketServer({ server });
 
 wss.on("connection", (ws) => {
   console.log("[WS] Overlay connected");
@@ -80,7 +67,7 @@ wss.on("connection", (ws) => {
 });
 
 /* ---------------------------------------------------------
-   ⭐ BROADCAST
+   ⭐ BROADCAST (original)
 --------------------------------------------------------- */
 export function broadcast(payload) {
   try {
@@ -96,7 +83,7 @@ export function broadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ STARTUP
+   ⭐ STARTUP (original)
 --------------------------------------------------------- */
 async function init() {
   console.log("[Backend] init() starting…");
@@ -129,7 +116,7 @@ async function init() {
 init();
 
 /* ---------------------------------------------------------
-   ⭐ GRACEFUL SHUTDOWN
+   ⭐ GRACEFUL SHUTDOWN (original)
 --------------------------------------------------------- */
 function gracefulShutdown() {
   console.log("[Backend] Received SIGTERM — shutting down gracefully…");

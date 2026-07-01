@@ -1,4 +1,3 @@
-// platforms/velora/veloraChatSocket.js
 import { io } from "socket.io-client";
 import {
   transformVeloraChatMessage,
@@ -25,9 +24,6 @@ export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
       return setTimeout(connectSocket, 3000);
     }
 
-    /* ---------------------------------------------------------
-       ⭐ CONNECT
-    --------------------------------------------------------- */
     socket.on("connect", () => {
       console.log("[VELORA] Connected to Velora chat");
 
@@ -38,18 +34,12 @@ export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
       }
     });
 
-    /* ---------------------------------------------------------
-       ⭐ CONNECT ERROR → RECONNECT
-    --------------------------------------------------------- */
     socket.on("connect_error", (err) => {
       console.error("[VELORA] Chat connect error:", err.message);
       socket.close();
       setTimeout(connectSocket, 3000);
     });
 
-    /* ---------------------------------------------------------
-       ⭐ MESSAGE HANDLING (transform + dedupe)
-    --------------------------------------------------------- */
     socket.on("newMessage", (payload) => {
       console.log("[VELORA RAW CHAT]", payload);
 
@@ -61,9 +51,6 @@ export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
       }
     });
 
-    /* ---------------------------------------------------------
-       ⭐ EVENT HANDLING (Events API-style payloads)
-    --------------------------------------------------------- */
     socket.onAny((event, payload) => {
       if (event === "newMessage") return;
 
@@ -77,16 +64,10 @@ export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
       }
     });
 
-    /* ---------------------------------------------------------
-       ⭐ ERROR HANDLER
-    --------------------------------------------------------- */
     socket.on("error", (err) => {
       console.error("[VELORA] Chat socket error:", err);
     });
 
-    /* ---------------------------------------------------------
-       ⭐ DISCONNECT → RECONNECT
-    --------------------------------------------------------- */
     socket.on("disconnect", (reason) => {
       console.log("[VELORA] Chat socket disconnected:", reason);
 
@@ -97,9 +78,6 @@ export function startVeloraChatSocket({ channelId, accessToken, onMessage }) {
       setTimeout(connectSocket, 3000);
     });
 
-    /* ---------------------------------------------------------
-       ⭐ PING/PONG (heartbeats)
-    --------------------------------------------------------- */
     socket.on("ping", () => {
       try {
         socket.emit("pong");
