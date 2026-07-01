@@ -62,7 +62,7 @@ export function generatePkce() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ AUTHORIZATION URL (User must click)
+   ⭐ AUTHORIZATION URL (Broadcaster OAuth)
 --------------------------------------------------------- */
 export function generateAuthorizationUrl() {
   const { challenge } = generatePkce();
@@ -77,6 +77,7 @@ export function generateAuthorizationUrl() {
     code_challenge_method: "S256"
   });
 
+  // ⭐ FIXED: broadcaster OAuth endpoint
   return `https://velora.tv/api/oauth/authorize?${params.toString()}`;
 }
 
@@ -149,15 +150,12 @@ export async function refreshVeloraToken() {
    ⭐ MAIN ACCESS TOKEN ENTRYPOINT
 --------------------------------------------------------- */
 export async function getVeloraAccessToken() {
-  // 1. Try valid stored access token
   const existing = loadAccessToken();
   if (existing) return existing;
 
-  // 2. Try refresh token
   const refreshed = await refreshVeloraToken();
   if (refreshed) return refreshed;
 
-  // 3. No refresh token → user must authorize
   console.log("[VELORA] No refresh token — user must authorize Velora");
   console.log("[VELORA] Visit this URL to authorize:");
   console.log(generateAuthorizationUrl());
