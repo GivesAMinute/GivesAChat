@@ -71,7 +71,7 @@ export function generateAuthorizationUrl() {
     client_id: process.env.VELORA_CLIENT_ID,
     redirect_uri: process.env.VELORA_REDIRECT_URI,
     response_type: "code",
-    scope: "user:read stream:read chat:read chat:write chat:moderate",
+    scope: "user:read user:write stream:read stream:write stream:key chat:read chat:write chat:moderate bot:connect bot:write bot:commands channel:read channel:points:read channel:points:redeem emotes:read followers:read subscriptions:read webhooks:manage bot:manage",
     state: crypto.randomBytes(16).toString("hex"),
     code_challenge: challenge,
     code_challenge_method: "S256"
