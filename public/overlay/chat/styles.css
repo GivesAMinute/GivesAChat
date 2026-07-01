@@ -238,8 +238,20 @@ body {
 }
 
 /* ---------------------------------------------------------
-   ⭐ EMOTES
+   ⭐ EMOTES (UPDATED FOR VELORA)
 --------------------------------------------------------- */
+
+/* Velora emotes */
+.velora-emote {
+  height: 32px;
+  max-height: 32px;
+  vertical-align: middle;
+  display: inline-block;
+  margin: 0 2px;
+  object-fit: contain;
+}
+
+/* Legacy chat-image support */
 .bubble img.chat-image {
   width: 64px;
   height: 64px;
@@ -247,7 +259,7 @@ body {
   vertical-align: middle;
 }
 
-.bubble img:not(.chat-image) {
+.bubble img:not(.chat-image):not(.velora-emote) {
   max-height: 80px;
 }
 

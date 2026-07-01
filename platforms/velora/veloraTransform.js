@@ -1,5 +1,5 @@
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
-import { getVeloraEmoteUrl } from "./veloraEmotes.js";
+import { applyVeloraEmotes } from "./veloraEmotes.js";
 
 /* ---------------------------------------------------------
    ⭐ Velora badge map
@@ -14,25 +14,14 @@ const VELORA_BADGE_MAP = {
 };
 
 /* ---------------------------------------------------------
-   ⭐ Emote replacement
---------------------------------------------------------- */
-function replaceVeloraEmotes(text) {
-  if (!text) return "";
-  return text.replace(/\b([A-Za-z0-9]+)\b/g, (match) => {
-    const url = getVeloraEmoteUrl(match);
-    return url ? `<img class="velora-emote" src="${url}" alt="${match}">` : match;
-  });
-}
-
-/* ---------------------------------------------------------
    ⭐ Transform Velora Chat WebSocket messages
 --------------------------------------------------------- */
-export function transformVeloraChatMessage(msg) {
+export async function transformVeloraChatMessage(msg) {
   try {
     if (!msg) return null;
 
     /* ---------------------------------------------------------
-       ⭐ Detect points-celebration inside chat metadata
+       ⭐ Points Celebration inside WebSocket metadata
     --------------------------------------------------------- */
     if (msg.metadata?.card?.type === "points-celebration") {
       const payload = msg.metadata.card.payload;
@@ -92,8 +81,11 @@ export function transformVeloraChatMessage(msg) {
       });
     }
 
+    /* ---------------------------------------------------------
+       ⭐ Apply real Velora emotes (async)
+    --------------------------------------------------------- */
     const htmlMessage = sanitizeHtml(
-      replaceVeloraEmotes(msg.message || "")
+      await applyVeloraEmotes(msg.message || "")
     );
 
     return {
@@ -118,7 +110,7 @@ export function transformVeloraChatMessage(msg) {
 /* ---------------------------------------------------------
    ⭐ Transform Velora Events API messages
 --------------------------------------------------------- */
-export function transformVeloraEvent(event, payload) {
+export async function transformVeloraEvent(event, payload) {
   try {
     if (!payload || !payload.data) return null;
 
@@ -128,7 +120,7 @@ export function transformVeloraEvent(event, payload) {
     /* ----------------- Chat message ----------------- */
     if (event === "chat.message") {
       const htmlMessage = sanitizeHtml(
-        replaceVeloraEmotes(data.content?.html || "")
+        await applyVeloraEmotes(data.content?.html || "")
       );
 
       return {
@@ -139,7 +131,8 @@ export function transformVeloraEvent(event, payload) {
         avatar: user.avatar || null,
         badges: Array.isArray(user.badges)
           ? user.badges.map((slug) => ({
-              icon: VELORA_BADGE_MAP[slug] || `https://cdn.velora.tv/badges/${slug}.png`,
+              icon: VELORA_BADGE_MAP[slug] ||
+                `https://cdn.velora.tv/badges/${slug}.png`,
               label: slug
             }))
           : [],
