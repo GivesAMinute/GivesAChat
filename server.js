@@ -151,13 +151,14 @@ wss.on("connection", (ws) => {
 --------------------------------------------------------- */
 export function broadcast(payload) {
   try {
-    const safe = JSON.parse(JSON.stringify(payload));
-    const json = JSON.stringify(safe);
+    const json = JSON.stringify(payload);
 
-    console.log("[Broadcast] Sending to overlay:", safe);
+    console.log("[Broadcast] Sending to overlay:", payload);
 
     wss.clients.forEach((client) => {
-      if (client.readyState === 1) client.send(json);
+      if (client.readyState === 1) {
+        client.send(json);
+      }
     });
   } catch (err) {
     console.error("[Broadcast] Error serializing payload:", err);
