@@ -16,13 +16,15 @@ export async function startVeloraPlatform({ channelId, onMessage }) {
 
   startVeloraEventsSocket({
     onMessage: (event) => {
-      const d = event?.data;
+      // ⭐ Ensure this is a chat message
+      if (event.event !== "chat.message") return;
+
+      const d = event.data;
       if (!d) return;
 
-      // ⭐ Only send what the overlay expects
+      // ⭐ Overlay-compatible message format
       onMessage({
         platform: "velora",
-
         username: d.displayName,
         message: d.message,
         avatar: d.avatarUrl,
