@@ -1,13 +1,7 @@
 // platforms/velora/veloraEventsSocket.js
 import { io } from "socket.io-client";
 import { getVeloraAccessToken } from "./veloraAuth.js";
-
-/**
- * Velora Events WebSocket
- * Endpoint: wss://api.velora.tv/ws/events
- * Emits unified events: chat.message, channel_points_redemption,
- * volts, subs, raids, stickers, celebrations, etc.
- */
+import { escapeHTML } from "./escapeHTML.js";
 
 export function startVeloraEventsSocket({ onMessage }) {
   const connectSocket = async () => {
@@ -25,7 +19,6 @@ export function startVeloraEventsSocket({ onMessage }) {
         auth: { token: accessToken }
       });
 
-      // Keep socket alive globally
       globalThis.veloraEventsSocket = socket;
 
     } catch (err) {
@@ -33,30 +26,23 @@ export function startVeloraEventsSocket({ onMessage }) {
       return setTimeout(connectSocket, 3000);
     }
 
-    /* ---------------------------------------------------------
-       ⭐ CONNECTED
-    --------------------------------------------------------- */
     socket.on("connected", (data) => {
       console.log("[VELORA] Connected to Events API");
       console.log("[VELORA] Channel:", data.channelUsername);
     });
 
-    /* ---------------------------------------------------------
-       ⭐ EVENT HANDLING
-    --------------------------------------------------------- */
     socket.on("event", async (payload) => {
       console.log(`[VELORA RAW EVENT] ${payload.event}`, payload);
 
-      // ⭐ Handle chat messages directly (overlay format)
       if (payload.event === "chat.message") {
         const d = payload.data;
 
         const msg = {
-          type: "chat",                       // ⭐ REQUIRED FOR OVERLAY
+          type: "chat",
           platform: "velora",
 
-          username: d.displayName,            // overlay uses payload.username
-          html: d.message,                    // overlay uses payload.html
+          username: d.displayName,
+          html: escapeHTML(d.message),
           avatar: d.avatarUrl,
 
           badges: d.badges || [],
@@ -71,27 +57,11 @@ export function startVeloraEventsSocket({ onMessage }) {
         console.log("[VELORA → OVERLAY CHAT]", msg);
         return onMessage(msg);
       }
-
-      // ⭐ Ignore other events for now (reward cards handled elsewhere)
     });
 
-    /* ---------------------------------------------------------
-       ⭐ ERROR
-    --------------------------------------------------------- */
-    socket.on("error", (err) => {
-      console.error("[VELORA] Events socket error:", err);
-    });
-
-    /* ---------------------------------------------------------
-       ⭐ DISCONNECT → RECONNECT
-    --------------------------------------------------------- */
     socket.on("disconnect", async (reason) => {
       console.log("[VELORA] Events socket disconnected:", reason);
-
-      try {
-        socket.close();
-      } catch {}
-
+      try { socket.close(); } catch {}
       await getVeloraAccessToken();
       setTimeout(connectSocket, 3000);
     });
