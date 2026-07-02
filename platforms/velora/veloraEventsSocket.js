@@ -3,13 +3,6 @@ import { io } from "socket.io-client";
 import { getVeloraAccessToken } from "./veloraAuth.js";
 import { transformVeloraEvent } from "./veloraTransform.js";
 
-/**
- * Velora Events WebSocket
- * Endpoint: wss://api.velora.tv/ws/events
- * Emits unified events: chat.message, channel_points_redemption,
- * volts, subs, raids, stickers, celebrations, etc.
- */
-
 export function startVeloraEventsSocket({ onMessage }) {
   const connectSocket = async () => {
     let socket;
@@ -26,7 +19,6 @@ export function startVeloraEventsSocket({ onMessage }) {
         auth: { token: accessToken }
       });
 
-      // ⭐ CRITICAL: Keep socket alive across GC + shutdown
       globalThis.veloraEventsSocket = socket;
 
     } catch (err) {
@@ -48,6 +40,30 @@ export function startVeloraEventsSocket({ onMessage }) {
     socket.on("event", async (payload) => {
       console.log(`[VELORA RAW EVENT] ${payload.event}`, payload);
 
+      // ⭐ Handle chat messages directly (overlay format)
+      if (payload.event === "chat.message") {
+        const d = payload.data;
+
+        const msg = {
+          platform: "velora",
+          username: d.displayName,
+          message: d.message,
+          avatar: d.avatarUrl,
+
+          badges: d.badges || [],
+          subscriptionBadge: d.subscriptionBadge || null,
+
+          isModerator: d.isModerator || false,
+          isVip: d.isVip || false,
+          isSubscriber: d.isSubscriber || false,
+          role: d.role || null
+        };
+
+        console.log("[VELORA → OVERLAY CHAT]", msg);
+        return onMessage(msg);
+      }
+
+      // ⭐ All other Velora events
       try {
         const evt = await transformVeloraEvent(payload.event, payload);
         if (evt) onMessage(evt);
@@ -73,9 +89,7 @@ export function startVeloraEventsSocket({ onMessage }) {
         socket.close();
       } catch {}
 
-      // Refresh token before reconnect
       await getVeloraAccessToken();
-
       setTimeout(connectSocket, 3000);
     });
   };
