@@ -1,30 +1,30 @@
-// overlay/chat/badges/velora/index.js
+// public/badges/velora/index.js
 
 export function renderVeloraBadges(msg) {
   let out = "";
 
   // ---------------------------------------------------------
-  // ⭐ 1. Subscription badge (Velora sends full URL)
+  // ⭐ 1. Subscriber badge (Velora dynamic URL)
   // ---------------------------------------------------------
   if (msg.subscriptionBadge?.staticAssetUrl) {
-    const url = msg.subscriptionBadge.staticAssetUrl;
-    const label = msg.subscriptionBadge.label || "Subscriber";
-
     out += `
       <span class="tooltip-wrapper">
-        <img class="velora-badge" src="${url}" alt="${label}" title="${label}">
+        <img class="velora-badge"
+             src="${msg.subscriptionBadge.staticAssetUrl}"
+             alt="${msg.subscriptionBadge.label}"
+             title="${msg.subscriptionBadge.label}">
       </span>
     `;
   }
 
   // ---------------------------------------------------------
-  // ⭐ 2. Broadcaster badge (Velora does NOT send an icon)
+  // ⭐ 2. Broadcaster badge
   // ---------------------------------------------------------
   if (msg.badges?.includes("broadcaster")) {
     out += `
       <span class="tooltip-wrapper">
         <img class="velora-badge"
-             src="/velora-badges/StreamerBroadcasterBadge.png"
+             src="/badges/velora/StreamerBroadcasterBadge.png"
              alt="Broadcaster"
              title="Broadcaster">
       </span>
@@ -32,28 +32,13 @@ export function renderVeloraBadges(msg) {
   }
 
   // ---------------------------------------------------------
-  // ⭐ 3. Subscriber badge (string badge, no icon)
+  // ⭐ 3. Moderator badge
   // ---------------------------------------------------------
-  if (msg.badges?.includes("subscriber") && !msg.subscriptionBadge) {
-    // fallback: global subscriber badge
+  if (msg.badges?.includes("moderator") || msg.isModerator) {
     out += `
       <span class="tooltip-wrapper">
         <img class="velora-badge"
-             src="/velora-badges/SubscriberBadge.png"
-             alt="Subscriber"
-             title="Subscriber">
-      </span>
-    `;
-  }
-
-  // ---------------------------------------------------------
-  // ⭐ 4. Moderator badge (Velora sends string only)
-  // ---------------------------------------------------------
-  if (msg.badges?.includes("moderator")) {
-    out += `
-      <span class="tooltip-wrapper">
-        <img class="velora-badge"
-             src="/velora-badges/ModeratorBadge.png"
+             src="/badges/velora/ModeratorModBadge.png"
              alt="Moderator"
              title="Moderator">
       </span>
@@ -61,15 +46,29 @@ export function renderVeloraBadges(msg) {
   }
 
   // ---------------------------------------------------------
-  // ⭐ 5. VIP badge (string only)
+  // ⭐ 4. VIP badge
   // ---------------------------------------------------------
-  if (msg.badges?.includes("vip")) {
+  if (msg.badges?.includes("vip") || msg.isVip) {
     out += `
       <span class="tooltip-wrapper">
         <img class="velora-badge"
-             src="/velora-badges/VIPBadge.png"
+             src="/badges/velora/VIPBadge.png"
              alt="VIP"
              title="VIP">
+      </span>
+    `;
+  }
+
+  // ---------------------------------------------------------
+  // ⭐ 5. Gift Leader badge
+  // ---------------------------------------------------------
+  if (msg.badges?.includes("gift_leader") || msg.role === "gift_leader") {
+    out += `
+      <span class="tooltip-wrapper">
+        <img class="velora-badge"
+             src="/badges/velora/GifterBadge.png"
+             alt="Gift Leader"
+             title="Gift Leader">
       </span>
     `;
   }
