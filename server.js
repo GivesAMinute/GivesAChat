@@ -154,6 +154,8 @@ export function broadcast(payload) {
     const safe = JSON.parse(JSON.stringify(payload));
     const json = JSON.stringify(safe);
 
+    console.log("[Broadcast] Sending to overlay:", safe);
+
     wss.clients.forEach((client) => {
       if (client.readyState === 1) client.send(json);
     });
