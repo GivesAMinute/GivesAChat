@@ -36,14 +36,13 @@ export function startVeloraEventsSocket({ onMessage }) {
       if (payload.event === "chat.message") {
         const d = payload.data;
 
-        // ⭐ MATCH OVERLAY FORMAT EXACTLY
         const msg = {
+          type: "chat",   // ⭐ REQUIRED FOR OVERLAY
           platform: "velora",
-          user: d.displayName,
-          text: d.message,
-          img: d.avatarUrl,
+          username: d.displayName,
+          message: d.message,
+          avatar: d.avatarUrl,
 
-          // badges
           badges: d.badges || [],
           subscriptionBadge: d.subscriptionBadge || null,
 
@@ -56,8 +55,6 @@ export function startVeloraEventsSocket({ onMessage }) {
         console.log("[VELORA → OVERLAY CHAT]", msg);
         return onMessage(msg);
       }
-
-      // other events ignored for now
     });
 
     socket.on("disconnect", async (reason) => {
