@@ -5,16 +5,11 @@ import { handleReward } from "./rewardRenderer.js";
 import { handleChat, renderVeloraSystemMessage } from "./chatRenderer.js";
 import { handleVeloraStreamAlert } from "./alertRenderer.js";
 
-/* ---------------------------------------------------------
-   ⭐ DEDUPE — 1 second window only
---------------------------------------------------------- */
-
 let lastEvents = [];
 const DEDUPE_WINDOW = 1000;
 
 function isDuplicate(payload) {
   const now = Date.now();
-
   const key = {
     type: payload.type,
     event: payload.event,
@@ -42,9 +37,6 @@ function isDuplicate(payload) {
   return false;
 }
 
-/* ---------------------------------------------------------
-   ⭐ POPUP (unchanged)
---------------------------------------------------------- */
 function showRewardPopup(payload) {
   const popupRoot = document.getElementById("reward-popup");
   if (!popupRoot) return;
@@ -72,23 +64,16 @@ function showRewardPopup(payload) {
   }, 2500);
 }
 
-/* ---------------------------------------------------------
-   ⭐ CHAT CONTAINER
---------------------------------------------------------- */
 function getMessagesContainer() {
   return document.getElementById("messages");
 }
 
-/* ---------------------------------------------------------
-   ⭐ BROADCAST HANDLER
---------------------------------------------------------- */
 function handleBroadcast(payload) {
   const container = getMessagesContainer();
   if (!container) return;
 
   if (payload.type === "velora_system") {
-    const event = "channel.stream_alert";
-    renderVeloraSystemMessage(event, payload.data, container);
+    renderVeloraSystemMessage("channel.stream_alert", payload.data, container);
     return;
   }
 
@@ -108,10 +93,6 @@ function handleBroadcast(payload) {
     return;
   }
 }
-
-/* ---------------------------------------------------------
-   ⭐ WEBSOCKET — DO‑safe, auto‑reconnect, no keepalive
---------------------------------------------------------- */
 
 let socket = null;
 let heartbeat = null;
@@ -148,7 +129,6 @@ function setupSocket() {
   socket.addEventListener("message", (event) => {
     try {
       const payload = JSON.parse(event.data);
-
       if (isDuplicate(payload)) return;
 
       console.log("[Chat] Incoming:", payload);
@@ -160,11 +140,6 @@ function setupSocket() {
   });
 }
 
-/* ---------------------------------------------------------
-   ⭐ Heartbeat — DO-safe
-   - DO sockets: NO keepalive pings
-   - Only detect closed sockets and reconnect
---------------------------------------------------------- */
 function startHeartbeat() {
   clearInterval(heartbeat);
 
@@ -178,9 +153,6 @@ function startHeartbeat() {
   }, 5000);
 }
 
-/* ---------------------------------------------------------
-   ⭐ Exponential backoff reconnect
---------------------------------------------------------- */
 function reconnect() {
   clearInterval(heartbeat);
 

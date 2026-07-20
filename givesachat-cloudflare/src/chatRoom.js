@@ -11,15 +11,12 @@ export class ChatRoom {
   async fetch(request) {
     const url = new URL(request.url);
 
-    // Any request = activity
     this.touch();
 
-    // WebSocket upgrade
     if (request.headers.get("Upgrade") === "websocket") {
       return this.handleWebSocket(request);
     }
 
-    // POST /broadcast — Velora events or other server-side broadcasts
     if (request.method === "POST" && url.pathname === "/broadcast") {
       const event = await request.json();
       this.broadcast(event);
@@ -31,20 +28,14 @@ export class ChatRoom {
 
   touch() {
     this.lastActivity = Date.now();
-    // Set an alarm 5 minutes from now; if no activity, we’ll clean up
-    this.state.storage.setAlarm(this.lastActivity + 5 * 60 * 1000);
+    this.state.storage.setAlarm(this.lastActivity + 30 * 1000); // 30s idle timeout
   }
 
   async alarm() {
     const now = Date.now();
-    // If we’ve been idle for >= 5 minutes, close all sockets and let DO sleep
-    if (now - this.lastActivity >= 5 * 60 * 1000) {
+    if (now - this.lastActivity >= 30 * 1000) {
       for (const ws of this.clients) {
-        try {
-          ws.close(1000, "Idle timeout");
-        } catch {
-          // ignore
-        }
+        try { ws.close(1000, "Idle timeout"); } catch {}
       }
       this.clients = [];
     }
@@ -56,21 +47,34 @@ export class ChatRoom {
     const server = pair[1];
 
     server.accept();
-
     this.clients.push(server);
     this.touch();
 
+    let idleTimer = setTimeout(() => {
+      try { server.close(1000, "Idle timeout"); } catch {}
+    }, 30000);
+
+    const resetIdle = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        try { server.close(1000, "Idle timeout"); } catch {}
+      }, 30000);
+    };
+
     server.addEventListener("message", (msg) => {
       this.touch();
+      resetIdle();
+
       try {
         const parsed = JSON.parse(msg.data);
         this.broadcast(parsed);
-      } catch (err) {
+      } catch {
         this.broadcast({ type: "client", data: msg.data });
       }
     });
 
     const cleanup = () => {
+      clearTimeout(idleTimer);
       this.clients = this.clients.filter((ws) => ws !== server);
     };
 
@@ -93,9 +97,7 @@ export class ChatRoom {
       try {
         ws.send(payload);
         alive.push(ws);
-      } catch {
-        // drop dead socket
-      }
+      } catch {}
     }
 
     this.clients = alive;

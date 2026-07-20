@@ -13,12 +13,10 @@ export class PopupRoom {
 
     this.touch();
 
-    // WebSocket upgrade
     if (request.headers.get("Upgrade") === "websocket") {
       return this.handleWebSocket(request);
     }
 
-    // Broadcast endpoint
     if (request.method === "POST" && url.pathname === "/broadcast") {
       const event = await request.json();
       this.broadcast(event);
@@ -30,18 +28,14 @@ export class PopupRoom {
 
   touch() {
     this.lastActivity = Date.now();
-    this.storage.setAlarm(this.lastActivity + 5 * 60 * 1000);
+    this.storage.setAlarm(this.lastActivity + 30 * 1000); // 30s idle timeout
   }
 
   async alarm() {
     const now = Date.now();
-    if (now - this.lastActivity >= 5 * 60 * 1000) {
+    if (now - this.lastActivity >= 30 * 1000) {
       for (const ws of this.clients) {
-        try {
-          ws.close(1000, "Idle timeout");
-        } catch {
-          // ignore
-        }
+        try { ws.close(1000, "Idle timeout"); } catch {}
       }
       this.clients = [];
     }
@@ -56,7 +50,24 @@ export class PopupRoom {
     this.clients.push(server);
     this.touch();
 
+    let idleTimer = setTimeout(() => {
+      try { server.close(1000, "Idle timeout"); } catch {}
+    }, 30000);
+
+    const resetIdle = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        try { server.close(1000, "Idle timeout"); } catch {}
+      }, 30000);
+    };
+
+    server.addEventListener("message", () => {
+      this.touch();
+      resetIdle();
+    });
+
     const cleanup = () => {
+      clearTimeout(idleTimer);
       this.clients = this.clients.filter((ws) => ws !== server);
     };
 
@@ -79,9 +90,7 @@ export class PopupRoom {
       try {
         ws.send(payload);
         alive.push(ws);
-      } catch {
-        // drop dead socket
-      }
+      } catch {}
     }
 
     this.clients = alive;

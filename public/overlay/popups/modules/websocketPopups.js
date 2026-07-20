@@ -5,9 +5,6 @@ import { handleRewardPopup } from "./rewardRendererPopups.js";
 import { renderVeloraAlertCard, loadVeloraFonts } from "./veloraRendererPopups.js";
 import { io } from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
 
-/* ---------------------------------------------------------
-   ⭐ POPUPS SOCKET MANAGER — Velora + DO
---------------------------------------------------------- */
 class PopupsSocketManager {
   constructor({ type, url, token = null, onEvent }) {
     this.type = type;
@@ -44,9 +41,6 @@ class PopupsSocketManager {
         ? io(this.url, opts)
         : new WebSocket(this.url);
 
-    /* ---------------------------------------------------------
-       ⭐ Velora (Socket.IO)
-    --------------------------------------------------------- */
     if (this.type === "velora") {
       this.socket.on("connect", () => {
         console.log("[Popups] Velora connected");
@@ -75,9 +69,6 @@ class PopupsSocketManager {
       return;
     }
 
-    /* ---------------------------------------------------------
-       ⭐ DO WebSocket (native)
-    --------------------------------------------------------- */
     this.socket.addEventListener("open", () => {
       console.log("[Popups] DO WebSocket connected");
       this.ready = true;
@@ -108,9 +99,6 @@ class PopupsSocketManager {
     });
   }
 
-  /* ---------------------------------------------------------
-     ⭐ Reconnect with exponential backoff
-  --------------------------------------------------------- */
   reconnect() {
     clearInterval(this.heartbeat);
 
@@ -123,20 +111,13 @@ class PopupsSocketManager {
       if (this.socket && this.type !== "velora") {
         this.socket.close();
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
 
     setTimeout(() => {
       this.connect();
     }, delay);
   }
 
-  /* ---------------------------------------------------------
-     ⭐ Heartbeat
-     - Velora: send ping
-     - DO: just monitor, do NOT keep it alive
-  --------------------------------------------------------- */
   startHeartbeat() {
     clearInterval(this.heartbeat);
 
@@ -146,7 +127,6 @@ class PopupsSocketManager {
       if (this.type === "velora") {
         this.socket.emit("ping");
       } else {
-        // DO socket: if it closes, reconnect; no keep-alive pings
         if (this.socket.readyState !== WebSocket.OPEN) {
           console.warn("[Popups] DO heartbeat detected closed socket");
           this.ready = false;
@@ -156,9 +136,6 @@ class PopupsSocketManager {
     }, 5000);
   }
 
-  /* ---------------------------------------------------------
-     ⭐ Queue + Flush
-  --------------------------------------------------------- */
   queueMessage(msg) {
     this.queue.push(msg);
   }
@@ -172,9 +149,6 @@ class PopupsSocketManager {
     }
   }
 
-  /* ---------------------------------------------------------
-     ⭐ Wait until ready
-  --------------------------------------------------------- */
   waitUntilReady() {
     return new Promise((resolve) => {
       if (this.ready) return resolve();
@@ -189,9 +163,6 @@ class PopupsSocketManager {
   }
 }
 
-/* ---------------------------------------------------------
-   ⭐ DO PAYLOAD HANDLER
---------------------------------------------------------- */
 function handlePopupBroadcast(payload) {
   if (!payload.cardDesign) return;
 
@@ -200,13 +171,9 @@ function handlePopupBroadcast(payload) {
   }
 }
 
-/* ---------------------------------------------------------
-   ⭐ Velora Event Handler
---------------------------------------------------------- */
 function handleVeloraEvent({ event, data, timestamp }) {
   console.log("[Popups] Velora event received:", event, data);
 
-  /* STREAM ALERTS */
   if (
     event === "channel.stream_alert" ||
     event === "channel.follow" ||
@@ -237,7 +204,6 @@ function handleVeloraEvent({ event, data, timestamp }) {
     return;
   }
 
-  /* CHANNEL POINTS */
   if (event === "channel_point_redeem") {
     handleRewardPopup(data);
 
@@ -250,7 +216,6 @@ function handleVeloraEvent({ event, data, timestamp }) {
     return;
   }
 
-  /* CARD MESSAGES */
   if (data.cardAdded) {
     const card = data.cardAdded;
     const payload = card.payload || {};
@@ -276,17 +241,11 @@ function handleVeloraEvent({ event, data, timestamp }) {
   }
 }
 
-/* ---------------------------------------------------------
-   ⭐ Combined initializer
---------------------------------------------------------- */
 export async function setupPopupSocket() {
   console.log("[Popups] Starting overlay…");
 
   await loadVeloraFonts();
 
-  /* ---------------------------------------------------------
-     ⭐ DO SOCKET (with queue + reconnection)
-  --------------------------------------------------------- */
   const doManager = new PopupsSocketManager({
     type: "do",
     url: sharedPopups.wsURL,
@@ -301,9 +260,6 @@ export async function setupPopupSocket() {
 
   sharedPopups.ws = doManager.socket;
 
-  /* ---------------------------------------------------------
-     ⭐ Chat Forward Socket
-  --------------------------------------------------------- */
   const chatSocket = new WebSocket(sharedPopups.chatWSURL);
   sharedPopups.chatWS = chatSocket;
 
@@ -319,9 +275,6 @@ export async function setupPopupSocket() {
     console.warn("[Popups] Chat forward WS closed");
   });
 
-  /* ---------------------------------------------------------
-     ⭐ Velora Events API (with queue + reconnection)
-  --------------------------------------------------------- */
   const token = await loadVeloraAccessToken();
   if (!token) {
     console.warn("[Popups] Velora Events API not started — no token available");
@@ -330,14 +283,3 @@ export async function setupPopupSocket() {
 
   const veloraManager = new PopupsSocketManager({
     type: "velora",
-    url: "wss://api.velora.tv/ws/events",
-    token,
-    onEvent: (payload) => {
-      if (!veloraManager.ready) {
-        veloraManager.queueMessage(payload);
-        return;
-      }
-      handleVeloraEvent(payload);
-    }
-  });
-}
