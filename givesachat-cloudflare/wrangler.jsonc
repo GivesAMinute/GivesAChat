@@ -1,0 +1,65 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  "name": "givesachat-cloudflare",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-11",
+
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+
+  "observability": {
+    "enabled": true
+  },
+
+  "upload_source_maps": true,
+
+  // Durable Object bindings
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ChatRoom",
+        "class_name": "ChatRoom"
+      },
+      {
+        "name": "VeloraTokenStore",
+        "class_name": "VeloraTokenStore"
+      },
+      {
+        "name": "PopupRoom",
+        "class_name": "PopupRoom"
+      }
+    ]
+  },
+
+  // Migrations
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["ChatRoom"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["VeloraTokenStore"]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["PopupRoom"]
+    }
+  ],
+
+  "vars": {
+  "VELORA_CLIENT_ID": "velora_45271c710e18820f",
+  "VELORA_CLIENT_SECRET": "522e9013c276e1992e66fc6b3bdbfc4857620c5090a6df147cee56be41226566",
+  "VELORA_REDIRECT_URI": "https://givesachat-cloudflare.benonkoebsch.workers.dev/velora/callback"
+},
+
+  // Static assets
+  "assets": {
+  "directory": "../public",
+  "binding": "ASSETS"
+},
+
+  "workers_dev": true
+}

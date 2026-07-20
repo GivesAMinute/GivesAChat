@@ -1,0 +1,229 @@
+/* ---------------------------------------------------------
+   BASE OVERLAY
+--------------------------------------------------------- */
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+#overlay-root {
+  width: 1920px;
+  height: 1080px;
+  transform-origin: top left;
+  position: relative;
+}
+
+/* ---------------------------------------------------------
+   POPUP ROOT (centered)
+--------------------------------------------------------- */
+#reward-popup {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 999999;
+}
+
+/* ---------------------------------------------------------
+   ⭐ CHANNEL POINTS POPUP
+--------------------------------------------------------- */
+.reward-popup-image {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  object-fit: contain;
+  pointer-events: none;
+
+  animation: popup-enter 0.3s ease-out;
+  transition: opacity 0.8s ease-out;
+}
+
+.reward-popup-image.fade-out {
+  opacity: 0;
+}
+
+@keyframes popup-enter {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------
+   ⭐ iPad / iOS POPUP SIZE (⅓ smaller)
+--------------------------------------------------------- */
+@media only screen and (max-device-width: 1024px) and (orientation: portrait),
+       only screen and (max-device-width: 1366px) and (orientation: landscape) {
+
+  .reward-popup-image {
+    width: 333px;
+    height: 333px;
+  }
+}
+
+/* ---------------------------------------------------------
+   STREAM ALERTS
+--------------------------------------------------------- */
+#alert-container {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.stream-alert {
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-family: system-ui, sans-serif;
+  font-size: 20px;
+  animation: alertFade 4s ease forwards;
+}
+
+@keyframes alertFade {
+  0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+}
+
+/* ---------------------------------------------------------
+   ⭐ OLD SIMPLE VELORA ALERTS
+--------------------------------------------------------- */
+.velora-alert-popup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.65);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  animation: popup-in 0.25s ease-out;
+}
+
+.velora-alert-text {
+  font-size: 22px;
+  font-weight: 600;
+  color: white;
+}
+
+@keyframes popup-in {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+/* ---------------------------------------------------------
+   ⭐ Velora Sticker Overlay
+--------------------------------------------------------- */
+
+#velora-popup {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 520px;
+  height: 520px;
+  pointer-events: none;
+  z-index: 999998;
+}
+
+.velora-card-popup {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.velora-card-popup.fade-out {
+  opacity: 0;
+  transition: opacity 0.8s ease-out;
+}
+
+/* ⭐ Sticker-style image */
+.velora-card-image {
+  width: 450px;
+  height: 450px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* ⭐ Sticker-style text */
+.velora-card-text {
+  margin-top: 10px;
+  color: #ffffff;
+  text-align: center;
+  text-shadow: 0px 0px 12px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
+.velora-card-text-line2 {
+  margin-top: 4px;
+  opacity: 0.9;
+  text-shadow: 0px 0px 10px rgba(0, 0, 0, 0.85);
+}
+
+/* ---------------------------------------------------------
+   ⭐ Base Bounce (cardAdded)
+   (you can leave these; they won't break layout even if you don't use them)
+--------------------------------------------------------- */
+.velora-anim-cardAdded {
+  animation: veloraBounce 0.35s ease-out;
+}
+
+@keyframes veloraBounce {
+  0%   { transform: scale(0.55); opacity: 0; }
+  55%  { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1.0); }
+}
+
+/* ---------------------------------------------------------
+   ⭐ Volts Celebration (pulse + glow)
+--------------------------------------------------------- */
+.velora-anim-volts {
+  animation: veloraVoltsPulse 0.8s ease-out;
+}
+
+@keyframes veloraVoltsPulse {
+  0%   { transform: scale(0.9); filter: drop-shadow(0 0 0px #ffd700); }
+  50%  { transform: scale(1.15); filter: drop-shadow(0 0 25px #ffd700); }
+  100% { transform: scale(1.0); filter: drop-shadow(0 0 0px #ffd700); }
+}
+
+/* ---------------------------------------------------------
+   ⭐ Subscription Celebration (scale + rotate)
+--------------------------------------------------------- */
+.velora-anim-subscription {
+  animation: veloraSubCelebrate 0.9s ease-out;
+}
+
+@keyframes veloraSubCelebrate {
+  0%   { transform: scale(0.7) rotate(-10deg); opacity: 0; }
+  50%  { transform: scale(1.2) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1.0) rotate(0deg); }
+}
+
+/* ---------------------------------------------------------
+   ⭐ Gift Celebration (burst + bounce)
+--------------------------------------------------------- */
+.velora-anim-gift {
+  animation: veloraGiftBurst 0.9s ease-out;
+}
+
+@keyframes veloraGiftBurst {
+  0%   { transform: scale(0.4); opacity: 0; }
+  40%  { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1.0); }

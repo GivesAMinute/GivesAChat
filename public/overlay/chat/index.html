@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GivesAChat Overlay</title>
+
+  <!-- ⭐ Global chat + layout styles -->
+  <link rel="stylesheet" href="/overlay/chat/styles.css?v=1" />
+
+  <!-- ⭐ Official header styles -->
+  <link rel="stylesheet" href="/overlay/chat/styles/header.css?v=1" />
+
+  <!-- ⭐ Velora reward card + message effects + galaxy + glow + rainbow -->
+  <link rel="stylesheet" href="/overlay/chat/styles/velora/velora.css?v=1" />
+
+  <!-- ⭐ Velora badge styles -->
+  <link rel="stylesheet" href="/overlay/chat/badges/velora/badges.css?v=1" />
+</head>
+
+<body>
+
+  <!-- ⭐ Scaled overlay canvas -->
+  <div id="overlay-scale-wrapper">
+    <div id="overlay-root">
+      <div id="reward-popup"></div>
+    </div>
+  </div>
+
+  <!-- ⭐ FIXED chat (NOT scaled) -->
+  <div id="chat-fixed-wrapper">
+
+    <!-- ⭐ HEADER (OBS ONLY) -->
+    <div id="chat-header" class="obs-only">
+      <video id="header-logo" autoplay muted loop playsinline>
+        <source src="/icons/gam-logo.webm" type="video/webm">
+      </video>
+    </div>
+
+    <!-- ⭐ Chat container -->
+    <div id="chat-container">
+      <div id="messages"></div>
+    </div>
+  </div>
+
+  <!-- ⭐ Velora Stream Alerts iframe (invisible) -->
+  <iframe
+    id="velora-alerts-frame"
+    src=""
+    style="
+      position:absolute;
+      width:1px;
+      height:1px;
+      opacity:0;
+      pointer-events:none;
+    "
+  ></iframe>
+
+  <!-- ⭐ Overlay logic -->
+  <script type="module" src="/overlay/chat/main.js?v=1"></script>
+
+</body>
+</html>

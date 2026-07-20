@@ -1,0 +1,52 @@
+/* ---------------------------------------------------------
+   ⭐ HEADER — OBS-only, animated WebM logo
+--------------------------------------------------------- */
+#chat-header {
+  width: 1920px;
+  height: 1080px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 0;
+  background: transparent !important;
+  pointer-events: none;
+  z-index: 999999;
+}
+
+#header-logo {
+  width: 760px;
+  height: auto;
+  transform: translate(-55px, 422px);  /* move left + lift */
+  object-fit: contain;
+  pointer-events: none;
+
+  /* ---------------------------------------------------------
+     ⭐ OBS filter chain — matches your OBS look exactly
+  --------------------------------------------------------- */
+  filter:
+    brightness(0.44)
+    contrast(4.0)
+    saturate(5.0)
+    hue-rotate(179.6deg)
+    brightness(0.98)
+    contrast(0.9)
+    saturate(0.1)
+    hue-rotate(179.6deg)
+    drop-shadow(0 0 1px rgba(255,255,255,0.4))
+    drop-shadow(0 0 1px rgba(255,255,255,0.4)) !important;
+
+  opacity: 0.831 !important;
+  mix-blend-mode: screen !important;
+}
+
+/* ---------------------------------------------------------
+   ⭐ Hide header on browsers — show ONLY in OBS
+--------------------------------------------------------- */
+@media (hover: none),                 /* iPad / iOS */
+       (pointer: coarse),             /* touch devices */
+       (min-resolution: 2dppx),       /* retina desktops */
+       (max-width: 1919px) {          /* any non-OBS viewport */
+  .obs-only {
+    display: none !important;
+  }
+}

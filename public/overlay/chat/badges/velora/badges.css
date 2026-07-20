@@ -1,0 +1,47 @@
+/* ---------------------------------------------------------
+   ⭐ Velora Badges — Correct Layout
+--------------------------------------------------------- */
+.velora-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------
+   ⭐ Velora Badge Icon
+--------------------------------------------------------- */
+.velora-badge {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  display: inline-block;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.4));
+}
+
+/* ---------------------------------------------------------
+   ⭐ Prevent Global Bubble Styles From Breaking Badges
+--------------------------------------------------------- */
+.bubble .velora-badges {
+  margin-right: 4px;
+}
+
+.bubble .velora-badge {
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.4));
+}
+
+/* ---------------------------------------------------------
+   ⭐ Reward Card Badge Support
+--------------------------------------------------------- */
+.velora-reward-card .velora-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.velora-reward-card .velora-badge {
+  width: 22px;
+  height: 22px;
+}

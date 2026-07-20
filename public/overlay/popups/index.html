@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Popups Overlay</title>
+
+  <!-- Raw CSS, no bundling -->
+  <link rel="stylesheet" href="./styles.css" />
+
+  <!-- ⭐ NEW: Socket.IO client (required for Velora Events API) -->
+  <script type="module" src="https://cdn.socket.io/4.7.2/socket.io.esm.min.js"></script>
+</head>
+
+<body>
+  <div id="overlay-root">
+    <div id="reward-popup"></div>
+    <div id="alert-container"></div>
+  </div>
+
+  <!-- Raw ES module, exactly like chat overlay -->
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
