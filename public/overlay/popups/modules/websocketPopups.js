@@ -13,8 +13,8 @@ class PopupsSocketManager {
     this.onEvent = onEvent;
 
     this.socket = null;
-    this.backoff = 500;
-    this.maxBackoff = 8000;
+    this.backoff = 2000;      // start at 2s
+    this.maxBackoff = 30000;  // cap at 30s
     this.heartbeat = null;
 
     this.queue = [];
@@ -45,7 +45,7 @@ class PopupsSocketManager {
       this.socket.on("connect", () => {
         console.log("[Popups] Velora connected");
         this.ready = true;
-        this.backoff = 500;
+        this.backoff = 2000;
         this.flushQueue();
         this.startHeartbeat();
       });
@@ -72,7 +72,7 @@ class PopupsSocketManager {
     this.socket.addEventListener("open", () => {
       console.log("[Popups] DO WebSocket connected");
       this.ready = true;
-      this.backoff = 500;
+      this.backoff = 2000;
       this.flushQueue();
       this.startHeartbeat();
     });
@@ -133,7 +133,7 @@ class PopupsSocketManager {
           this.reconnect();
         }
       }
-    }, 5000);
+    }, 10000); // 10s
   }
 
   queueMessage(msg) {
@@ -283,3 +283,14 @@ export async function setupPopupSocket() {
 
   const veloraManager = new PopupsSocketManager({
     type: "velora",
+    url: "wss://api.velora.tv/ws/events",
+    token,
+    onEvent: (payload) => {
+      if (!veloraManager.ready) {
+        veloraManager.queueMessage(payload);
+        return;
+      }
+      handleVeloraEvent(payload);
+    }
+  });
+}

@@ -28,12 +28,13 @@ export class PopupRoom {
 
   touch() {
     this.lastActivity = Date.now();
-    this.storage.setAlarm(this.lastActivity + 30 * 1000); // 30s idle timeout
+    // 120s idle timeout
+    this.storage.setAlarm(this.lastActivity + 120 * 1000);
   }
 
   async alarm() {
     const now = Date.now();
-    if (now - this.lastActivity >= 30 * 1000) {
+    if (now - this.lastActivity >= 120 * 1000) {
       for (const ws of this.clients) {
         try { ws.close(1000, "Idle timeout"); } catch {}
       }
@@ -52,13 +53,13 @@ export class PopupRoom {
 
     let idleTimer = setTimeout(() => {
       try { server.close(1000, "Idle timeout"); } catch {}
-    }, 30000);
+    }, 120000);
 
     const resetIdle = () => {
       clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
         try { server.close(1000, "Idle timeout"); } catch {}
-      }, 30000);
+      }, 120000);
     };
 
     server.addEventListener("message", () => {

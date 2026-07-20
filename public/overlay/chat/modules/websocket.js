@@ -96,8 +96,8 @@ function handleBroadcast(payload) {
 
 let socket = null;
 let heartbeat = null;
-let backoff = 500;
-const maxBackoff = 8000;
+let backoff = 2000;      // start at 2s
+const maxBackoff = 30000; // cap at 30s
 
 function setupSocket() {
   const wsURL = `${location.origin.replace("http", "ws")}/ws/chat`;
@@ -113,7 +113,7 @@ function setupSocket() {
 
   socket.addEventListener("open", () => {
     console.log("[Chat] WebSocket connected");
-    backoff = 500;
+    backoff = 2000;
     startHeartbeat();
   });
 
@@ -150,7 +150,7 @@ function startHeartbeat() {
       console.warn("[Chat] Heartbeat detected closed socket");
       reconnect();
     }
-  }, 5000);
+  }, 10000); // 10s
 }
 
 function reconnect() {
