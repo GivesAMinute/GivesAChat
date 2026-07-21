@@ -57,13 +57,22 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Hide header on browsers — show ONLY in OBS
+   ⭐ Hide header everywhere by default
 --------------------------------------------------------- */
-@media (hover: none),
-       (pointer: coarse),
-       (min-resolution: 2dppx),
-       (max-width: 1919px) {
+.obs-only {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------
+   ⭐ Show header ONLY in OBS / GoLightStream
+   OBS browser source always reports:
+   - width: 1920
+   - height: 1080
+   - no hover
+   - no pointer
+--------------------------------------------------------- */
+@media (hover: none) and (pointer: none) and (min-width: 1920px) {
   .obs-only {
-    display: none !important;
+    display: block !important;
   }
 }
