@@ -23,21 +23,7 @@
   /* ---------------------------------------------------------
      ⭐ OBS filter chain — matches your OBS look exactly
   --------------------------------------------------------- */
-  filter:
-    brightness(0.44)
-    contrast(4.0)
-    saturate(5.0)
-    hue-rotate(179.6deg)
-    brightness(0.98)
-    contrast(0.9)
-    saturate(0.1)
-    hue-rotate(179.6deg)
-    drop-shadow(0 0 1px rgba(255,255,255,0.4))
-    drop-shadow(0 0 1px rgba(255,255,255,0.4)) !important;
 
-  opacity: 0.831 !important;
-  mix-blend-mode: screen !important;
-}
 
 /* ---------------------------------------------------------
    ⭐ Hide header on browsers — show ONLY in OBS
