@@ -16,7 +16,7 @@
 #header-logo {
   width: 760px;
   height: auto;
-  transform: translate(-55px, 422px);  /* move left + lift */
+  transform: translate(-55px, -122px);  /* move left + lift */
   object-fit: contain;
   pointer-events: none;
 
