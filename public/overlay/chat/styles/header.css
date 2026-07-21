@@ -23,13 +23,11 @@
   object-fit: contain;
   pointer-events: none;
 
-  /* ⭐ Oversharpening */
   filter:
     contrast(1.35)
     brightness(0.95)
     saturate(1.05);
 
-  /* ⭐ Micro‑jitter shadows (scratch illusion) */
   mix-blend-mode: normal;
   image-rendering: crisp-edges;
 }
@@ -53,26 +51,21 @@
   );
 
   mix-blend-mode: overlay;
-  opacity: 0.25; /* adjust scratch intensity */
+  opacity: 0.25;
 }
 
 /* ---------------------------------------------------------
-   ⭐ Hide header everywhere by default
+   ⭐ Default: show in non-retina (OBS / GoLightStream)
 --------------------------------------------------------- */
 .obs-only {
-  display: none !important;
+  display: block !important;
 }
 
 /* ---------------------------------------------------------
-   ⭐ Show header ONLY in OBS / GoLightStream
-   OBS browser source always reports:
-   - width: 1920
-   - height: 1080
-   - no hover
-   - no pointer
+   ⭐ Hide on retina desktops (Brave, Chrome, Safari on macOS)
 --------------------------------------------------------- */
-@media (hover: none) and (pointer: none) and (min-width: 1920px) {
+@media (min-resolution: 2dppx) {
   .obs-only {
-    display: block !important;
+    display: none !important;
   }
 }
