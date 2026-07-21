@@ -5,13 +5,10 @@ export class PopupRoom {
     this.state = state;
     this.storage = state.storage;
     this.clients = [];
-    this.lastActivity = Date.now();
   }
 
   async fetch(request) {
     const url = new URL(request.url);
-
-    this.touch();
 
     if (request.headers.get("Upgrade") === "websocket") {
       return this.handleWebSocket(request);
@@ -26,20 +23,8 @@ export class PopupRoom {
     return new Response("Not found", { status: 404 });
   }
 
-  touch() {
-    this.lastActivity = Date.now();
-    // 120s idle timeout
-    this.storage.setAlarm(this.lastActivity + 120 * 1000);
-  }
-
   async alarm() {
-    const now = Date.now();
-    if (now - this.lastActivity >= 120 * 1000) {
-      for (const ws of this.clients) {
-        try { ws.close(1000, "Idle timeout"); } catch {}
-      }
-      this.clients = [];
-    }
+    // No idle shutdown
   }
 
   handleWebSocket(request) {
@@ -49,26 +34,8 @@ export class PopupRoom {
 
     server.accept();
     this.clients.push(server);
-    this.touch();
-
-    let idleTimer = setTimeout(() => {
-      try { server.close(1000, "Idle timeout"); } catch {}
-    }, 120000);
-
-    const resetIdle = () => {
-      clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => {
-        try { server.close(1000, "Idle timeout"); } catch {}
-      }, 120000);
-    };
-
-    server.addEventListener("message", () => {
-      this.touch();
-      resetIdle();
-    });
 
     const cleanup = () => {
-      clearTimeout(idleTimer);
       this.clients = this.clients.filter((ws) => ws !== server);
     };
 

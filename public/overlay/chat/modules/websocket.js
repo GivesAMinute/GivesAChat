@@ -28,7 +28,6 @@ function isDuplicate(payload) {
       e.amount === key.amount &&
       e.message === key.message
     ) {
-      console.log("[Chat] Duplicate ignored (1s window):", key);
       return true;
     }
   }
@@ -47,10 +46,7 @@ function showRewardPopup(payload) {
     payload.icon?.emoteUrl ||
     payload.itemIconUrl;
 
-  if (!popupIcon) {
-    console.warn("[Popup] No popup icon found for reward:", payload);
-    return;
-  }
+  if (!popupIcon) return;
 
   const img = document.createElement("img");
   img.className = "reward-popup-image";
@@ -96,33 +92,25 @@ function handleBroadcast(payload) {
 
 let socket = null;
 let heartbeat = null;
-let backoff = 2000;      // start at 2s
-const maxBackoff = 30000; // cap at 30s
 
 function setupSocket() {
   const wsURL = `${location.origin.replace("http", "ws")}/ws/chat`;
-  console.log("[Chat] Connecting to WebSocket:", wsURL);
 
-  try {
-    if (socket) {
-      try { socket.close(); } catch {}
-    }
-  } catch {}
+  if (socket) {
+    try { socket.close(); } catch {}
+  }
 
   socket = new WebSocket(wsURL);
 
   socket.addEventListener("open", () => {
-    console.log("[Chat] WebSocket connected");
-    backoff = 2000;
     startHeartbeat();
   });
 
-  socket.addEventListener("error", (err) => {
-    console.error("[Chat] WebSocket error:", err);
+  socket.addEventListener("close", () => {
+    reconnect();
   });
 
-  socket.addEventListener("close", () => {
-    console.warn("[Chat] WebSocket closed — reconnecting…");
+  socket.addEventListener("error", () => {
     reconnect();
   });
 
@@ -130,13 +118,8 @@ function setupSocket() {
     try {
       const payload = JSON.parse(event.data);
       if (isDuplicate(payload)) return;
-
-      console.log("[Chat] Incoming:", payload);
       handleBroadcast(payload);
-
-    } catch (err) {
-      console.error("[Chat] Error parsing WS message:", err);
-    }
+    } catch {}
   });
 }
 
@@ -145,25 +128,17 @@ function startHeartbeat() {
 
   heartbeat = setInterval(() => {
     if (!socket) return;
-
     if (socket.readyState !== WebSocket.OPEN) {
-      console.warn("[Chat] Heartbeat detected closed socket");
       reconnect();
     }
-  }, 10000); // 10s
+  }, 3000);
 }
 
 function reconnect() {
   clearInterval(heartbeat);
-
-  const delay = backoff;
-  backoff = Math.min(backoff * 1.6, maxBackoff);
-
-  console.warn(`[Chat] Reconnecting in ${delay}ms…`);
-
   setTimeout(() => {
     setupSocket();
-  }, delay);
+  }, 300);
 }
 
 export {
