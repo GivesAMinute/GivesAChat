@@ -14,24 +14,36 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Header Logo — full OBS neon/glitch styling
+   ⭐ Header Logo — EXACT OBS SDR color conversion
 --------------------------------------------------------- */
 #header-logo {
   width: 760px;
   height: auto;
-  transform: translate(-55px, -122px); /* move left + lift */
+  transform: translate(-55px, -122px);
   object-fit: contain;
   pointer-events: none;
 
-  /* ⭐ OBS-style neon + chromatic aberration + glow */
   filter:
-    contrast(1.4)
-    brightness(1.1)
-    saturate(1.3)
+    /* ⭐ Gamma -3.0 simulation */
+    brightness(0.65)
+    contrast(1.25)
+
+    /* ⭐ OBS Contrast -0.1 */
+    contrast(0.9)
+
+    /* ⭐ OBS Brightness -0.021 */
+    brightness(0.979)
+
+    /* ⭐ OBS Saturation 0.1 */
+    saturate(1.1)
+
+    /* ⭐ OBS Hue Shift 87.99° */
     hue-rotate(88deg)
+
+    /* ⭐ Chromatic aberration + glow */
     drop-shadow(0px 0px 6px #8a2be2)   /* purple glow */
-    drop-shadow(2px 0px 2px #00ff99)   /* green glitch offset */
-    drop-shadow(-2px 0px 2px #ff0044); /* red glitch offset */
+    drop-shadow(2px 0px 2px #00ff99)   /* green offset */
+    drop-shadow(-2px 0px 2px #ff0044); /* red offset */
 
   opacity: 1;
 }
@@ -39,10 +51,10 @@
 /* ---------------------------------------------------------
    ⭐ Hide header on browsers — show ONLY in OBS
 --------------------------------------------------------- */
-@media (hover: none),                 /* iPad / iOS */
-       (pointer: coarse),             /* touch devices */
-       (min-resolution: 2dppx),       /* retina desktops */
-       (max-width: 1919px) {          /* any non-OBS viewport */
+@media (hover: none),
+       (pointer: coarse),
+       (min-resolution: 2dppx),
+       (max-width: 1919px) {
   .obs-only {
     display: none !important;
   }
