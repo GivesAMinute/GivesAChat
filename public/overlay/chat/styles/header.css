@@ -20,10 +20,6 @@
   object-fit: contain;
   pointer-events: none;
 
-  /* ---------------------------------------------------------
-     ⭐ OBS filter chain — matches your OBS look exactly
-  --------------------------------------------------------- */
-
 
 /* ---------------------------------------------------------
    ⭐ Hide header on browsers — show ONLY in OBS
