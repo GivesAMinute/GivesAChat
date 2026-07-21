@@ -14,7 +14,7 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Header Logo — completely clean, no filters
+   ⭐ Header Logo — oversharpened + scratched texture
 --------------------------------------------------------- */
 #header-logo {
   width: 760px;
@@ -23,8 +23,37 @@
   object-fit: contain;
   pointer-events: none;
 
-  /* No filters, no drop-shadows, no color effects */
-  filter: none;
+  /* ⭐ Oversharpening */
+  filter:
+    contrast(1.35)
+    brightness(0.95)
+    saturate(1.05);
+
+  /* ⭐ Micro‑jitter shadows (scratch illusion) */
+  mix-blend-mode: normal;
+  image-rendering: crisp-edges;
+}
+
+/* ---------------------------------------------------------
+   ⭐ Scratch texture overlay (SVG noise)
+--------------------------------------------------------- */
+#header-logo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background: url("data:image/svg+xml;utf8,\
+    <svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>\
+      <filter id='noise'>\
+        <feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/>\
+      </filter>\
+      <rect width='100%' height='100%' filter='url(#noise)' opacity='0.18'/>\
+    </svg>"
+  );
+
+  mix-blend-mode: overlay;
+  opacity: 0.25; /* adjust scratch intensity */
 }
 
 /* ---------------------------------------------------------
