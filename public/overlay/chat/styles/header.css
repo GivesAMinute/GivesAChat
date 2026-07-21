@@ -14,7 +14,7 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Header Logo — EXACT OBS SDR color conversion
+   ⭐ Header Logo — recolor red drop-shadow to #4e3459
 --------------------------------------------------------- */
 #header-logo {
   width: 760px;
@@ -23,29 +23,11 @@
   object-fit: contain;
   pointer-events: none;
 
+  /* ⭐ Only the drop-shadows remain — red → #4e3459 */
   filter:
-    /* ⭐ Gamma -3.0 simulation */
-    brightness(0.65)
-    contrast(1.25)
-
-    /* ⭐ OBS Contrast -0.1 */
-    contrast(0.9)
-
-    /* ⭐ OBS Brightness -0.021 */
-    brightness(0.979)
-
-    /* ⭐ OBS Saturation 0.1 */
-    saturate(1.1)
-
-    /* ⭐ OBS Hue Shift 87.99° */
-    hue-rotate(88deg)
-
-    /* ⭐ Chromatic aberration + glow */
-    drop-shadow(0px 0px 6px #8a2be2)   /* purple glow */
-    drop-shadow(2px 0px 2px #00ff99)   /* green offset */
-    drop-shadow(-2px 0px 2px #ff0044); /* red offset */
-
-  opacity: 1;
+    drop-shadow(0px 0px 6px #8a2be2)     /* purple glow */
+    drop-shadow(2px 0px 2px #00ff99)     /* green offset */
+    drop-shadow(-2px 0px 2px #4e3459);   /* red replaced with your purple */
 }
 
 /* ---------------------------------------------------------
