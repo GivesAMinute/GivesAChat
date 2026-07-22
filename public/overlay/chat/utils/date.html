@@ -1,52 +1,54 @@
-<span id="date-output" class="header-date"></span>
+<div id="date-fragment" style="
+  font-family: sans-serif;
+  font-size: 32px;
+  color: white;
+  text-shadow: 2px 2px 5px black;
+  animation: floatTilt 3s ease-in-out infinite;
+  display: inline-block;
+">
 
-<style>
-  @keyframes floatTilt {
-    0%   { transform: translateY(0) rotate(0deg); }
-    25%  { transform: translateY(-2px) rotate(1deg); }
-    50%  { transform: translateY(0) rotate(0deg); }
-    75%  { transform: translateY(2px) rotate(-1deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
+  <span id="date-output"></span>
 
-  .header-date {
-    font-family: sans-serif;
-    font-size: 25px;
-    color: white;
-    text-shadow: 2px 2px 5px black;
-    animation: floatTilt 3s ease-in-out infinite;
-    display: inline-block;
-  }
-</style>
-
-<script>
-  function getOrdinalSuffix(day) {
-    if (day > 3 && day < 21) return "th";
-    switch (day % 10) {
-      case 1: return "st";
-      case 2: return "nd";
-      case 3: return "rd";
-      default: return "th";
+  <style>
+    @keyframes floatTilt {
+      0%   { transform: translateY(0) rotate(0deg); }
+      25%  { transform: translateY(-2px) rotate(1deg); }
+      50%  { transform: translateY(0) rotate(0deg); }
+      75%  { transform: translateY(2px) rotate(-1deg); }
+      100% { transform: translateY(0) rotate(0deg); }
     }
-  }
+  </style>
 
-  function updateDate() {
-    const now = new Date();
+  <script>
+    function getOrdinalSuffix(day) {
+      if (day > 3 && day < 21) return "th";
+      switch (day % 10) {
+        case 1: return "st";
+        case 2: return "nd";
+        case 3: return "rd";
+        default: return "th";
+      }
+    }
 
-    const dayName = now.toLocaleDateString("en-AU", { weekday: "short" });
-    const dayNum = now.getDate();
-    const suffix = getOrdinalSuffix(dayNum);
+    function updateDate() {
+      const now = new Date();
 
-    const fullMonthName = now.toLocaleDateString("en-AU", { month: "long" });
-    const monthName = fullMonthName.substring(0, 3);
+      const dayName = now.toLocaleDateString("en-AU", { weekday: "short" });
+      const dayNum = now.getDate();
+      const suffix = getOrdinalSuffix(dayNum);
 
-    const year = "'" + String(now.getFullYear()).slice(-2);
+      const fullMonthName = now.toLocaleDateString("en-AU", { month: "long" });
+      const monthName = fullMonthName.substring(0, 3);
 
-    const dateString = `${dayName} ${dayNum}${suffix} ${monthName} ${year}`;
+      const year = "'" + String(now.getFullYear()).slice(-2);
 
-    document.getElementById("date-output").textContent = dateString;
-  }
+      const dateString = `${dayName} ${dayNum}${suffix} ${monthName} ${year}`;
 
-  updateDate();
-  setInterval(updateDate, 60000);
-</script>
+      document.getElementById("date-output").textContent = dateString;
+    }
+
+    updateDate();
+    setInterval(updateDate, 60000);
+  </script>
+
+</div>
