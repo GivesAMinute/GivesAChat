@@ -79,12 +79,23 @@
 #current-date {
   position: absolute;
 
-  /* ⭐ Tuned to match your screenshot exactly */
-  top: 35px;        /* aligns with “GIVES A MINUTE” baseline */
-  right: 1297px;      /* matches your screenshot inset */
+  /* ⭐ Your exact corrected values */
+  top: 35px;
+  right: 1297px;
 
   pointer-events: none;
   z-index: 999999;
+}
+
+/* ---------------------------------------------------------
+   ⭐ Jiggle animation (subtle motion)
+--------------------------------------------------------- */
+@keyframes jiggleMotion {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  25%  { transform: translate(1px, -1px) rotate(0.4deg); }
+  50%  { transform: translate(0, 0) rotate(0deg); }
+  75%  { transform: translate(-1px, 1px) rotate(-0.4deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
 }
 
 /* ---------------------------------------------------------
@@ -97,8 +108,12 @@
   color: white;
   text-shadow: 2px 2px 5px black;
 
-  /* Your floating tilt animation */
-  animation: floatTilt 3s ease-in-out infinite;
+  opacity: 0.9; /* ⭐ 90% opacity */
+
+  /* ⭐ Combined animations */
+  animation:
+    floatTilt 3s ease-in-out infinite,
+    jiggleMotion 1.8s ease-in-out infinite;
 
   display: inline-block;
 }
