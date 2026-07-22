@@ -6,8 +6,8 @@ import { showVoiceSelector } from "./modules/tts.js";
 import { fetchRewardSounds } from "./modules/rewardSounds.js";
 import { setupSocket } from "./modules/websocket.js";
 
-// ❌ Header system removed
-// import { setupHeader } from "./modules/header.js";
+// ⭐ NEW — Load date into header
+import { loadCurrentDate } from "./modules/currentDate.js";
 
 async function initOverlay() {
   // ⭐ Audio unlock
@@ -23,8 +23,8 @@ async function initOverlay() {
   // ⭐ Chat WebSocket
   setupSocket();
 
-  // ❌ Removed: setupHeader()
-  // We are rebuilding the header from scratch.
+  // ⭐ Load header date (OBS-only header)
+  loadCurrentDate();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
