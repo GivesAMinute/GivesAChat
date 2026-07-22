@@ -5,6 +5,9 @@ import { handleReward } from "./rewardRenderer.js";
 import { handleChat, renderVeloraSystemMessage } from "./chatRenderer.js";
 import { handleVeloraStreamAlert } from "./alertRenderer.js";
 
+/* ---------------------------------------------------------
+   ⭐ DEDUPE — 1 second window only
+--------------------------------------------------------- */
 let lastEvents = [];
 const DEDUPE_WINDOW = 1000;
 
@@ -36,6 +39,9 @@ function isDuplicate(payload) {
   return false;
 }
 
+/* ---------------------------------------------------------
+   ⭐ POPUP (unchanged)
+--------------------------------------------------------- */
 function showRewardPopup(payload) {
   const popupRoot = document.getElementById("reward-popup");
   if (!popupRoot) return;
@@ -60,10 +66,16 @@ function showRewardPopup(payload) {
   }, 2500);
 }
 
+/* ---------------------------------------------------------
+   ⭐ CHAT CONTAINER
+--------------------------------------------------------- */
 function getMessagesContainer() {
   return document.getElementById("messages");
 }
 
+/* ---------------------------------------------------------
+   ⭐ BROADCAST HANDLER
+--------------------------------------------------------- */
 function handleBroadcast(payload) {
   const container = getMessagesContainer();
   if (!container) return;
@@ -90,8 +102,19 @@ function handleBroadcast(payload) {
   }
 }
 
+/* ---------------------------------------------------------
+   ⭐ WEBSOCKET — with Brave/iOS stability fixes
+--------------------------------------------------------- */
 let socket = null;
 let heartbeat = null;
+let reconnectTimer = null;
+
+/* ---------------------------------------------------------
+   ⭐ Detect iOS (Safari WebKit)
+--------------------------------------------------------- */
+const isIOS =
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 function setupSocket() {
   const wsURL = `${location.origin.replace("http", "ws")}/ws/chat`;
@@ -100,45 +123,66 @@ function setupSocket() {
     try { socket.close(); } catch {}
   }
 
-  socket = new WebSocket(wsURL);
+  /* ---------------------------------------------------------
+     ⭐ Brave/iOS Fix #1 — Delay socket creation by 100ms
+     Prevents Brave “Wait or Force Reload?”
+  --------------------------------------------------------- */
+  setTimeout(() => {
+    socket = new WebSocket(wsURL);
 
-  socket.addEventListener("open", () => {
-    startHeartbeat();
-  });
+    socket.addEventListener("open", () => {
+      startHeartbeat();
+    });
 
-  socket.addEventListener("close", () => {
-    reconnect();
-  });
+    socket.addEventListener("close", () => {
+      reconnect();
+    });
 
-  socket.addEventListener("error", () => {
-    reconnect();
-  });
+    socket.addEventListener("error", () => {
+      reconnect();
+    });
 
-  socket.addEventListener("message", (event) => {
-    try {
-      const payload = JSON.parse(event.data);
-      if (isDuplicate(payload)) return;
-      handleBroadcast(payload);
-    } catch {}
-  });
+    socket.addEventListener("message", (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (isDuplicate(payload)) return;
+        handleBroadcast(payload);
+      } catch {}
+    });
+  }, 100);
 }
 
+/* ---------------------------------------------------------
+   ⭐ Heartbeat — detects dead sockets
+--------------------------------------------------------- */
 function startHeartbeat() {
   clearInterval(heartbeat);
 
   heartbeat = setInterval(() => {
     if (!socket) return;
+
     if (socket.readyState !== WebSocket.OPEN) {
       reconnect();
     }
   }, 3000);
 }
 
+/* ---------------------------------------------------------
+   ⭐ Reconnect — with iOS safe mode
+--------------------------------------------------------- */
 function reconnect() {
   clearInterval(heartbeat);
-  setTimeout(() => {
+  clearTimeout(reconnectTimer);
+
+  /* ---------------------------------------------------------
+     ⭐ Brave/iOS Fix #2 — iOS safe mode
+     iOS kills WebSockets aggressively; avoid rapid reconnect storms.
+  --------------------------------------------------------- */
+  const delay = isIOS ? 1500 : 300;
+
+  reconnectTimer = setTimeout(() => {
     setupSocket();
-  }, 300);
+  }, delay);
 }
 
 export {

@@ -1,5 +1,3 @@
-// public/overlay/shared/_sharedPopups.js
-
 /* ---------------------------------------------------------
    ⭐ Shared Popups State
 --------------------------------------------------------- */
@@ -17,6 +15,13 @@ const sharedPopups = {
   ws: null,        // popups WebSocket
   chatWS: null     // chat WebSocket
 };
+
+/* ---------------------------------------------------------
+   ⭐ Detect iOS (Safari WebKit)
+--------------------------------------------------------- */
+const isIOS =
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 /* ---------------------------------------------------------
    ⭐ Chat WebSocket Reliability System
@@ -42,22 +47,32 @@ function ensureChatWS() {
 
   console.warn("[Popups] Chat WS not connected — establishing…");
 
-  sharedPopups.chatWS = new WebSocket(sharedPopups.chatWSURL);
+  /* ---------------------------------------------------------
+     ⭐ Brave/iOS Fix #1 — Delay socket creation by 100ms
+     Prevents Brave “Wait or Force Reload?”
+  --------------------------------------------------------- */
+  setTimeout(() => {
+    sharedPopups.chatWS = new WebSocket(sharedPopups.chatWSURL);
 
-  sharedPopups.chatWS.onopen = () => {
-    console.log("[Popups] Chat WS connected");
-    flushChatQueue();
-  };
+    sharedPopups.chatWS.onopen = () => {
+      console.log("[Popups] Chat WS connected");
+      flushChatQueue();
+    };
 
-  sharedPopups.chatWS.onclose = () => {
-    console.warn("[Popups] Chat WS closed — retrying soon");
-    setTimeout(ensureChatWS, 1000);
-  };
+    sharedPopups.chatWS.onclose = () => {
+      console.warn("[Popups] Chat WS closed — retrying soon");
+      /* ---------------------------------------------------------
+         ⭐ Brave/iOS Fix #2 — iOS safe-mode reconnect delay
+      --------------------------------------------------------- */
+      const delay = isIOS ? 1500 : 1000;
+      setTimeout(ensureChatWS, delay);
+    };
 
-  sharedPopups.chatWS.onerror = () => {
-    console.warn("[Popups] Chat WS error — restarting");
-    try { sharedPopups.chatWS.close(); } catch {}
-  };
+    sharedPopups.chatWS.onerror = () => {
+      console.warn("[Popups] Chat WS error — restarting");
+      try { sharedPopups.chatWS.close(); } catch {}
+    };
+  }, 100);
 }
 
 /**
@@ -126,9 +141,11 @@ setInterval(() => {
 }, 3000);
 
 /* ---------------------------------------------------------
-   ⭐ Initial connect
+   ⭐ Initial connect (with Brave/iOS delay)
 --------------------------------------------------------- */
-ensureChatWS();
+setTimeout(() => {
+  ensureChatWS();
+}, 120);
 
 /* ---------------------------------------------------------
    ⭐ Load Velora Access Token

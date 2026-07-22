@@ -11,8 +11,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // Without this, the popup renders off‑screen on non‑1920×1080 canvases
   scaleOverlay();
 
-  // ⭐ Initialize BOTH pipelines:
-  // - DO WebSocket (existing)
-  // - Velora Events API (new)
-  setupPopupSocket();
+  /* ---------------------------------------------------------
+     ⭐ Brave/iOS Fix — Delay WebSocket startup
+     Prevents Brave stalls and iOS reload loops.
+  --------------------------------------------------------- */
+  setTimeout(() => {
+    // ⭐ Initialize BOTH pipelines:
+    // - DO WebSocket (existing)
+    // - Velora Events API (new)
+    setupPopupSocket();
+  }, 120); // 100–150ms is the sweet spot for Brave/iOS
 });

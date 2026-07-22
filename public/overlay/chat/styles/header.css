@@ -74,6 +74,15 @@
 }
 
 /* ---------------------------------------------------------
+   ⭐ iPad/iOS — HARD DISABLE HEADER (prevents WebM load)
+--------------------------------------------------------- */
+@supports (-webkit-touch-callout: none) {
+  #chat-header {
+    display: none !important;
+  }
+}
+
+/* ---------------------------------------------------------
    ⭐ DATE — final tuned OBS positioning
 --------------------------------------------------------- */
 #current-date {
@@ -110,10 +119,19 @@
 
   opacity: 0.9; /* ⭐ 90% opacity */
 
-  /* ⭐ Combined animations */
+  /* ⭐ Combined animations (OBS/desktop only) */
   animation:
     floatTilt 3s ease-in-out infinite,
     jiggleMotion 2.1s ease-in-out infinite;
 
   display: inline-block;
+}
+
+/* ---------------------------------------------------------
+   ⭐ iPad/iOS — DISABLE ANIMATIONS (prevents GPU stalls)
+--------------------------------------------------------- */
+@supports (-webkit-touch-callout: none) {
+  #date-output {
+    animation: none !important;
+  }
 }

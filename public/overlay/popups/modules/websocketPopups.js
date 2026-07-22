@@ -5,6 +5,13 @@ import { handleRewardPopup } from "./rewardRendererPopups.js";
 import { renderVeloraAlertCard, loadVeloraFonts } from "./veloraRendererPopups.js";
 import { io } from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
 
+/* ---------------------------------------------------------
+   ⭐ Detect iOS (Safari WebKit)
+--------------------------------------------------------- */
+const isIOS =
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
 class PopupsSocketManager {
   constructor({ type, url, token = null, onEvent }) {
     this.type = type;
@@ -16,8 +23,15 @@ class PopupsSocketManager {
     this.heartbeat = null;
     this.queue = [];
     this.ready = false;
+    this.reconnectTimer = null;
 
-    this.connect();
+    /* ---------------------------------------------------------
+       ⭐ Brave/iOS Fix #1 — Delay socket creation by 100ms
+       Prevents Brave “Wait or Force Reload?”
+    --------------------------------------------------------- */
+    setTimeout(() => {
+      this.connect();
+    }, 100);
   }
 
   connect() {
@@ -86,6 +100,7 @@ class PopupsSocketManager {
 
   reconnect() {
     clearInterval(this.heartbeat);
+    clearTimeout(this.reconnectTimer);
 
     try {
       if (this.socket && this.type !== "velora") {
@@ -93,9 +108,15 @@ class PopupsSocketManager {
       }
     } catch {}
 
-    setTimeout(() => {
+    /* ---------------------------------------------------------
+       ⭐ Brave/iOS Fix #2 — iOS safe-mode reconnect delay
+       Prevents reconnect storms when WebKit kills sockets.
+    --------------------------------------------------------- */
+    const delay = isIOS ? 1500 : 300;
+
+    this.reconnectTimer = setTimeout(() => {
       this.connect();
-    }, 300);
+    }, delay);
   }
 
   startHeartbeat() {
@@ -129,6 +150,9 @@ class PopupsSocketManager {
   }
 }
 
+/* ---------------------------------------------------------
+   ⭐ Popup Broadcast Handler
+--------------------------------------------------------- */
 function handlePopupBroadcast(payload) {
   if (!payload.cardDesign) return;
 
@@ -137,6 +161,9 @@ function handlePopupBroadcast(payload) {
   }
 }
 
+/* ---------------------------------------------------------
+   ⭐ Velora Event Handler
+--------------------------------------------------------- */
 function handleVeloraEvent({ event, data, timestamp }) {
   if (
     event === "channel.stream_alert" ||
@@ -205,6 +232,9 @@ function handleVeloraEvent({ event, data, timestamp }) {
   }
 }
 
+/* ---------------------------------------------------------
+   ⭐ Setup Popups Socket (with stability fixes)
+--------------------------------------------------------- */
 export async function setupPopupSocket() {
   await loadVeloraFonts();
 
