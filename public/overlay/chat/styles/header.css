@@ -146,14 +146,14 @@
   position: absolute;
 
   /* ⭐ Centered under logo (adjust as needed) */
-  top: 125px;
+  top: 127px;
   left: 195px;
 
   background: transparent;
 
   /* ⭐ Brighter + slightly thinner border + glow */
   border: 4px solid #ff00ff;   /* brighter purple */
-  border-radius: 6px;
+  border-radius: 5px;
 
   /* ⭐ Subtle glow */
   box-shadow: 0 0 8px rgba(138, 92, 160, 0.6);
