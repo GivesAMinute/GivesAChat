@@ -10,10 +10,12 @@ export class ChatRoom {
   async fetch(request) {
     const url = new URL(request.url);
 
+    // WebSocket upgrade
     if (request.headers.get("Upgrade") === "websocket") {
       return this.handleWebSocket(request);
     }
 
+    // Broadcast endpoint
     if (request.method === "POST" && url.pathname === "/broadcast") {
       const event = await request.json();
       this.broadcast(event);
@@ -23,8 +25,14 @@ export class ChatRoom {
     return new Response("Not found", { status: 404 });
   }
 
+  // ---------------------------------------------------------
+  // ⭐ IMPORTANT: fully disable alarms
+  // Cloudflare may still call alarm() if older deployments
+  // previously scheduled alarms. This prevents auto-close.
+  // ---------------------------------------------------------
   async alarm() {
-    // No idle shutdown
+    // Do nothing — no idle shutdown, no cleanup
+    return;
   }
 
   handleWebSocket(request) {
@@ -67,7 +75,9 @@ export class ChatRoom {
       try {
         ws.send(payload);
         alive.push(ws);
-      } catch {}
+      } catch {
+        // Drop dead socket
+      }
     }
 
     this.clients = alive;
