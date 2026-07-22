@@ -120,7 +120,7 @@
   color: white;
   text-shadow: 2px 2px 5px black;
 
-  opacity: 0.75;
+  opacity: 0.85;
 
   /* ⭐ Combined animations (OBS/desktop only) */
   animation:
@@ -137,4 +137,52 @@
   #date-output {
     animation: none !important;
   }
+}
+
+/* ---------------------------------------------------------
+   ⭐ Viewer Box — under header logo
+--------------------------------------------------------- */
+#viewer-box {
+  position: absolute;
+
+  /* Match date positioning logic */
+  top: 140px;        /* Adjust if needed */
+  left: 60px;        /* Align under logo */
+
+  background: #4e3459;
+  padding: 10px 18px;
+  border-radius: 6px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  pointer-events: none;
+  z-index: 999999;
+}
+
+/* Beam logo */
+#beam-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  filter: drop-shadow(0px 0px 2px rgba(255,255,255,0.25));
+}
+
+/* Label */
+#viewer-label {
+  font-family: sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  color: white;
+  opacity: 0.85;
+}
+
+/* Count */
+#viewer-count {
+  font-family: sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: white;
+  opacity: 0.95;
 }

@@ -9,6 +9,9 @@ import { setupSocket } from "./modules/websocket.js";
 // ⭐ Load date into header (OBS-only)
 import { loadCurrentDate } from "./modules/currentDate.js";
 
+// ⭐ NEW — Viewer count + header initializer
+import { setupHeader } from "./modules/header.js";
+
 async function initOverlay() {
   // ⭐ Audio unlock
   if (isIOSDevice()) {
@@ -36,6 +39,13 @@ async function initOverlay() {
        Prevents layout thrash during initial paint.
     --------------------------------------------------------- */
     loadCurrentDate();
+
+    /* ---------------------------------------------------------
+       ⭐ NEW — Initialize viewer count + header systems
+       Safe to run after date + socket initialization.
+    --------------------------------------------------------- */
+    setupHeader();
+
   }, 120); // 100–150ms is the sweet spot for Brave/iOS
 }
 
