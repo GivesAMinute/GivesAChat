@@ -149,8 +149,8 @@
   position: absolute;
 
   /* ⭐ Positioning — centered under logo */
-  top: 140px;        /* adjust if needed */
-  left: 420px;       /* adjust horizontally to center */
+  top: 130px;        /* adjust if needed */
+  left: 220px;       /* adjust horizontally to center */
 
   background: transparent;
   border: 3px solid #4e3459;   /* purple outline only */
