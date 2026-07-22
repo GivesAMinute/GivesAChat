@@ -1,13 +1,10 @@
-/**
- * Loads the date HTML file and inserts it into #current-date.
- */
 export async function loadCurrentDate() {
+  console.log("DATE LOADER RAN"); // ⭐ TEMP DEBUG
+
   try {
     const res = await fetch("/overlay/chat/utils/date.html", {
       method: "GET",
-      headers: {
-        "Accept": "text/html"
-      }
+      headers: { "Accept": "text/html" }
     });
 
     const html = await res.text();
@@ -18,7 +15,6 @@ export async function loadCurrentDate() {
   } catch (err) {
     console.error("[Header] Failed to load date HTML:", err);
 
-    // Fail-safe: do not break the header
     const el = document.getElementById("current-date");
     if (el) el.textContent = "";
   }
