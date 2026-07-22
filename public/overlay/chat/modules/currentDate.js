@@ -1,31 +1,55 @@
+/**
+ * Loads the date HTML file and inserts it into #current-date,
+ * then updates the date text every minute.
+ */
 export async function loadCurrentDate() {
-  console.log("DATE LOADER RAN");
-
   try {
     const res = await fetch("/overlay/chat/utils/date.html", {
       method: "GET",
       headers: { "Accept": "text/html" }
     });
 
-    console.log("FETCH STATUS:", res.status);
-
     const html = await res.text();
-    console.log("FETCHED HTML:", html);
 
-    const el = document.getElementById("current-date");
-    console.log("CURRENT-DATE ELEMENT:", el);
+    const container = document.getElementById("current-date");
+    if (!container) return;
 
-    if (el) {
-      el.innerHTML = html;
-      console.log("HTML INSERTED");
-    } else {
-      console.log("ELEMENT NOT FOUND");
+    container.innerHTML = html;
+
+    const output = document.getElementById("date-output");
+    if (!output) return;
+
+    function getOrdinalSuffix(day) {
+      if (day > 3 && day < 21) return "th";
+      switch (day % 10) {
+        case 1: return "st";
+        case 2: return "nd";
+        case 3: return "rd";
+        default: return "th";
+      }
     }
+
+    function updateDate() {
+      const now = new Date();
+
+      const dayName = now.toLocaleDateString("en-AU", { weekday: "short" });
+      const dayNum = now.getDate();
+      const suffix = getOrdinalSuffix(dayNum);
+
+      const fullMonthName = now.toLocaleDateString("en-AU", { month: "long" });
+      const monthName = fullMonthName.substring(0, 3);
+
+      const year = "'" + String(now.getFullYear()).slice(-2);
+
+      const dateString = `${dayName} ${dayNum}${suffix} ${monthName} ${year}`;
+
+      output.textContent = dateString;
+    }
+
+    updateDate();
+    setInterval(updateDate, 60000);
 
   } catch (err) {
     console.error("[Header] Failed to load date HTML:", err);
-
-    const el = document.getElementById("current-date");
-    if (el) el.textContent = "";
   }
 }
