@@ -81,7 +81,7 @@
 
   /* ⭐ Tuned to match your screenshot exactly */
   top: 38px;        /* aligns with “GIVES A MINUTE” baseline */
-  right: 872px;      /* matches your screenshot inset */
+  right: 1072px;      /* matches your screenshot inset */
 
   pointer-events: none;
   z-index: 999999;
