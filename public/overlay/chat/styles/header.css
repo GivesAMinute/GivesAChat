@@ -80,8 +80,8 @@
   position: absolute;
 
   /* ⭐ Tuned to match your screenshot exactly */
-  top: 37px;        /* aligns with “GIVES A MINUTE” baseline */
-  right: 1182px;      /* matches your screenshot inset */
+  top: 39px;        /* aligns with “GIVES A MINUTE” baseline */
+  right: 1200px;      /* matches your screenshot inset */
 
   pointer-events: none;
   z-index: 999999;
@@ -93,7 +93,7 @@
 #date-output {
   font-family: sans-serif;
   font-size: 32px;
-  font-weight: 500;
+  font-weight: 450;
   color: white;
   text-shadow: 2px 2px 5px black;
 
