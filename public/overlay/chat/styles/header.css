@@ -11,6 +11,9 @@
   background: transparent !important;
   pointer-events: none;
   z-index: 999999;
+
+  /* Needed so #current-date anchors inside header */
+  position: relative;
 }
 
 /* ---------------------------------------------------------
@@ -68,4 +71,19 @@
   .obs-only {
     display: none !important;
   }
+}
+
+/* ---------------------------------------------------------
+   ⭐ DATE — positioned exactly like screenshot
+--------------------------------------------------------- */
+#current-date {
+  position: absolute;
+  top: 22px;        /* matches screenshot vertical alignment */
+  right: 40px;      /* matches screenshot horizontal alignment */
+  font-size: 32px;  /* same scale as screenshot */
+  font-weight: 600;
+  color: white;
+  text-shadow: 2px 2px 5px black;
+  pointer-events: none;
+  z-index: 999999;
 }
