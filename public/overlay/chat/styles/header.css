@@ -146,23 +146,25 @@
   position: absolute;
 
   /* ⭐ Centered under logo (adjust as needed) */
-  top: 130px;
-  left: 210px;
+  top: 125px;        /* lifted slightly */
+  left: 240px;       /* centered under your logo */
 
   background: transparent;
-  border: 3px solid #4e3459;
+
+  /* ⭐ Brighter + thicker border */
+  border: 5px solid #6a4b7a;   /* brighter purple */
   border-radius: 6px;
 
-  padding: 6px 14px; /* slightly tighter for vertical alignment */
+  padding: 4px 14px; /* reduced vertical padding for alignment */
 
-  display: inline-flex;     /* ⭐ allows auto-expansion */
-  align-items: center;      /* ⭐ vertical centering */
+  display: inline-flex;
+  align-items: center;      /* ⭐ perfect vertical alignment */
   gap: 10px;
 
   pointer-events: none;
 
   /* ⭐ Sits behind header logo */
-  z-index: 999998; /* one below header logo’s 999999 */
+  z-index: 900000; /* safely below logo’s 999999 */
 }
 
 /* Beam logo */
@@ -180,8 +182,8 @@
   font-weight: 500;
   color: white;
 
-  /* ⭐ Lift text vertically to align with Beam logo center */
-  transform: translateY(-2px);
+  /* ⭐ Removed translateY hack */
+  line-height: 32px; /* aligns text with Beam logo center */
 
   opacity: 0.85;
 }
@@ -193,10 +195,8 @@
   font-weight: 600;
   color: white;
 
-  /* ⭐ Same vertical lift */
-  transform: translateY(-2px);
+  /* ⭐ Same fix */
+  line-height: 32px;
 
   opacity: 0.75;
 }
-
-
