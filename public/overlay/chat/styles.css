@@ -275,3 +275,12 @@ body {
 .dark-mode #overlay-scale-wrapper {
   background-color: #131313 !important;
 }
+
+/* ---------------------------------------------------------
+   ⭐ FIX: remove header spacing on iPad/iOS
+--------------------------------------------------------- */
+@media (hover: none) and (pointer: coarse) {
+  #messages {
+    top: 0 !important;
+  }
+}
