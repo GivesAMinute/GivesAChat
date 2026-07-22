@@ -146,25 +146,28 @@
   position: absolute;
 
   /* ⭐ Centered under logo (adjust as needed) */
-  top: 125px;        /* lifted slightly */
-  left: 240px;       /* centered under your logo */
+  top: 125px;
+  left: 210px;
 
   background: transparent;
 
-  /* ⭐ Brighter + thicker border */
-  border: 5px solid #6a4b7a;   /* brighter purple */
+  /* ⭐ Brighter + slightly thinner border + glow */
+  border: 4px solid #8a5ca0;   /* brighter purple */
   border-radius: 6px;
 
-  padding: 4px 14px; /* reduced vertical padding for alignment */
+  /* ⭐ Subtle glow */
+  box-shadow: 0 0 8px rgba(138, 92, 160, 0.6);
+
+  padding: 4px 14px;
 
   display: inline-flex;
-  align-items: center;      /* ⭐ perfect vertical alignment */
+  align-items: center;
   gap: 10px;
 
   pointer-events: none;
 
   /* ⭐ Sits behind header logo */
-  z-index: 900000; /* safely below logo’s 999999 */
+  z-index: 1;
 }
 
 /* Beam logo */
@@ -182,8 +185,8 @@
   font-weight: 500;
   color: white;
 
-  /* ⭐ Removed translateY hack */
-  line-height: 32px; /* aligns text with Beam logo center */
+  /* ⭐ Perfect vertical alignment with Beam logo */
+  line-height: 32px;
 
   opacity: 0.85;
 }
@@ -195,8 +198,16 @@
   font-weight: 600;
   color: white;
 
-  /* ⭐ Same fix */
+  /* ⭐ Same alignment */
   line-height: 32px;
 
   opacity: 0.75;
+}
+
+/* ---------------------------------------------------------
+   ⭐ Header Logo — ensure it stays above viewer box
+--------------------------------------------------------- */
+#header-logo {
+  position: relative;   /* ⭐ creates stacking context */
+  z-index: 999999;      /* ⭐ always above viewer box */
 }
