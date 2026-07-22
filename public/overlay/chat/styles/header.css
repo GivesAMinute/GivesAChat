@@ -140,30 +140,29 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Viewer Box — under header logo
---------------------------------------------------------- */
-/* ---------------------------------------------------------
-   ⭐ Viewer Box — under header logo (transparent + outline)
+   ⭐ Viewer Box — transparent, outlined, auto-expanding
 --------------------------------------------------------- */
 #viewer-box {
   position: absolute;
 
-  /* ⭐ Positioning — centered under logo */
-  top: 130px;        /* adjust if needed */
-  left: 220px;       /* adjust horizontally to center */
+  /* ⭐ Centered under logo (adjust as needed) */
+  top: 130px;
+  left: 210px;
 
   background: transparent;
-  border: 3px solid #4e3459;   /* purple outline only */
+  border: 3px solid #4e3459;
   border-radius: 6px;
 
-  padding: 10px 18px;
+  padding: 6px 14px; /* slightly tighter for vertical alignment */
 
-  display: flex;
-  align-items: center;
+  display: inline-flex;     /* ⭐ allows auto-expansion */
+  align-items: center;      /* ⭐ vertical centering */
   gap: 10px;
 
   pointer-events: none;
-  z-index: 999999;
+
+  /* ⭐ Sits behind header logo */
+  z-index: 999998; /* one below header logo’s 999999 */
 }
 
 /* Beam logo */
@@ -180,6 +179,10 @@
   font-size: 20px;
   font-weight: 500;
   color: white;
+
+  /* ⭐ Lift text vertically to align with Beam logo center */
+  transform: translateY(-2px);
+
   opacity: 0.85;
 }
 
@@ -189,6 +192,11 @@
   font-size: 20px;
   font-weight: 600;
   color: white;
-  opacity: 0.75; /* ⭐ less opaque, matches your request */
+
+  /* ⭐ Same vertical lift */
+  transform: translateY(-2px);
+
+  opacity: 0.75;
 }
+
 
