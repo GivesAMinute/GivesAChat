@@ -185,6 +185,33 @@ function reconnect() {
   }, delay);
 }
 
+/* ---------------------------------------------------------
+   ⭐ YOUTUBE POLLER — safe, rate-limited (5s)
+--------------------------------------------------------- */
+async function pollYouTube() {
+  try {
+    const res = await fetch("/api/youtube/livechat");
+    if (!res.ok) return;
+
+    const data = await res.json();
+    if (!Array.isArray(data.messages)) return;
+
+    const container = getMessagesContainer();
+    if (!container) return;
+
+    data.messages.forEach(msg => {
+      // msg is already normalized by youtubeTransform.js
+      handleChat(msg, container);
+    });
+
+  } catch (err) {
+    console.warn("[YouTube] Poll failed:", err);
+  }
+}
+
+// Poll every 5 seconds (matches backend rate limit)
+setInterval(pollYouTube, 5000);
+
 export {
   setupSocket,
   handleBroadcast,

@@ -4,6 +4,7 @@ import { speakText } from "./tts.js";
 import { renderBlazeBadges } from "../badges/blaze/index.js";
 import { renderVeloraBadges } from "../badges/velora/index.js";
 import { colorForUsername } from "../utils/usernameColors.js";
+import { renderYouTubeMessage } from "../renderers/youtubeRenderer.js";
 
 /* ---------------------------------------------------------
    ⭐ Global Queue System (no overlapping audio/TTS)
@@ -108,6 +109,32 @@ function formatEmoteList(str) {
 function handleChat(payload, container) {
   console.log("[OVERLAY] incoming chat payload:", payload);
 
+  // YouTube path: payload already normalized from /api/youtube/livechat
+  if (payload.platform === "youtube" && payload.type === "chat-message") {
+    const node = renderYouTubeMessage(payload);
+    container.appendChild(node);
+
+    let ttsText = null;
+    if (window.enableChatTTS) {
+      const cleanMessage = payload.message || "";
+      ttsText = `${payload.user?.name || "Someone"} on YouTube says: ${cleanMessage}`;
+    }
+
+    enqueue({
+      soundUrl: null,
+      delayMs: 0,
+      ttsText
+    });
+
+    setTimeout(() => {
+      node.classList.add("fade-out");
+      setTimeout(() => node.remove(), 800);
+    }, 45000);
+
+    return;
+  }
+
+  // Existing Velora/Blaze path
   const wrapper = document.createElement("div");
   wrapper.className = "chat-message effect-enter";
 

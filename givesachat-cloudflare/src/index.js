@@ -9,6 +9,7 @@ import {
 } from "./veloraAuth.js";
 import { transformVeloraEvent } from "./veloraTransform.js";
 import { VeloraTokenStore } from "./veloraTokenStore.js";
+import { fetchYouTubeLiveChat } from "./youtubeLiveChat.js";
 
 export { ChatRoom, VeloraTokenStore, PopupRoom };
 
@@ -219,6 +220,31 @@ export default {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(mapped)
         })
+      );
+    }
+
+    /* ---------------------------------------------------------
+       ⭐ 10. YouTube live chat endpoint (rate-limited)
+    --------------------------------------------------------- */
+    if (url.pathname === "/api/youtube/livechat" && request.method === "GET") {
+      const result = await fetchYouTubeLiveChat(env);
+
+      if (result.error === "Rate limited") {
+        return new Response(
+          JSON.stringify(result),
+          {
+            status: 429,
+            headers: { "Content-Type": "application/json" }
+          }
+        );
+      }
+
+      return new Response(
+        JSON.stringify(result),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        }
       );
     }
 
