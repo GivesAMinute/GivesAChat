@@ -146,7 +146,7 @@
   position: absolute;
 
   /* ⭐ Your exact values — unchanged */
-  top: 128px;
+  top: 127px;
   left: 195px;
 
   background: transparent;
@@ -180,7 +180,7 @@
   object-fit: contain;
 
   /* ⭐ Lower the logo slightly */
-  transform: translateY(8px);
+  transform: translateY(9px);
 
   filter: drop-shadow(0px 0px 2px rgba(255,255,255,0.25));
 }
@@ -246,21 +246,21 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Border-only sheen — sweeps left→right without touching contents
+   ⭐ Border-only sheen — stays inside border, never touches contents
 --------------------------------------------------------- */
 #viewer-box::before {
   content: "";
   position: absolute;
 
   /* Match border outline exactly */
-  top: -3px;
-  left: -3px;
-  width: calc(100% + 6px);
-  height: calc(100% + 6px);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 
   border-radius: 4px;
 
-  /* Sheen is a thin diagonal streak */
+  /* Sheen streak */
   background: linear-gradient(
     120deg,
     rgba(255, 0, 255, 0) 0%,
@@ -268,19 +268,19 @@
     rgba(255, 0, 255, 0) 100%
   );
 
-  /* Make it thin so it only touches the border */
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
+  /* Clip to border only */
   -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-
-  /* This ensures the sheen ONLY hits the border */
-  mask-composite: exclude;
+    linear-gradient(#fff 0 0) padding-box,
+    linear-gradient(#fff 0 0) border-box;
   -webkit-mask-composite: xor;
 
-  padding: 3px; /* matches your border width */
+  mask:
+    linear-gradient(#fff 0 0) padding-box,
+    linear-gradient(#fff 0 0) border-box;
+  mask-composite: exclude;
+
+  /* Move sheen inside border thickness */
+  padding: 3px; /* matches your 3px border */
 
   pointer-events: none;
 
@@ -292,18 +292,18 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Sheen animation keyframes
+   ⭐ Sheen animation keyframes — stays inside border
 --------------------------------------------------------- */
 @keyframes borderSheen {
   0% {
-    transform: translateX(-80px);
+    transform: translateX(-40px);
     opacity: 0;
   }
   10% {
     opacity: 1;
   }
   25% {
-    transform: translateX(260px);
+    transform: translateX(140px); /* stays inside box width */
     opacity: 0.9;
   }
   35% {
@@ -311,6 +311,6 @@
   }
   100% {
     opacity: 0;
-    transform: translateX(260px);
+    transform: translateX(140px);
   }
 }
