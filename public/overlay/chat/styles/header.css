@@ -11,29 +11,43 @@
   background: transparent !important;
   pointer-events: none;
   z-index: 999999;
-
-  /* Needed so #current-date anchors inside header */
   position: relative;
 }
 
 /* ---------------------------------------------------------
-   ⭐ Header Logo — oversharpened + scratched texture
+   ⭐ Header Logo Wrapper — Safari-safe alpha channel
+--------------------------------------------------------- */
+#header-logo-wrap {
+  width: 760px;
+  height: auto;
+  transform: translate(-55px, -122px);
+  pointer-events: none;
+  position: absolute;
+  z-index: 999999;
+
+  /* Move your neon tuning here (Safari-safe) */
+  filter:
+    contrast(1.75)
+    brightness(0.9)
+    saturate(1.2)
+    drop-shadow(0px 0px 2px rgba(255,255,255,0.3));
+
+  mix-blend-mode: normal;
+  image-rendering: crisp-edges;
+}
+
+/* ---------------------------------------------------------
+   ⭐ Header Logo — raw media element (Safari-friendly)
 --------------------------------------------------------- */
 #header-logo {
   width: 760px;
   height: auto;
-  transform: translate(-55px, -122px);
   object-fit: contain;
   pointer-events: none;
 
-  filter:
-  contrast(1.75)
-  brightness(0.9)
-  saturate(1.2)
-  drop-shadow(0px 0px 2px rgba(255,255,255,0.3));
-
+  /* IMPORTANT: remove filters from the media element */
+  filter: none !important;
   mix-blend-mode: normal;
-  image-rendering: crisp-edges;
 }
 
 /* ---------------------------------------------------------
@@ -88,11 +102,8 @@
 --------------------------------------------------------- */
 #current-date {
   position: absolute;
-
-  /* ⭐ Your exact corrected values */
   top: 35px;
   right: 1297px;
-
   pointer-events: none;
   z-index: 999999;
 }
@@ -118,10 +129,8 @@
   font-weight: 440;
   color: white;
   text-shadow: 2px 2px 5px black;
-
   opacity: 0.85;
 
-  /* ⭐ Combined animations (OBS/desktop only) */
   animation:
     floatTilt 3s ease-in-out infinite,
     jiggleMotion 2.1s ease-in-out infinite;
@@ -143,18 +152,13 @@
 --------------------------------------------------------- */
 #viewer-box {
   position: absolute;
-
-  /* ⭐ Your exact values — unchanged */
   top: 127px;
   left: 195px;
-
   background: transparent;
 
-  /* ⭐ Reduced border width (2px) */
   border: 2px solid #ff00ff;
   border-radius: 4px;
 
-  /* ⭐ Strong neon glow */
   box-shadow:
     0 0 10px rgba(255, 0, 255, 0.9),
     0 0 22px rgba(255, 0, 255, 0.55),
@@ -167,8 +171,6 @@
   gap: 10px;
 
   pointer-events: none;
-
-  /* ⭐ Sits behind header logo */
   z-index: 1;
 }
 
@@ -177,10 +179,7 @@
   width: 32px;
   height: 32px;
   object-fit: contain;
-
-  /* ⭐ Lower the logo slightly */
   transform: translateY(9px);
-
   filter: drop-shadow(0px 0px 2px rgba(255,255,255,0.25));
 }
 
@@ -190,10 +189,7 @@
   font-size: 20px;
   font-weight: 500;
   color: white;
-
-  /* ⭐ Perfect vertical alignment with Beam logo */
   line-height: 32px;
-
   opacity: 0.85;
 }
 
@@ -203,19 +199,8 @@
   font-size: 20px;
   font-weight: 600;
   color: white;
-
-  /* ⭐ Same alignment */
   line-height: 32px;
-
   opacity: 0.75;
-}
-
-/* ---------------------------------------------------------
-   ⭐ Header Logo — ensure it stays above viewer box
---------------------------------------------------------- */
-#header-logo {
-  position: relative;   /* ⭐ creates stacking context */
-  z-index: 999999;      /* ⭐ always above viewer box */
 }
 
 /* ---------------------------------------------------------
@@ -239,7 +224,6 @@
   }
 }
 
-/* Applied dynamically via JS */
 .viewer-pop {
   animation: viewerPop 0.18s ease-out;
 }
