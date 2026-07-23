@@ -145,18 +145,20 @@
 #viewer-box {
   position: absolute;
 
-  /* ⭐ Centered under logo (adjust as needed) */
+  /* ⭐ Centered under logo (your exact values) */
   top: 127px;
   left: 195px;
 
   background: transparent;
 
-  /* ⭐ Brighter + slightly thinner border + glow */
-  border: 4px solid #ff00ff;   /* brighter purple */
+  /* ⭐ Brighter border */
+  border: 4px solid #ff00ff;
   border-radius: 4px;
 
-  /* ⭐ Subtle glow */
-  box-shadow: 0 0 8px rgba(138, 92, 160, 0.6);
+  /* ⭐ Subtle but visible neon glow */
+  box-shadow:
+    0 0 4px rgba(255, 0, 255, 0.55),
+    0 0 12px rgba(255, 0, 255, 0.35);
 
   padding: 4px 14px;
 
