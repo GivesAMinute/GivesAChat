@@ -67,9 +67,9 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Hide on retina desktops (Brave, Chrome, Safari on macOS)
+   ⭐ True-retina detection — avoids desktop zoom false positives
 --------------------------------------------------------- */
-@media (min-resolution: 2dppx) {
+@media only screen and (min-resolution: 2dppx) and (hover: none) and (pointer: coarse) {
   .obs-only {
     display: none !important;
   }
