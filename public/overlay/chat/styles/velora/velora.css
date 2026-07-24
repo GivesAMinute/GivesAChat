@@ -142,6 +142,17 @@
   object-fit: contain;
 }
 
+/* ⭐ NEW: Full horizontal + vertical pulse for reward icon */
+.velora-icon-pulse {
+  animation: velora-icon-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes velora-icon-pulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
 /* ---------------------------------------------------------
    ⭐ Velora System Alert Bubble
 --------------------------------------------------------- */
@@ -449,83 +460,3 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Rainbow Effect
---------------------------------------------------------- */
-.effect-rainbow {
-  position: relative;
-  border-radius: 11px;
-  padding: 3px;
-  background: linear-gradient(90deg,#ef4444,#f97316,#eab308,#10b981,#0ea5e9,#8b5cf6,#ec4899);
-  background-size: 450% 100%;
-  animation: rainbow-flow 3s linear infinite, glow-pulse-soft 2.6s ease-in-out infinite;
-  overflow: visible;
-}
-
-.effect-rainbow::after {
-  content: "";
-  position: absolute;
-  inset: -10px;
-  border-radius: inherit;
-  filter: blur(18px);
-  background: inherit;
-  opacity: 0.75;
-  z-index: 1;
-}
-
-.effect-rainbow > .chat-message-content {
-  background: #0d0d0d;
-  border-radius: 10px;
-  padding: 12px 16px;
-  position: relative;
-  z-index: 2;
-}
-
-@keyframes rainbow-flow {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 350% 50%; }
-}
-
-@keyframes glow-pulse-soft {
-  0%   { filter: brightness(1); }
-  50%  { filter: brightness(1.22); }
-  100% { filter: brightness(1); }
-}
-
-/* ---------------------------------------------------------
-   ⭐ Gigantify Effect (Velora-only)
---------------------------------------------------------- */
-.effect-gigantify {
-  animation: gigantify-right-pulse 1.2s ease-in-out infinite;
-  transform-origin: left center;
-}
-
-@keyframes gigantify-right-pulse {
-  0%   { transform: scaleX(1) scaleY(1); }
-  50%  { transform: scaleX(1.18) scaleY(1.06); }
-  100% { transform: scaleX(1) scaleY(1); }
-}
-
-/* ---------------------------------------------------------
-   ⭐ Velora Badge Pointer Events
---------------------------------------------------------- */
-.velora-badges,
-.velora-badge {
-  pointer-events: auto !important;
-}
-
-/* ---------------------------------------------------------
-   ⭐ Velora Reward Exit Animations
---------------------------------------------------------- */
-.fade-out .velora-reward-card {
-  animation: rewardSwipeLeft 0.6s ease-out forwards;
-}
-
-.fade-out .velora-reward-bg {
-  animation: rewardSwipeLeft 0.75s ease-out forwards;
-  animation-delay: 0.25s;
-}
-
-@keyframes rewardSwipeLeft {
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(-220px); }
-}
