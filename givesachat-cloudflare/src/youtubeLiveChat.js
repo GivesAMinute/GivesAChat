@@ -3,13 +3,12 @@
 import { getYouTubeAccessToken } from "./youtubeAuth.js";
 import { transformYouTubeMessage } from "./youtubeTransform.js";
 
-// Simple in-memory rate limiter per Worker instance.
-// YouTube quotas are strict; we enforce a minimum interval.
 let lastPollTs = 0;
+const seenMessageIds = new Set();
 
 export async function fetchYouTubeLiveChat(env) {
   const now = Date.now();
-  const minIntervalMs = 5000; // 5s between polls
+  const minIntervalMs = 5000;
 
   if (now - lastPollTs < minIntervalMs) {
     return {
@@ -31,9 +30,7 @@ export async function fetchYouTubeLiveChat(env) {
     return { error: "Missing YOUTUBE_LIVE_CHAT_ID", messages: [] };
   }
 
-  const apiUrl = new URL(
-    "https://www.googleapis.com/youtube/v3/liveChat/messages"
-  );
+  const apiUrl = new URL("https://www.googleapis.com/youtube/v3/liveChat/messages");
   apiUrl.searchParams.set("liveChatId", liveChatId);
   apiUrl.searchParams.set("part", "snippet,authorDetails");
   apiUrl.searchParams.set("maxResults", "50");
@@ -56,7 +53,12 @@ export async function fetchYouTubeLiveChat(env) {
 
   const messages = items
     .map(transformYouTubeMessage)
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter(msg => {
+      if (seenMessageIds.has(msg.id)) return false;
+      seenMessageIds.add(msg.id);
+      return true;
+    });
 
   return { error: null, messages };
 }

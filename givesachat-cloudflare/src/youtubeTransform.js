@@ -1,7 +1,5 @@
 // givesachat-cloudflare/src/youtubeTransform.js
 
-// Normalizes YouTube live chat messages into your internal event shape.
-
 export function transformYouTubeMessage(raw) {
   if (!raw || !raw.snippet || !raw.authorDetails) return null;
 
@@ -19,7 +17,7 @@ export function transformYouTubeMessage(raw) {
     isChatSponsor
   } = raw.authorDetails;
 
-  // Basic text message only for now
+  // Only text messages for now
   if (type !== "textMessageEvent") return null;
 
   return {
@@ -27,15 +25,13 @@ export function transformYouTubeMessage(raw) {
     type: "chat-message",
     id: raw.id,
     timestamp: publishedAt,
-    message: displayMessage,
-    user: {
-      name: displayName,
-      avatar: profileImageUrl,
-      badges: {
-        owner: !!isChatOwner,
-        moderator: !!isChatModerator,
-        sponsor: !!isChatSponsor
-      }
+    username: displayName,
+    avatar: profileImageUrl,
+    html: displayMessage,
+    badges: {
+      owner: !!isChatOwner,
+      moderator: !!isChatModerator,
+      sponsor: !!isChatSponsor
     }
   };
 }

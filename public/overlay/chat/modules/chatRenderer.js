@@ -4,7 +4,6 @@ import { speakText } from "./tts.js";
 import { renderBlazeBadges } from "../badges/blaze/index.js";
 import { renderVeloraBadges } from "../badges/velora/index.js";
 import { colorForUsername } from "../utils/usernameColors.js";
-import { renderYouTubeMessage } from "../renderers/youtubeRenderer.js";
 
 /* ---------------------------------------------------------
    ⭐ Global Queue System (no overlapping audio/TTS)
@@ -109,32 +108,7 @@ function formatEmoteList(str) {
 function handleChat(payload, container) {
   console.log("[OVERLAY] incoming chat payload:", payload);
 
-  // YouTube path: payload already normalized from /api/youtube/livechat
-  if (payload.platform === "youtube" && payload.type === "chat-message") {
-    const node = renderYouTubeMessage(payload);
-    container.appendChild(node);
-
-    let ttsText = null;
-    if (window.enableChatTTS) {
-      const cleanMessage = payload.message || "";
-      ttsText = `${payload.user?.name || "Someone"} on YouTube says: ${cleanMessage}`;
-    }
-
-    enqueue({
-      soundUrl: null,
-      delayMs: 0,
-      ttsText
-    });
-
-    setTimeout(() => {
-      node.classList.add("fade-out");
-      setTimeout(() => node.remove(), 800);
-    }, 45000);
-
-    return;
-  }
-
-  // Existing Velora/Blaze path
+  // Unified path for Velora, Blaze, YouTube, etc.
   const wrapper = document.createElement("div");
   wrapper.className = "chat-message effect-enter";
 
@@ -151,6 +125,16 @@ function handleChat(payload, container) {
     badgesHTML = renderBlazeBadges(payload);
   } else if (payload.platform === "velora") {
     badgesHTML = renderVeloraBadges(payload);
+  } else if (payload.platform === "youtube") {
+    const b = payload.badges || {};
+    const parts = [];
+    if (b.owner) parts.push("Owner");
+    if (b.moderator) parts.push("Mod");
+    if (b.sponsor) parts.push("Member");
+
+    if (parts.length > 0) {
+      badgesHTML = `<span class="badge youtube-badge">${parts.join(" · ")}</span>`;
+    }
   }
 
   const bubble = document.createElement("div");
