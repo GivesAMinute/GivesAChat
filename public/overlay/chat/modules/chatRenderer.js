@@ -22,7 +22,6 @@ async function processQueue() {
   while (messageQueue.length > 0) {
     const job = messageQueue.shift();
 
-    // 1. Play sound (if any)
     if (job.soundUrl && window.sharedRewardAudio) {
       try {
         window.sharedRewardAudio.pause();
@@ -35,12 +34,10 @@ async function processQueue() {
       }
     }
 
-    // 2. Wait for sound duration (if any)
     if (job.delayMs) {
       await new Promise(res => setTimeout(res, job.delayMs));
     }
 
-    // 3. Speak TTS (if allowed)
     if (job.ttsText) {
       try {
         await speakText(job.ttsText);
@@ -49,7 +46,6 @@ async function processQueue() {
       }
     }
 
-    // 4. Allow a small gap between jobs
     await new Promise(res => setTimeout(res, 150));
   }
 
@@ -108,7 +104,11 @@ function formatEmoteList(str) {
 function handleChat(payload, container) {
   console.log("[OVERLAY] incoming chat payload:", payload);
 
-  // Unified path for Velora, Blaze, YouTube, etc.
+  // Strip @ prefix for YouTube usernames
+  if (payload.platform === "youtube" && payload.username.startsWith("@")) {
+    payload.username = payload.username.substring(1);
+  }
+
   const wrapper = document.createElement("div");
   wrapper.className = "chat-message effect-enter";
 
@@ -121,20 +121,28 @@ function handleChat(payload, container) {
     : "";
 
   let badgesHTML = "";
+
   if (payload.platform === "blaze") {
     badgesHTML = renderBlazeBadges(payload);
+
   } else if (payload.platform === "velora") {
     badgesHTML = renderVeloraBadges(payload);
+
   } else if (payload.platform === "youtube") {
     const b = payload.badges || {};
-    const parts = [];
-    if (b.owner) parts.push("Owner");
-    if (b.moderator) parts.push("Mod");
-    if (b.sponsor) parts.push("Member");
+    const icons = [];
 
-    if (parts.length > 0) {
-      badgesHTML = `<span class="badge youtube-badge">${parts.join(" · ")}</span>`;
+    if (b.owner) {
+      icons.push(`<img class="badge-icon" src="/icons/youtube-owner.png">`);
     }
+    if (b.moderator) {
+      icons.push(`<img class="badge-icon" src="/icons/youtube-mod.png">`);
+    }
+    if (b.sponsor) {
+      icons.push(`<img class="badge-icon" src="/icons/youtube-member.png">`);
+    }
+
+    badgesHTML = icons.join("");
   }
 
   const bubble = document.createElement("div");
@@ -176,12 +184,8 @@ function handleChat(payload, container) {
     </div>
   `;
 
-  /* ---------------------------------------------------------
-     ⭐ Gigantify (apply to entire bubble + text)
-  --------------------------------------------------------- */
   if (payload.platform === "velora" && payload.effect === "gigantify") {
     bubble.classList.add("effect-gigantify");
-
     const textNode = bubble.querySelector(".text");
     if (textNode) textNode.classList.add("effect-gigantify");
   }

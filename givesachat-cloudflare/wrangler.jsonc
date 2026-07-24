@@ -10,6 +10,7 @@
     "enabled": true
   },
   "upload_source_maps": true,
+
   "durable_objects": {
     "bindings": [
       {
@@ -26,6 +27,7 @@
       }
     ]
   },
+
   "migrations": [
     {
       "tag": "v1",
@@ -40,18 +42,19 @@
       "new_sqlite_classes": ["PopupRoom"]
     }
   ],
+
   "vars": {
     "VELORA_CLIENT_ID": "velora_45271c710e18820f",
     "VELORA_CLIENT_SECRET": "522e9013c276e1992e66fc6b3bdbfc4857620c5090a6df147cee56be41226566",
     "VELORA_REDIRECT_URI": "https://givesachat-cloudflare.benonkoebsch.workers.dev/velora/callback",
-    "YOUTUBE_CLIENT_ID": "392570052333-r0ingo5ghtu8sucp524of49r1vb67028.apps.googleusercontent.com",
-    "YOUTUBE_CLIENT_SECRET": "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",
-    "YOUTUBE_REFRESH_TOKEN": "1//0gf64RkSgafJjCgYIARAAGBASNwF-L9Irtu4vZJpnJbLFY_eLILiDkArFMIzslJmShSWtGF5Xwiub4saxV824VxEXm0WI86WRIV0",
+
     "YOUTUBE_LIVE_CHAT_ID": "KicKGFVDQ2RhT3BCUTBRdFM3VFlmZk5MUVppURILY2Y0M0JTYUpMclU"
   },
+
   "assets": {
     "directory": "../public",
     "binding": "ASSETS"
   },
+
   "workers_dev": true
 }
