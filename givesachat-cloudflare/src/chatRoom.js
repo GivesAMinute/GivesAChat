@@ -32,12 +32,6 @@ export class ChatRoom {
     const client = pair[0];
     const server = pair[1];
 
-    // ⭐ Proper fix: close all existing sockets so they cannot replay old messages
-    for (const ws of this.clients) {
-      try { ws.close(1000, "Replaced by new client"); } catch {}
-    }
-    this.clients = [];
-
     server.accept();
     this.clients.push(server);
 
