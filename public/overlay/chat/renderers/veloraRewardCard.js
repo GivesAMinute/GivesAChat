@@ -102,17 +102,16 @@ export function renderVeloraRewardCard(msg) {
   if (text2.color?.value) titleEl.style.color = text2.color.value;
 
   if (text2.animation === "pulse") {
-  titleEl.classList.add("velora-text-pulse", "velora-text-pulse-random");
+    // ⭐ Pulse only to the right + randomized delay
+    titleEl.classList.add("velora-text-pulse", "velora-text-pulse-random");
 
-  // ⭐ Randomize the pulse offset so it never syncs with the icon
-  const rand = Math.random(); // 0.0 → 1.0
-  titleEl.style.setProperty("--rand", rand.toFixed(3));
-}
-
+    const rand = Math.random(); // 0.0 → 1.0
+    titleEl.style.setProperty("--rand", rand.toFixed(3));
+  }
 
   textEl.appendChild(titleEl);
 
-  // ⭐ Right: reward icon — now pulses horizontally + vertically
+  // ⭐ Right: reward icon — isolated wrapper prevents transform conflicts
   const rightEl = document.createElement("div");
   rightEl.className = "velora-reward-right";
 
@@ -123,13 +122,16 @@ export function renderVeloraRewardCard(msg) {
     null;
 
   if (iconUrl) {
+    // ⭐ Wrapper isolates transform so slide-out animation works
+    const iconWrap = document.createElement("div");
+    iconWrap.className = "velora-reward-icon-wrap";
+
     const iconEl = document.createElement("img");
-
-    // ⭐ Stronger pulse for the reward icon
     iconEl.className = "velora-reward-icon velora-icon-pulse";
-
     iconEl.src = iconUrl;
-    rightEl.appendChild(iconEl);
+
+    iconWrap.appendChild(iconEl);
+    rightEl.appendChild(iconWrap);
 
     wrapper.dataset.rewardIcon = iconUrl;
   }

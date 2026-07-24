@@ -115,8 +115,15 @@
   margin-top: 2px;
 }
 
+/* ⭐ Text pulse — now pulses only to the right */
 .velora-text-pulse {
-  animation: velora-pulse 1.6s ease-in-out infinite;
+  animation: velora-pulse 1.9s ease-in-out infinite;
+  transform-origin: left center; /* ⭐ pulse only to the right */
+}
+
+/* ⭐ Randomized delay for text pulse */
+.velora-text-pulse-random {
+  animation-delay: calc((var(--rand, 0.0)) * 1.2s);
 }
 
 @keyframes velora-pulse {
@@ -136,15 +143,24 @@
   flex-shrink: 0;
 }
 
+/* ⭐ Icon wrapper — isolates transform so card slide-out works */
+.velora-reward-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+}
+
 .velora-reward-icon {
   width: 64px;
   height: 64px;
   object-fit: contain;
 }
 
-/* ⭐ NEW: Full horizontal + vertical pulse for reward icon */
+/* ⭐ Icon pulse — full X+Y pulse */
 .velora-icon-pulse {
   animation: velora-icon-pulse 1.6s ease-in-out infinite;
+  transform-origin: center center;
 }
 
 @keyframes velora-icon-pulse {
@@ -458,9 +474,3 @@
   --star-accent: rgba(251,191,36,0.9);
   --galaxy-tint: linear-gradient(135deg,rgba(244,114,182,0.22),rgba(251,191,36,0.18));
 }
-
-/* Randomized pulse delay for reward text */
-.velora-text-pulse-random {
-  animation-delay: calc((var(--rand, 0.0)) * 1.2s);
-}
-
