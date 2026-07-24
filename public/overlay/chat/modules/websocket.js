@@ -174,10 +174,6 @@ function reconnect() {
   clearInterval(heartbeat);
   clearTimeout(reconnectTimer);
 
-  /* ---------------------------------------------------------
-     ⭐ Brave/iOS Fix #2 — iOS safe mode
-     iOS kills WebSockets aggressively; avoid rapid reconnect storms.
-  --------------------------------------------------------- */
   const delay = isIOS ? 1500 : 300;
 
   reconnectTimer = setTimeout(() => {
@@ -186,21 +182,33 @@ function reconnect() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ YOUTUBE POLLER — safe, rate-limited (5s)
+   ⭐ YOUTUBE POLLER — quota‑safe (20s)
 --------------------------------------------------------- */
+let youtubeBackoffUntil = 0;
+
 async function pollYouTube() {
   try {
+    const now = Date.now();
+    if (now < youtubeBackoffUntil) return;
+
     const res = await fetch("/api/youtube/livechat");
     if (!res.ok) return;
 
     const data = await res.json();
+
+    // If quota exceeded, back off for 60 seconds
+    if (data.error && data.error.includes("quota")) {
+      youtubeBackoffUntil = now + 60000;
+      console.warn("[YouTube] Quota exceeded — backing off for 60s");
+      return;
+    }
+
     if (!Array.isArray(data.messages)) return;
 
     const container = getMessagesContainer();
     if (!container) return;
 
     data.messages.forEach(msg => {
-      // msg is already normalized by youtubeTransform.js
       handleChat(msg, container);
     });
 
@@ -209,8 +217,8 @@ async function pollYouTube() {
   }
 }
 
-// Poll every 5 seconds (matches backend rate limit)
-setInterval(pollYouTube, 5000);
+// Poll every 20 seconds (quota‑safe)
+setInterval(pollYouTube, 20000);
 
 export {
   setupSocket,
