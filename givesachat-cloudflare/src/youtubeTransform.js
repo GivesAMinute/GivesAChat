@@ -1,6 +1,6 @@
 // givesachat-cloudflare/src/youtubeTransform.js
 
-import { youtubeEmotes } from "../../public/overlay/chat/modules/youtubeEmotes.js";
+import { youtubeEmotes } from "./youtubeEmotes.js";
 
 export function transformYouTubeMessage(raw) {
   if (!raw || !raw.snippet || !raw.authorDetails) return null;
