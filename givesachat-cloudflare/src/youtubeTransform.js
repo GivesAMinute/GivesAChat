@@ -1,5 +1,7 @@
 // givesachat-cloudflare/src/youtubeTransform.js
 
+import { youtubeEmotes } from "../../public/overlay/chat/modules/youtubeEmotes.js";
+
 export function transformYouTubeMessage(raw) {
   if (!raw || !raw.snippet || !raw.authorDetails) return null;
 
@@ -17,8 +19,15 @@ export function transformYouTubeMessage(raw) {
     isChatSponsor
   } = raw.authorDetails;
 
-  // Only text messages for now
   if (type !== "textMessageEvent") return null;
+
+  let html = displayMessage;
+
+  html = html.replace(/:([a-zA-Z0-9\-_]+):/g, (match) => {
+    const url = youtubeEmotes[match];
+    if (!url) return match;
+    return `<img class="emote youtube-emote" src="${url}" alt="${match}" width="32" height="32">`;
+  });
 
   return {
     platform: "youtube",
@@ -27,7 +36,7 @@ export function transformYouTubeMessage(raw) {
     timestamp: publishedAt,
     username: displayName,
     avatar: profileImageUrl,
-    html: displayMessage,
+    html,
     badges: {
       owner: !!isChatOwner,
       moderator: !!isChatModerator,
