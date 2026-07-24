@@ -6,7 +6,7 @@ import { renderVeloraBadges } from "../badges/velora/index.js";
 import { colorForUsername } from "../utils/usernameColors.js";
 
 /* ---------------------------------------------------------
-   ⭐ Global Queue System (no overlapping audio/TTS)
+   Global Queue System (no overlapping audio/TTS)
 --------------------------------------------------------- */
 const messageQueue = [];
 let queueRunning = false;
@@ -29,9 +29,7 @@ async function processQueue() {
         window.sharedRewardAudio.src = job.soundUrl;
         window.sharedRewardAudio.volume = 1.0;
         await window.sharedRewardAudio.play().catch(() => {});
-      } catch (e) {
-        console.warn("[Queue] Sound failed:", e);
-      }
+      } catch (e) {}
     }
 
     if (job.delayMs) {
@@ -41,9 +39,7 @@ async function processQueue() {
     if (job.ttsText) {
       try {
         await speakText(job.ttsText);
-      } catch (e) {
-        console.warn("[Queue] TTS failed:", e);
-      }
+      } catch (e) {}
     }
 
     await new Promise(res => setTimeout(res, 150));
@@ -53,7 +49,7 @@ async function processQueue() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Detect iOS / iPadOS
+   Detect iOS / iPadOS
 --------------------------------------------------------- */
 const isIOS = (() => {
   const ua = navigator.userAgent || navigator.vendor || window.opera;
@@ -99,12 +95,9 @@ function formatEmoteList(str) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Handle Chat Messages (queued)
+   Handle Chat Messages (queued)
 --------------------------------------------------------- */
 function handleChat(payload, container) {
-  console.log("[OVERLAY] incoming chat payload:", payload);
-
-  // Strip @ prefix for YouTube usernames
   if (payload.platform === "youtube" && payload.username.startsWith("@")) {
     payload.username = payload.username.substring(1);
   }
@@ -133,13 +126,13 @@ function handleChat(payload, container) {
     const icons = [];
 
     if (b.owner) {
-      icons.push(`<img class="badge-icon" src="/icons/youtube-owner.png">`);
+      icons.push(`<img class="badge-icon" src="/badges/youtube/owner.png">`);
     }
     if (b.moderator) {
-      icons.push(`<img class="badge-icon" src="/icons/youtube-mod.png">`);
+      icons.push(`<img class="badge-icon" src="/badges/youtube/moderator.png">`);
     }
     if (b.sponsor) {
-      icons.push(`<img class="badge-icon" src="/icons/youtube-member.png">`);
+      icons.push(`<img class="badge-icon" src="/badges/youtube/member.png">`);
     }
 
     badgesHTML = icons.join("");
@@ -226,7 +219,7 @@ function handleChat(payload, container) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora System Alert (queued)
+   Velora System Alert (queued)
 --------------------------------------------------------- */
 function renderVeloraSystemMessage(event, data, container) {
   if (!container) return;
