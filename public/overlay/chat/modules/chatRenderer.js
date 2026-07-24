@@ -126,13 +126,13 @@ function handleChat(payload, container) {
     const icons = [];
 
     if (b.owner) {
-      icons.push(`<img class="badge-icon" src="/badges/youtube/owner.png">`);
+      icons.push(`<img class="badge-icon" src="/badges/youtube/owner.png" width="20" height="20">`);
     }
     if (b.moderator) {
-      icons.push(`<img class="badge-icon" src="/badges/youtube/moderator.png">`);
+      icons.push(`<img class="badge-icon" src="/badges/youtube/moderator.png" width="20" height="20">`);
     }
     if (b.sponsor) {
-      icons.push(`<img class="badge-icon" src="/badges/youtube/member.png">`);
+      icons.push(`<img class="badge-icon" src="/badges/youtube/member.png" width="20" height="20">`);
     }
 
     badgesHTML = icons.join("");
