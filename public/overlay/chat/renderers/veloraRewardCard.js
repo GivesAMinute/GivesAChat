@@ -39,11 +39,11 @@ export function renderVeloraRewardCard(msg) {
     bgEl.appendChild(texEl);
   }
 
-  // ⭐ Left: avatar (FIXED)
+  // ⭐ Left: avatar (unchanged)
   const leftEl = document.createElement("div");
   leftEl.className = "velora-reward-left";
 
-  const avatarUrl = msg.avatarUrl || msg.avatar; // ⭐ Velora uses avatarUrl
+  const avatarUrl = msg.avatarUrl || msg.avatar;
 
   if (avatarUrl) {
     const avatarEl = document.createElement("img");
@@ -107,7 +107,7 @@ export function renderVeloraRewardCard(msg) {
 
   textEl.appendChild(titleEl);
 
-  // ⭐ Right: reward icon
+  // ⭐ Right: reward icon (pulse added here)
   const rightEl = document.createElement("div");
   rightEl.className = "velora-reward-right";
 
@@ -119,7 +119,10 @@ export function renderVeloraRewardCard(msg) {
 
   if (iconUrl) {
     const iconEl = document.createElement("img");
-    iconEl.className = "velora-reward-icon";
+
+    // ⭐ Pulse ONLY the reward icon inside the card
+    iconEl.className = "velora-reward-icon velora-text-pulse";
+
     iconEl.src = iconUrl;
     rightEl.appendChild(iconEl);
 
