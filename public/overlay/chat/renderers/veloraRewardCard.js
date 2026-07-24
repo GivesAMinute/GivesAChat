@@ -102,8 +102,13 @@ export function renderVeloraRewardCard(msg) {
   if (text2.color?.value) titleEl.style.color = text2.color.value;
 
   if (text2.animation === "pulse") {
-    titleEl.classList.add("velora-text-pulse");
-  }
+  titleEl.classList.add("velora-text-pulse", "velora-text-pulse-random");
+
+  // ⭐ Randomize the pulse offset so it never syncs with the icon
+  const rand = Math.random(); // 0.0 → 1.0
+  titleEl.style.setProperty("--rand", rand.toFixed(3));
+}
+
 
   textEl.appendChild(titleEl);
 

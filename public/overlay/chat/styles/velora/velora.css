@@ -459,4 +459,8 @@
   --galaxy-tint: linear-gradient(135deg,rgba(244,114,182,0.22),rgba(251,191,36,0.18));
 }
 
-/* ---------------------------------------------------------
+/* Randomized pulse delay for reward text */
+.velora-text-pulse-random {
+  animation-delay: calc((var(--rand, 0.0)) * 1.2s);
+}
+
