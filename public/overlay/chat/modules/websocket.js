@@ -219,8 +219,7 @@ async function pollYouTube() {
 
 // Poll every 20 seconds (quota‑safe)
 // YouTube disabled until quota resets
-// setInterval(pollYouTube, 20000);
-
+ setInterval(pollYouTube, 20000);
 
 export {
   setupSocket,
