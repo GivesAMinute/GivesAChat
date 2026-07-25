@@ -9,8 +9,11 @@ import { setupSocket } from "./modules/websocket.js";
 // ⭐ Load date into header (OBS-only)
 import { loadCurrentDate } from "./modules/currentDate.js";
 
-// ⭐ NEW — Viewer count + header initializer
+// ⭐ Viewer count + header initializer
 import { setupHeader } from "./modules/header.js";
+
+// ⭐ NEW — Beamstream iframe scraper
+import { startBeamstreamScraper } from "./modules/beamstream.js";
 
 async function initOverlay() {
   // ⭐ Audio unlock
@@ -41,10 +44,16 @@ async function initOverlay() {
     loadCurrentDate();
 
     /* ---------------------------------------------------------
-       ⭐ NEW — Initialize viewer count + header systems
+       ⭐ Initialize viewer count + header systems
        Safe to run after date + socket initialization.
     --------------------------------------------------------- */
     setupHeader();
+
+    /* ---------------------------------------------------------
+       ⭐ NEW — Start Beamstream iframe scraper
+       Runs headless inside overlay (no server needed)
+    --------------------------------------------------------- */
+    startBeamstreamScraper();
 
   }, 120); // 100–150ms is the sweet spot for Brave/iOS
 }

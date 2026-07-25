@@ -1,58 +1,35 @@
-import puppeteer from "puppeteer";
-import fetch from "node-fetch";
+// public/overlay/chat/modules/beamstream.js
 
-const BEAM_URL = "https://beamstream.gg/givesaminute/chat";
-const WORKER_BROADCAST_URL = "https://givesaminute.tv/api/broadcast"; // adjust if needed
+import { sendEventToWorker } from "./websocket.js";
 
-async function startBeamstreamScraper() {
-  console.log("[Beamstream] Launching browser…");
+/*
+  ⭐ Invisible iframe Beamstream scraper
+  This restores the original architecture:
+  - Load Beamstream chat in an invisible iframe
+  - Scrape DOM with MutationObserver
+  - Forward messages to Cloudflare Worker
+*/
 
-  const browser = await puppeteer.launch({
-    headless: true,        // set to false if you want to see the browser
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--window-size=1280,800"
-    ]
-  });
+export function startBeamstreamScraper() {
+  console.log("[Beamstream] Initializing iframe scraper…");
 
-  const page = await browser.newPage();
+  // Create invisible iframe
+  const iframe = document.createElement("iframe");
+  iframe.src = "https://beamstream.gg/givesaminute/chat";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "none";
+  iframe.style.position = "absolute";
+  iframe.style.left = "-9999px";
+  iframe.style.top = "-9999px";
 
-  console.log("[Beamstream] Navigating to chat page…");
-  await page.goto(BEAM_URL, { waitUntil: "networkidle2" });
+  document.body.appendChild(iframe);
 
-  console.log("[Beamstream] Injecting relay function…");
+  iframe.onload = () => {
+    console.log("[Beamstream] Iframe loaded, attaching observer…");
 
-  await page.exposeFunction("relayBeam", async (msg) => {
-    try {
-      // ⭐ HARD FILTER — DO NOT ALLOW VELORA FROM BEAMSTREAM
-      const p = msg.platform?.toLowerCase();
-      if (p === "velora" || p?.includes("velora")) return;
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
 
-      await fetch(WORKER_BROADCAST_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "chat",
-          platform: msg.platform || "beamstream",
-          data: {
-            username: msg.username,
-            message: msg.html,
-            avatar: msg.avatar,
-            badges: msg.badges || []
-          }
-        })
-      });
-    } catch (err) {
-      console.error("[Beamstream] Broadcast failed:", err);
-    }
-  });
-
-  console.log("[Beamstream] Installing DOM observer…");
-
-  await page.evaluate(() => {
     const safe = (el, selector) => {
       try { return el.querySelector(selector) || null; }
       catch { return null; }
@@ -70,15 +47,17 @@ async function startBeamstreamScraper() {
     };
 
     const observer = new MutationObserver(() => {
-      const nodes = [...document.querySelectorAll('[typeof="ChatMessage"]')];
+      const nodes = [...doc.querySelectorAll('[typeof="ChatMessage"]')];
       const last = nodes[nodes.length - 1];
       if (!last) return;
 
+      /* USERNAME */
       const username =
         safeText(last, '[property="sender.name"]') ||
         safeText(last, ".username") ||
         "Unknown";
 
+      /* AVATAR */
       let avatar =
         safeSrc(last, 'img[property="avatar"]') ||
         safeSrc(last, ".avatar img") ||
@@ -88,10 +67,12 @@ async function startBeamstreamScraper() {
         safeSrc(last, "img[src*='profile']") ||
         null;
 
+      /* BADGES */
       const badges = [...last.querySelectorAll(".badge img")]
         .map(img => img.src)
         .filter(src => typeof src === "string");
 
+      /* MESSAGE HTML */
       const container =
         safe(last, '[property="body"]') ||
         safe(last, ".message") ||
@@ -119,24 +100,25 @@ async function startBeamstreamScraper() {
         html = container?.innerText || "";
       }
 
+      /* STICKERS */
       const sticker = safe(last, "img.sticker, video.sticker");
       const stickerHTML = sticker ? sticker.outerHTML : "";
 
-      window.relayBeam({
-        platform: "beam",
-        username,
-        html: html + stickerHTML,
-        avatar,
-        badges
+      /* SEND TO WORKER */
+      sendEventToWorker({
+        type: "chat",
+        platform: "beamstream",
+        data: {
+          username,
+          message: html + stickerHTML,
+          avatar,
+          badges
+        }
       });
     });
 
-    observer.observe(document.body, { childList: true, subtree: true });
-  });
+    observer.observe(doc.body, { childList: true, subtree: true });
 
-  console.log("[Beamstream] Chat observer active.");
+    console.log("[Beamstream] DOM observer active.");
+  };
 }
-
-startBeamstreamScraper().catch(err => {
-  console.error("[Beamstream] Fatal error:", err);
-});
