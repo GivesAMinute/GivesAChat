@@ -58,7 +58,7 @@ function showRewardPopup(payload) {
   img.className = "reward-popup-image";
   img.src = popupIcon;
 
-  popupRoot.appendappendChild(img);
+  popupRoot.appendChild(img);
 
   setTimeout(() => {
     img.classList.add("fade-out");
@@ -74,7 +74,7 @@ function getMessagesContainer() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ BROADCAST HANDLER
+   ⭐ BROADCAST HANDLER (Velora only)
 --------------------------------------------------------- */
 function handleBroadcast(payload) {
   const container = getMessagesContainer();
@@ -103,15 +103,119 @@ function handleBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ WEBSOCKET — with Brave/iOS stability fixes
+   ⭐ BEAMSTREAM CHAT — Engine.IO / Socket.IO client
+--------------------------------------------------------- */
+
+const BEAM_WS_URL =
+  "wss://beamstream.gg/api/chat/api/v1/socket/?EIO=4&transport=websocket";
+
+let beamSocket = null;
+
+function startBeamstreamChat() {
+  try {
+    beamSocket = new WebSocket(BEAM_WS_URL);
+
+    beamSocket.addEventListener("open", () => {
+      console.log("[Beamstream] Connected");
+    });
+
+    beamSocket.addEventListener("close", () => {
+      console.log("[Beamstream] Closed — reconnecting...");
+      setTimeout(startBeamstreamChat, 3000);
+    });
+
+    beamSocket.addEventListener("error", (err) => {
+      console.warn("[Beamstream] Error:", err);
+    });
+
+    beamSocket.addEventListener("message", (event) => {
+      const raw = event.data;
+
+      // Engine.IO / Socket.IO framing:
+      if (typeof raw !== "string") return;
+      if (!raw.startsWith("42")) return;
+
+      let arr;
+      try {
+        arr = JSON.parse(raw.slice(2));
+      } catch {
+        return;
+      }
+
+      const eventName = arr[0];
+      const payload = arr[1];
+      if (!payload) return;
+
+      const mapped = mapBeamstreamToOverlay(payload);
+      if (!mapped) return;
+
+      // ⭐ HARD FILTER — DO NOT ALLOW VELORA FROM BEAMSTREAM
+      const p = mapped.platform?.toLowerCase();
+      if (
+        p === "velora" ||
+        p === "velora.tv" ||
+        p === "vlr" ||
+        p === "vel" ||
+        p === "v" ||
+        p?.includes("velora")
+      ) {
+        return;
+      }
+
+      const container = getMessagesContainer();
+      if (!container) return;
+
+      handleChat(mapped, container);
+    });
+  } catch (err) {
+    console.warn("[Beamstream] Failed to connect:", err);
+  }
+}
+
+/* ---------------------------------------------------------
+   ⭐ Beamstream → Overlay mapper
+   Adjust once you inspect real Beamstream payloads.
+--------------------------------------------------------- */
+function mapBeamstreamToOverlay(payload) {
+  const username =
+    payload.username ||
+    payload.user?.name ||
+    payload.author?.displayName;
+
+  const message =
+    payload.message ||
+    payload.text ||
+    payload.content;
+
+  if (!username || !message) return null;
+
+  // Beamstream platform detection
+  const platform =
+    payload.platform ||
+    payload.service ||
+    payload.source ||
+    payload.channelType ||
+    "beamstream";
+
+  return {
+    type: "chat",
+    platform,
+    data: {
+      username,
+      message,
+      badges: payload.badges || [],
+      emotes: payload.emotes || []
+    }
+  };
+}
+
+/* ---------------------------------------------------------
+   ⭐ MAIN OVERLAY WEBSOCKET (Velora)
 --------------------------------------------------------- */
 let socket = null;
 let heartbeat = null;
 let reconnectTimer = null;
 
-/* ---------------------------------------------------------
-   ⭐ Detect iOS (Safari WebKit)
---------------------------------------------------------- */
 const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -123,15 +227,14 @@ function setupSocket() {
     try { socket.close(); } catch {}
   }
 
-  /* ---------------------------------------------------------
-     ⭐ Brave/iOS Fix #1 — Delay socket creation by 100ms
-     Prevents Brave “Wait or Force Reload?”
-  --------------------------------------------------------- */
   setTimeout(() => {
     socket = new WebSocket(wsURL);
 
     socket.addEventListener("open", () => {
       startHeartbeat();
+
+      // ⭐ Start Beamstream chat once overlay WS is ready
+      startBeamstreamChat();
     });
 
     socket.addEventListener("close", () => {
