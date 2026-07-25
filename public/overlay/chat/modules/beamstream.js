@@ -1,19 +1,15 @@
 // public/overlay/chat/modules/beamstream.js
 
-import { sendEventToWorker } from "./websocket.js";
+import { socket } from "./websocket.js";
 
 /*
   ⭐ Invisible iframe Beamstream scraper
-  This restores the original architecture:
-  - Load Beamstream chat in an invisible iframe
-  - Scrape DOM with MutationObserver
-  - Forward messages to Cloudflare Worker
+  Scrapes Beamstream chat inside the overlay (no server needed)
 */
 
 export function startBeamstreamScraper() {
   console.log("[Beamstream] Initializing iframe scraper…");
 
-  // Create invisible iframe
   const iframe = document.createElement("iframe");
   iframe.src = "https://beamstream.gg/givesaminute/chat";
   iframe.style.width = "0";
@@ -51,13 +47,11 @@ export function startBeamstreamScraper() {
       const last = nodes[nodes.length - 1];
       if (!last) return;
 
-      /* USERNAME */
       const username =
         safeText(last, '[property="sender.name"]') ||
         safeText(last, ".username") ||
         "Unknown";
 
-      /* AVATAR */
       let avatar =
         safeSrc(last, 'img[property="avatar"]') ||
         safeSrc(last, ".avatar img") ||
@@ -67,12 +61,10 @@ export function startBeamstreamScraper() {
         safeSrc(last, "img[src*='profile']") ||
         null;
 
-      /* BADGES */
       const badges = [...last.querySelectorAll(".badge img")]
         .map(img => img.src)
         .filter(src => typeof src === "string");
 
-      /* MESSAGE HTML */
       const container =
         safe(last, '[property="body"]') ||
         safe(last, ".message") ||
@@ -100,21 +92,22 @@ export function startBeamstreamScraper() {
         html = container?.innerText || "";
       }
 
-      /* STICKERS */
       const sticker = safe(last, "img.sticker, video.sticker");
       const stickerHTML = sticker ? sticker.outerHTML : "";
 
-      /* SEND TO WORKER */
-      sendEventToWorker({
-        type: "chat",
-        platform: "beamstream",
-        data: {
-          username,
-          message: html + stickerHTML,
-          avatar,
-          badges
-        }
-      });
+      // ⭐ Send to Worker via existing WebSocket
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: "chat",
+          platform: "beamstream",
+          data: {
+            username,
+            message: html + stickerHTML,
+            avatar,
+            badges
+          }
+        }));
+      }
     });
 
     observer.observe(doc.body, { childList: true, subtree: true });
