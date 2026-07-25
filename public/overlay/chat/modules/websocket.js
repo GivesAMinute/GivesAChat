@@ -58,7 +58,7 @@ function showRewardPopup(payload) {
   img.className = "reward-popup-image";
   img.src = popupIcon;
 
-  popupRoot.appendChild(img);
+  popupRoot.appendappendChild(img);
 
   setTimeout(() => {
     img.classList.add("fade-out");
@@ -180,46 +180,6 @@ function reconnect() {
     setupSocket();
   }, delay);
 }
-
-/* ---------------------------------------------------------
-   ⭐ YOUTUBE POLLER — quota‑safe (20s)
---------------------------------------------------------- */
-let youtubeBackoffUntil = 0;
-
-async function pollYouTube() {
-  try {
-    const now = Date.now();
-    if (now < youtubeBackoffUntil) return;
-
-    const res = await fetch("/api/youtube/livechat");
-    if (!res.ok) return;
-
-    const data = await res.json();
-
-    // If quota exceeded, back off for 60 seconds
-    if (data.error && data.error.includes("quota")) {
-      youtubeBackoffUntil = now + 60000;
-      console.warn("[YouTube] Quota exceeded — backing off for 60s");
-      return;
-    }
-
-    if (!Array.isArray(data.messages)) return;
-
-    const container = getMessagesContainer();
-    if (!container) return;
-
-    data.messages.forEach(msg => {
-      handleChat(msg, container);
-    });
-
-  } catch (err) {
-    console.warn("[YouTube] Poll failed:", err);
-  }
-}
-
-// Poll every 20 seconds (quota‑safe)
-// YouTube disabled until quota resets
- setInterval(pollYouTube, 20000);
 
 export {
   setupSocket,

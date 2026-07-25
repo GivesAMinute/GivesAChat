@@ -9,7 +9,6 @@ import {
 } from "./veloraAuth.js";
 import { transformVeloraEvent } from "./veloraTransform.js";
 import { VeloraTokenStore } from "./veloraTokenStore.js";
-import { fetchYouTubeLiveChat } from "./youtubeLiveChat.js";
 
 export { ChatRoom, VeloraTokenStore, PopupRoom };
 
@@ -219,117 +218,9 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       ⭐ 10. YouTube live chat endpoint (rate-limited)
+       ⭐ 10. (REMOVED) YouTube endpoints
+       All YouTube API logic has been removed.
     --------------------------------------------------------- */
-    if (url.pathname === "/api/youtube/livechat" && request.method === "GET") {
-      const result = await fetchYouTubeLiveChat(env);
-
-      if (result.error === "Rate limited") {
-        return new Response(JSON.stringify(result), {
-          status: 429,
-          headers: { "Content-Type": "application/json" }
-        });
-      }
-
-      return new Response(JSON.stringify(result), {
-        status: 200,
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-
-    /* ---------------------------------------------------------
-       ⭐ 11. YouTube liveChatId lookup (OAuth-based)
-    --------------------------------------------------------- */
-    if (url.pathname === "/api/youtube/livechat-id" && request.method === "GET") {
-      try {
-        const clientId = env.YOUTUBE_CLIENT_ID;
-        const clientSecret = env.YOUTUBE_CLIENT_SECRET;
-        const refreshToken = env.YOUTUBE_REFRESH_TOKEN;
-
-        if (!clientId || !clientSecret || !refreshToken) {
-          return new Response(
-            JSON.stringify({ error: "Missing YouTube OAuth env vars" }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-          );
-        }
-
-        // 1. Refresh access token
-        const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            client_id: clientId,
-            client_secret: clientSecret,
-            refresh_token: refreshToken,
-            grant_type: "refresh_token"
-          })
-        });
-
-        const tokenJson = await tokenRes.json();
-        const accessToken = tokenJson.access_token;
-
-        if (!accessToken) {
-          return new Response(
-            JSON.stringify({
-              error: "Failed to refresh access token",
-              details: tokenJson
-            }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-          );
-        }
-
-        // 2. Fetch active broadcast
-        const broadcastRes = await fetch(
-          "https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,contentDetails,status&broadcastStatus=active&broadcastType=all",
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              Accept: "application/json"
-            }
-          }
-        );
-
-        const broadcastJson = await broadcastRes.json();
-
-        if (!broadcastJson.items || broadcastJson.items.length === 0) {
-          return new Response(
-            JSON.stringify({
-              error: "No active broadcast found",
-              note: "Stream must be LIVE, not waiting."
-            }),
-            { status: 404, headers: { "Content-Type": "application/json" } }
-          );
-        }
-
-        const broadcast = broadcastJson.items[0];
-        const liveChatId = broadcast.snippet.liveChatId;
-
-        if (!liveChatId) {
-          return new Response(
-            JSON.stringify({
-              error: "Broadcast found, but no liveChatId",
-              note: "Stream may still be in preview mode."
-            }),
-            { status: 400, headers: { "Content-Type": "application/json" } }
-          );
-        }
-
-        return new Response(
-          JSON.stringify({
-            liveChatId,
-            broadcastTitle: broadcast.snippet.title,
-            broadcastId: broadcast.id
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-
-      } catch (err) {
-        return new Response(
-          JSON.stringify({ error: "Lookup failed", details: err.toString() }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        );
-      }
-    }
 
     return new Response("Not found", { status: 404 });
   }
