@@ -74,7 +74,7 @@ function getMessagesContainer() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ BROADCAST HANDLER (Velora only)
+   ⭐ BROADCAST HANDLER (Velora + Beamstream iframe)
 --------------------------------------------------------- */
 function handleBroadcast(payload) {
   const container = getMessagesContainer();
@@ -103,168 +103,7 @@ function handleBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ BEAMSTREAM CHAT — Engine.IO / Socket.IO client
---------------------------------------------------------- */
-
-const BEAM_WS_URL =
-  "wss://beamstream.gg/api/chat/api/v1/socket/?EIO=4&transport=websocket";
-
-let beamSocket = null;
-let beamPingTimer = null;
-
-function startBeamstreamChat() {
-  try {
-    if (beamSocket) {
-      try { beamSocket.close(); } catch {}
-    }
-
-    beamSocket = new WebSocket(BEAM_WS_URL);
-
-    beamSocket.addEventListener("open", () => {
-      console.log("[Beamstream] Connected");
-
-      // Socket.IO open packet: "40"
-      try {
-        beamSocket.send("40");
-      } catch (err) {
-        console.warn("[Beamstream] Failed to send 40:", err);
-      }
-    });
-
-    beamSocket.addEventListener("close", () => {
-      console.log("[Beamstream] Closed — reconnecting...");
-      clearInterval(beamPingTimer);
-      beamPingTimer = null;
-      setTimeout(startBeamstreamChat, 3000);
-    });
-
-    beamSocket.addEventListener("error", (err) => {
-      console.warn("[Beamstream] Error:", err);
-    });
-
-    beamSocket.addEventListener("message", (event) => {
-      const raw = event.data;
-
-      if (typeof raw !== "string") return;
-
-      const type = raw.charAt(0);
-
-      // Engine.IO / Socket.IO framing:
-      // "0" = Engine.IO open
-      // "2" = ping (we must respond with "3")
-      // "3" = pong
-      // "40" = Socket.IO open
-      // "42" = Socket.IO event: 42["eventName", payload]
-
-      if (type === "0") {
-        // Engine.IO open
-        // Example: 0{"sid":"...","upgrades":["websocket"],"pingInterval":25000,"pingTimeout":20000}
-        try {
-          const info = JSON.parse(raw.slice(1));
-          const pingInterval = info.pingInterval || 25000;
-
-          clearInterval(beamPingTimer);
-          beamPingTimer = setInterval(() => {
-            try {
-              beamSocket?.send("3"); // pong
-            } catch {}
-          }, pingInterval);
-        } catch {}
-        return;
-      }
-
-      if (type === "2") {
-        // ping → respond with pong
-        try {
-          beamSocket.send("3");
-        } catch {}
-        return;
-      }
-
-      if (raw.startsWith("40")) {
-        // Socket.IO open
-        return;
-      }
-
-      if (!raw.startsWith("42")) {
-        return;
-      }
-
-      let arr;
-      try {
-        arr = JSON.parse(raw.slice(2));
-      } catch {
-        return;
-      }
-
-      const eventName = arr[0];
-      const payload = arr[1];
-      if (!payload) return;
-
-      const mapped = mapBeamstreamToOverlay(payload);
-      if (!mapped) return;
-
-      // ⭐ HARD FILTER — DO NOT ALLOW VELORA FROM BEAMSTREAM
-      const p = mapped.platform?.toLowerCase();
-      if (
-        p === "velora" ||
-        p === "velora.tv" ||
-        p === "vlr" ||
-        p === "vel" ||
-        p === "v" ||
-        (p && p.includes("velora"))
-      ) {
-        return;
-      }
-
-      const container = getMessagesContainer();
-      if (!container) return;
-
-      handleChat(mapped, container);
-    });
-  } catch (err) {
-    console.warn("[Beamstream] Failed to connect:", err);
-  }
-}
-
-/* ---------------------------------------------------------
-   ⭐ Beamstream → Overlay mapper
-   Adjust once you inspect real Beamstream payloads.
---------------------------------------------------------- */
-function mapBeamstreamToOverlay(payload) {
-  const username =
-    payload.username ||
-    payload.user?.name ||
-    payload.author?.displayName;
-
-  const message =
-    payload.message ||
-    payload.text ||
-    payload.content;
-
-  if (!username || !message) return null;
-
-  const platform =
-    payload.platform ||
-    payload.service ||
-    payload.source ||
-    payload.channelType ||
-    "beamstream";
-
-  return {
-    type: "chat",
-    platform,
-    data: {
-      username,
-      message,
-      badges: payload.badges || [],
-      emotes: payload.emotes || []
-    }
-  };
-}
-
-/* ---------------------------------------------------------
-   ⭐ MAIN OVERLAY WEBSOCKET (Velora)
+   ⭐ MAIN OVERLAY WEBSOCKET (Velora + Beamstream iframe)
 --------------------------------------------------------- */
 let socket = null;
 let heartbeat = null;
@@ -286,9 +125,7 @@ function setupSocket() {
 
     socket.addEventListener("open", () => {
       startHeartbeat();
-
-      // ⭐ Start Beamstream chat once overlay WS is ready
-      startBeamstreamChat();
+      console.log("[Overlay WS] Connected");
     });
 
     socket.addEventListener("close", () => {
@@ -338,8 +175,18 @@ function reconnect() {
   }, delay);
 }
 
+/* ---------------------------------------------------------
+   ⭐ NEW — Helper for Beamstream iframe scraper
+--------------------------------------------------------- */
+function sendToWorker(payload) {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  socket.send(JSON.stringify(payload));
+}
+
 export {
   setupSocket,
   handleBroadcast,
-  getMessagesContainer
+  getMessagesContainer,
+  socket,
+  sendToWorker
 };
