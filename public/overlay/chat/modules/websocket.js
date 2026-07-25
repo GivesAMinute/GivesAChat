@@ -110,17 +110,31 @@ const BEAM_WS_URL =
   "wss://beamstream.gg/api/chat/api/v1/socket/?EIO=4&transport=websocket";
 
 let beamSocket = null;
+let beamPingTimer = null;
 
 function startBeamstreamChat() {
   try {
+    if (beamSocket) {
+      try { beamSocket.close(); } catch {}
+    }
+
     beamSocket = new WebSocket(BEAM_WS_URL);
 
     beamSocket.addEventListener("open", () => {
       console.log("[Beamstream] Connected");
+
+      // Socket.IO open packet: "40"
+      try {
+        beamSocket.send("40");
+      } catch (err) {
+        console.warn("[Beamstream] Failed to send 40:", err);
+      }
     });
 
     beamSocket.addEventListener("close", () => {
       console.log("[Beamstream] Closed — reconnecting...");
+      clearInterval(beamPingTimer);
+      beamPingTimer = null;
       setTimeout(startBeamstreamChat, 3000);
     });
 
@@ -131,9 +145,50 @@ function startBeamstreamChat() {
     beamSocket.addEventListener("message", (event) => {
       const raw = event.data;
 
-      // Engine.IO / Socket.IO framing:
       if (typeof raw !== "string") return;
-      if (!raw.startsWith("42")) return;
+
+      const type = raw.charAt(0);
+
+      // Engine.IO / Socket.IO framing:
+      // "0" = Engine.IO open
+      // "2" = ping (we must respond with "3")
+      // "3" = pong
+      // "40" = Socket.IO open
+      // "42" = Socket.IO event: 42["eventName", payload]
+
+      if (type === "0") {
+        // Engine.IO open
+        // Example: 0{"sid":"...","upgrades":["websocket"],"pingInterval":25000,"pingTimeout":20000}
+        try {
+          const info = JSON.parse(raw.slice(1));
+          const pingInterval = info.pingInterval || 25000;
+
+          clearInterval(beamPingTimer);
+          beamPingTimer = setInterval(() => {
+            try {
+              beamSocket?.send("3"); // pong
+            } catch {}
+          }, pingInterval);
+        } catch {}
+        return;
+      }
+
+      if (type === "2") {
+        // ping → respond with pong
+        try {
+          beamSocket.send("3");
+        } catch {}
+        return;
+      }
+
+      if (raw.startsWith("40")) {
+        // Socket.IO open
+        return;
+      }
+
+      if (!raw.startsWith("42")) {
+        return;
+      }
 
       let arr;
       try {
@@ -157,7 +212,7 @@ function startBeamstreamChat() {
         p === "vlr" ||
         p === "vel" ||
         p === "v" ||
-        p?.includes("velora")
+        (p && p.includes("velora"))
       ) {
         return;
       }
@@ -189,7 +244,6 @@ function mapBeamstreamToOverlay(payload) {
 
   if (!username || !message) return null;
 
-  // Beamstream platform detection
   const platform =
     payload.platform ||
     payload.service ||
