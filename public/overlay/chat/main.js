@@ -12,9 +12,6 @@ import { loadCurrentDate } from "./modules/currentDate.js";
 // ⭐ Viewer count + header initializer
 import { setupHeader } from "./modules/header.js";
 
-// ⭐ NEW — Beamstream iframe scraper
-import { startBeamstreamScraper } from "./modules/beamstream.js";
-
 async function initOverlay() {
   // ⭐ Audio unlock
   if (isIOSDevice()) {
@@ -50,10 +47,9 @@ async function initOverlay() {
     setupHeader();
 
     /* ---------------------------------------------------------
-       ⭐ NEW — Start Beamstream iframe scraper
-       Runs headless inside overlay (no server needed)
+       ❌ Beamstream removed
+       (iframe scraper & imports fully removed)
     --------------------------------------------------------- */
-    startBeamstreamScraper();
 
   }, 120); // 100–150ms is the sweet spot for Brave/iOS
 }
