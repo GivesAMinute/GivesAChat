@@ -1,6 +1,6 @@
 // givesachat-cloudflare/src/index.js
 
-import { VERSION } from "./version.js"; // optional version marker for future rebuilds
+import { VERSION } from "./version.js";
 
 import { ChatRoom } from "./chatRoom.js";
 import { PopupRoom } from "./popupRoom.js";
@@ -34,7 +34,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       ⭐ 1. Beamstream viewer proxy
+       ⭐ 1. Beamstream viewer proxy (viewers ONLY, no chat)
     --------------------------------------------------------- */
     if (url.pathname === "/api/viewers") {
       try {
@@ -108,7 +108,6 @@ export default {
 
     /* ---------------------------------------------------------
        ⭐ 3. WebSocket for chat overlay
-       ⭐ DO NAME BUMPED: v3 → v4
     --------------------------------------------------------- */
     if (url.pathname === "/ws/chat") {
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
@@ -118,7 +117,6 @@ export default {
 
     /* ---------------------------------------------------------
        ⭐ 4. WebSocket for popup overlay
-       ⭐ DO NAME BUMPED: v2 → v3
     --------------------------------------------------------- */
     if (url.pathname === "/ws/popups") {
       const id = env.PopupRoom.idFromName("givesachat-popups-v3");
@@ -223,7 +221,7 @@ export default {
 
     /* ---------------------------------------------------------
        ⭐ 10. Beamstream → Worker → DO broadcast
-       ❌ REMOVED — Beam now comes ONLY from beamstream-client.js
+       ❌ REMOVED — no Beam events are accepted here
     --------------------------------------------------------- */
 
     return new Response("Not found", { status: 404 });

@@ -32,7 +32,7 @@ async function initOverlay() {
        ⭐ Brave/iOS Fix #2 — Delay WebSocket startup
        Matches the delay inside websocket.js
     --------------------------------------------------------- */
-    setupSocket();
+    setupSocket();   // ⭐ ONLY Velora socket — Beam removed
 
     /* ---------------------------------------------------------
        ⭐ Brave/iOS Fix #3 — Delay header date load
