@@ -6,6 +6,50 @@ import { renderVeloraBadges } from "../badges/velora/index.js";
 import { colorForUsername } from "../utils/usernameColors.js";
 
 /* ---------------------------------------------------------
+   ⭐ Beam Sticker Renderer (Animated + Static)
+--------------------------------------------------------- */
+function renderBeamSticker(sticker) {
+  // Beam stickers use a UUID-like src value
+  // Animated = .webm, Static = .png
+  const url = sticker.animated
+    ? `https://chat-stickers.beamstream.gg/${sticker.src}.webm`
+    : `https://chat-stickers.beamstream.gg/${sticker.src}.png`;
+
+  // Wrapper controls bubble footprint
+  const wrapper = document.createElement("div");
+  wrapper.style.display = "inline-block";
+  wrapper.style.transform = "scale(0.5)";
+  wrapper.style.transformOrigin = "top left";
+
+  let el;
+
+  if (sticker.animated) {
+    el = document.createElement("video");
+    el.src = url;
+    el.autoplay = true;
+    el.loop = true;
+    el.muted = true;
+    el.playsInline = true;
+
+    el.style.transform = "scale(2)";
+    el.style.transformOrigin = "top left";
+
+    el.addEventListener("loadedmetadata", () => {
+      el.play().catch(() => {});
+    });
+  } else {
+    el = document.createElement("img");
+    el.src = url;
+
+    el.style.transform = "scale(2)";
+    el.style.transformOrigin = "top left";
+  }
+
+  wrapper.appendChild(el);
+  return wrapper;
+}
+
+/* ---------------------------------------------------------
    Global Queue System (no overlapping audio/TTS)
 --------------------------------------------------------- */
 const messageQueue = [];
@@ -95,7 +139,7 @@ function formatEmoteList(str) {
 }
 
 /* ---------------------------------------------------------
-   Handle Chat Messages (queued)
+   ⭐ Handle Chat Messages (queued)
 --------------------------------------------------------- */
 function handleChat(payload, container) {
   if (payload.platform === "youtube" && payload.username.startsWith("@")) {
@@ -176,6 +220,14 @@ function handleChat(payload, container) {
       <span class="text">${payload.html}</span>
     </div>
   `;
+
+  /* ---------------------------------------------------------
+     ⭐ Inject Beam Sticker (if present)
+  --------------------------------------------------------- */
+  if (payload.sticker) {
+    const stickerEl = renderBeamSticker(payload.sticker);
+    bubble.appendChild(stickerEl);
+  }
 
   if (payload.platform === "velora" && payload.effect === "gigantify") {
     bubble.classList.add("effect-gigantify");

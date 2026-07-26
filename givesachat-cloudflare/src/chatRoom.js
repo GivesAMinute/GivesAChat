@@ -1,3 +1,5 @@
+// updated DO logic
+
 // givesachat-cloudflare/src/chatRoom.js
 
 export class ChatRoom {
@@ -16,7 +18,7 @@ export class ChatRoom {
 
     if (request.method === "POST" && url.pathname === "/broadcast") {
       const event = await request.json();
-      this.broadcast(event);
+      this.broadcast(event, null);   // ⭐ sender = null for HTTP broadcasts
       return new Response("OK");
     }
 
@@ -38,9 +40,9 @@ export class ChatRoom {
     server.addEventListener("message", (msg) => {
       try {
         const parsed = JSON.parse(msg.data);
-        this.broadcast(parsed);
+        this.broadcast(parsed, server);   // ⭐ DO NOT echo back to sender
       } catch {
-        this.broadcast({ type: "client", data: msg.data });
+        this.broadcast({ type: "client", data: msg.data }, server);
       }
     });
 
@@ -57,13 +59,15 @@ export class ChatRoom {
     });
   }
 
-  broadcast(event) {
+  broadcast(event, sender) {
     if (!this.clients.length) return;
 
     const payload = JSON.stringify(event);
     const alive = [];
 
     for (const ws of this.clients) {
+      if (ws === sender) continue;   // ⭐ skip echoing back to sender
+
       try {
         ws.send(payload);
         alive.push(ws);

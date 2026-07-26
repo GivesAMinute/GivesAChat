@@ -1,4 +1,8 @@
+// force rebuild
+
 // givesachat-cloudflare/src/index.js
+
+import "./chatRoom.js"; // force rebuild
 
 import { ChatRoom } from "./chatRoom.js";
 import { PopupRoom } from "./popupRoom.js";
@@ -106,9 +110,10 @@ export default {
 
     /* ---------------------------------------------------------
        ⭐ 3. WebSocket for chat overlay
+       ⭐ DO NAME BUMPED: v2 → v3
     --------------------------------------------------------- */
     if (url.pathname === "/ws/chat") {
-      const id = env.ChatRoom.idFromName("givesachat-main-v2");
+      const id = env.ChatRoom.idFromName("givesachat-main-v3");
       const room = env.ChatRoom.get(id);
       return room.fetch(request);
     }
@@ -205,7 +210,7 @@ export default {
 
       if (!mapped) return new Response("Ignored", { status: 200 });
 
-      const id = env.ChatRoom.idFromName("givesachat-main-v2");
+      const id = env.ChatRoom.idFromName("givesachat-main-v3");
       const room = env.ChatRoom.get(id);
 
       return room.fetch(
@@ -219,8 +224,7 @@ export default {
 
     /* ---------------------------------------------------------
        ⭐ 10. Beamstream → Worker → DO broadcast
-       ❌ REMOVED — this was causing duplicates
-       Beam now comes ONLY from beamstream-client.js via WebSocket
+       ❌ REMOVED — Beam now comes ONLY from beamstream-client.js
     --------------------------------------------------------- */
 
     return new Response("Not found", { status: 404 });
