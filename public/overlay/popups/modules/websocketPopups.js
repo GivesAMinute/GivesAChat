@@ -1,13 +1,10 @@
 // public/overlay/popups/modules/websocketPopups.js
 
-import sharedPopups, { loadVeloraAccessToken, sendToChatOverlay } from "/overlay/shared/_sharedPopups.js";
+import sharedPopups, { loadVeloraAccessToken } from "/overlay/shared/_sharedPopups.js";
 import { handleRewardPopup } from "./rewardRendererPopups.js";
 import { renderVeloraAlertCard, loadVeloraFonts } from "./veloraRendererPopups.js";
 import { io } from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
 
-/* ---------------------------------------------------------
-   ⭐ Detect iOS (Safari WebKit)
---------------------------------------------------------- */
 const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -25,10 +22,6 @@ class PopupsSocketManager {
     this.ready = false;
     this.reconnectTimer = null;
 
-    /* ---------------------------------------------------------
-       ⭐ Brave/iOS Fix #1 — Delay socket creation by 100ms
-       Prevents Brave “Wait or Force Reload?”
-    --------------------------------------------------------- */
     setTimeout(() => {
       this.connect();
     }, 100);
@@ -108,10 +101,6 @@ class PopupsSocketManager {
       }
     } catch {}
 
-    /* ---------------------------------------------------------
-       ⭐ Brave/iOS Fix #2 — iOS safe-mode reconnect delay
-       Prevents reconnect storms when WebKit kills sockets.
-    --------------------------------------------------------- */
     const delay = isIOS ? 1500 : 300;
 
     this.reconnectTimer = setTimeout(() => {
@@ -151,7 +140,7 @@ class PopupsSocketManager {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Popup Broadcast Handler
+   ⭐ Popup Broadcast Handler — ONLY popups, no chat
 --------------------------------------------------------- */
 function handlePopupBroadcast(payload) {
   if (!payload.cardDesign) return;
@@ -162,7 +151,7 @@ function handlePopupBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Event Handler
+   ⭐ Velora Event Handler — ONLY popup alerts
 --------------------------------------------------------- */
 function handleVeloraEvent({ event, data, timestamp }) {
   if (
@@ -186,25 +175,12 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: data.duration || null
     });
 
-    sendToChatOverlay({
-      type: "velora_system",
-      event,
-      data
-    });
-
-    return;
+    return; // ⭐ NO forwarding to chat overlay
   }
 
   if (event === "channel_point_redeem") {
     handleRewardPopup(data);
-
-    sendToChatOverlay({
-      type: "reward",
-      platform: "velora",
-      ...data
-    });
-
-    return;
+    return; // ⭐ NO forwarding to chat overlay
   }
 
   if (data.cardAdded) {
@@ -224,16 +200,12 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: payload.duration || null
     });
 
-    sendToChatOverlay({
-      type: "velora_system",
-      event: card.type,
-      data: payload
-    });
+    return; // ⭐ NO forwarding to chat overlay
   }
 }
 
 /* ---------------------------------------------------------
-   ⭐ Setup Popups Socket (with stability fixes)
+   ⭐ Setup Popups Socket — NO chat forwarding
 --------------------------------------------------------- */
 export async function setupPopupSocket() {
   await loadVeloraFonts();
@@ -251,9 +223,6 @@ export async function setupPopupSocket() {
   });
 
   sharedPopups.ws = doManager.socket;
-
-  const chatSocket = new WebSocket(sharedPopups.chatWSURL);
-  sharedPopups.chatWS = chatSocket;
 
   const token = await loadVeloraAccessToken();
   if (!token) return;
