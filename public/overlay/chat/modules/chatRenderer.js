@@ -62,9 +62,14 @@ function isEmoteOnlyMessage(html) {
   return div.textContent.trim().length === 0 && div.querySelectorAll("img").length > 0;
 }
 
+/* ---------------------------------------------------------
+   FIXED: Extract emote names WITHOUT modifying HTML
+--------------------------------------------------------- */
 function extractEmoteNames(html, username) {
   const div = document.createElement("div");
   div.innerHTML = html;
+
+  const names = [];
 
   div.querySelectorAll("img").forEach(img => {
     let name = img.alt || img.dataset.hover || "emote";
@@ -80,10 +85,10 @@ function extractEmoteNames(html, username) {
 
     if (!name) name = "emote";
 
-    img.replaceWith(document.createTextNode(` ${name} `));
+    names.push(name);
   });
 
-  return div.textContent || div.innerText || "";
+  return names.join(" ");
 }
 
 function formatEmoteList(str) {
