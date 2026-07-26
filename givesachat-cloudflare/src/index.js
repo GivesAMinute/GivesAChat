@@ -19,7 +19,7 @@ export default {
     const url = new URL(request.url);
 
     /* ---------------------------------------------------------
-       ⭐ 0. Forced Overlay Route Normalization
+       0. Forced Overlay Route Normalization
     --------------------------------------------------------- */
     if (request.method === "GET") {
       if (url.pathname === "/overlay/chat") {
@@ -34,7 +34,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       ⭐ 1. Beamstream viewer proxy (viewers ONLY, no chat)
+       1. Beamstream viewer proxy (viewers ONLY, no chat/events)
     --------------------------------------------------------- */
     if (url.pathname === "/api/viewers") {
       try {
@@ -86,7 +86,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       ⭐ 2. Static assets
+       2. Static assets
     --------------------------------------------------------- */
     if (request.method === "GET") {
       let path = url.pathname;
@@ -107,7 +107,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       ⭐ 3. WebSocket for chat overlay
+       3. WebSocket for chat overlay
     --------------------------------------------------------- */
     if (url.pathname === "/ws/chat") {
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
@@ -116,7 +116,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       ⭐ 4. WebSocket for popup overlay
+       4. WebSocket for popup overlay
     --------------------------------------------------------- */
     if (url.pathname === "/ws/popups") {
       const id = env.PopupRoom.idFromName("givesachat-popups-v3");
@@ -125,7 +125,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       ⭐ 5. Velora OAuth login
+       5. Velora OAuth login
     --------------------------------------------------------- */
     if (url.pathname === "/velora/login" && request.method === "GET") {
       const authUrl = generateAuthorizationUrl(env);
@@ -133,7 +133,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       ⭐ 6. Velora OAuth callback
+       6. Velora OAuth callback
     --------------------------------------------------------- */
     if (url.pathname === "/velora/callback" && request.method === "GET") {
       const code = url.searchParams.get("code");
@@ -148,7 +148,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       ⭐ 7. Velora access token endpoint
+       7. Velora access token endpoint
     --------------------------------------------------------- */
     if (url.pathname === "/api/velora/access-token" && request.method === "GET") {
       const token = await getVeloraAccessToken(env);
@@ -167,7 +167,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       ⭐ 8. DO routing block
+       8. DO routing block (Velora token store)
     --------------------------------------------------------- */
     if (url.pathname.startsWith("/velora-token")) {
       const id = env.VeloraTokenStore.idFromName("velora-tokens");
@@ -188,7 +188,8 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       ⭐ 9. Velora → Worker → DO broadcast
+       9. Velora → Worker → DO broadcast
+       (ONLY Velora events are accepted here)
     --------------------------------------------------------- */
     if (url.pathname === "/api/events/velora" && request.method === "POST") {
       let veloraEvent;
@@ -205,7 +206,10 @@ export default {
         env
       );
 
-      if (!mapped) return new Response("Ignored", { status: 200 });
+      // ⭐ Extra guard: if transformVeloraEvent ever returns a Beam payload, ignore it
+      if (!mapped || mapped.platform === "beam") {
+        return new Response("Ignored", { status: 200 });
+      }
 
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
       const room = env.ChatRoom.get(id);
@@ -220,8 +224,8 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       ⭐ 10. Beamstream → Worker → DO broadcast
-       ❌ REMOVED — no Beam events are accepted here
+       10. Beamstream → Worker → DO broadcast
+       ❌ Not implemented. No Beam events are accepted here.
     --------------------------------------------------------- */
 
     return new Response("Not found", { status: 404 });
