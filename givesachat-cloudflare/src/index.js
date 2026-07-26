@@ -218,40 +218,10 @@ export default {
     }
 
     /* ---------------------------------------------------------
-   ⭐ Beamstream → Worker → DO broadcast
---------------------------------------------------------- */
-if (url.pathname === "/api/events/beam" && request.method === "POST") {
-  let beamEvent;
-
-  try {
-    beamEvent = await request.json();
-  } catch {
-    return new Response("Invalid JSON", { status: 400 });
-  }
-
-  // Beamstream messages already come in unified format from scraper
-  const mapped = {
-    type: "chat",
-    platform: beamEvent.platform || "beamstream",
-    data: {
-      username: beamEvent.data.username,
-      message: beamEvent.data.message,
-      avatar: beamEvent.data.avatar,
-      badges: beamEvent.data.badges || []
-    }
-  };
-
-  const id = env.ChatRoom.idFromName("givesachat-main-v2");
-  const room = env.ChatRoom.get(id);
-
-  return room.fetch(
-    new Request("https://dummy/broadcast", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(mapped)
-    })
-  );
-}
+       ⭐ 10. Beamstream → Worker → DO broadcast
+       ❌ REMOVED — this was causing duplicates
+       Beam now comes ONLY from beamstream-client.js via WebSocket
+    --------------------------------------------------------- */
 
     return new Response("Not found", { status: 404 });
   }

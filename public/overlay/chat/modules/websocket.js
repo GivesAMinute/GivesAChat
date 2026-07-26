@@ -1,4 +1,4 @@
-// public/overlay/chat/modules/websocket.js
+    // public/overlay/chat/modules/websocket.js
 
 import _shared from "/overlay/shared/_shared.js";
 import { handleReward } from "./rewardRenderer.js";
