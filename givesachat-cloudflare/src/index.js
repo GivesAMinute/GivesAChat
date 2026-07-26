@@ -206,7 +206,7 @@ export default {
         env
       );
 
-      // ⭐ Extra guard: if transformVeloraEvent ever returns a Beam payload, ignore it
+      // ⭐ HARD BLOCK: If transformVeloraEvent ever returns Beam, ignore it
       if (!mapped || mapped.platform === "beam") {
         return new Response("Ignored", { status: 200 });
       }
@@ -224,9 +224,11 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       10. Beamstream → Worker → DO broadcast
-       ❌ Not implemented. No Beam events are accepted here.
+       10. HARD BLOCK — Beam events NEVER allowed
     --------------------------------------------------------- */
+    if (url.pathname === "/api/events/beam") {
+      return new Response("Beam blocked", { status: 200 });
+    }
 
     return new Response("Not found", { status: 404 });
   }
