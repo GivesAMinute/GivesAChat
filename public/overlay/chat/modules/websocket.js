@@ -1,4 +1,4 @@
-    // public/overlay/chat/modules/websocket.js
+// public/overlay/chat/modules/websocket.js
 
 import _shared from "/overlay/shared/_shared.js";
 import { handleReward } from "./rewardRenderer.js";
@@ -108,6 +108,7 @@ function handleBroadcast(payload) {
 let socket = null;
 let heartbeat = null;
 let reconnectTimer = null;
+let isReconnecting = false;   // ⭐ prevents double reconnect loops
 
 const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -116,7 +117,8 @@ const isIOS =
 function setupSocket() {
   const wsURL = `${location.origin.replace("http", "ws")}/ws/chat`;
 
-  if (socket) {
+  // ⭐ Only close if fully open — prevents double-close loops
+  if (socket && socket.readyState === WebSocket.OPEN) {
     try { socket.close(); } catch {}
   }
 
@@ -162,15 +164,19 @@ function startHeartbeat() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Reconnect — with iOS safe mode
+   ⭐ Reconnect — FIXED (no double reconnect)
 --------------------------------------------------------- */
 function reconnect() {
+  if (isReconnecting) return;   // ⭐ prevents double reconnect
+  isReconnecting = true;
+
   clearInterval(heartbeat);
   clearTimeout(reconnectTimer);
 
   const delay = isIOS ? 1500 : 300;
 
   reconnectTimer = setTimeout(() => {
+    isReconnecting = false;
     setupSocket();
   }, delay);
 }
