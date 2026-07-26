@@ -205,7 +205,7 @@ function handleVeloraEvent({ event, data, timestamp }) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Setup Popups Socket — NO chat forwarding
+   ⭐ Setup Popups Socket — NO chat WebSocket
 --------------------------------------------------------- */
 export async function setupPopupSocket() {
   await loadVeloraFonts();
@@ -223,6 +223,9 @@ export async function setupPopupSocket() {
   });
 
   sharedPopups.ws = doManager.socket;
+
+  // ❌ Removed — popup overlay must NOT connect to chat WebSocket
+  // Popup overlay should ONLY handle popup events, not chat.
 
   const token = await loadVeloraAccessToken();
   if (!token) return;
