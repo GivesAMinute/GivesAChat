@@ -1,8 +1,6 @@
-// force rebuild
-
 // givesachat-cloudflare/src/index.js
 
-import "./chatRoom.js"; // force rebuild
+import { VERSION } from "./version.js"; // optional version marker for future rebuilds
 
 import { ChatRoom } from "./chatRoom.js";
 import { PopupRoom } from "./popupRoom.js";
@@ -110,19 +108,20 @@ export default {
 
     /* ---------------------------------------------------------
        ⭐ 3. WebSocket for chat overlay
-       ⭐ DO NAME BUMPED: v2 → v3
+       ⭐ DO NAME BUMPED: v3 → v4
     --------------------------------------------------------- */
     if (url.pathname === "/ws/chat") {
-      const id = env.ChatRoom.idFromName("givesachat-main-v3");
+      const id = env.ChatRoom.idFromName("givesachat-main-v4");
       const room = env.ChatRoom.get(id);
       return room.fetch(request);
     }
 
     /* ---------------------------------------------------------
        ⭐ 4. WebSocket for popup overlay
+       ⭐ DO NAME BUMPED: v2 → v3
     --------------------------------------------------------- */
     if (url.pathname === "/ws/popups") {
-      const id = env.PopupRoom.idFromName("givesachat-popups-v2");
+      const id = env.PopupRoom.idFromName("givesachat-popups-v3");
       const room = env.PopupRoom.get(id);
       return room.fetch(request);
     }
@@ -210,7 +209,7 @@ export default {
 
       if (!mapped) return new Response("Ignored", { status: 200 });
 
-      const id = env.ChatRoom.idFromName("givesachat-main-v3");
+      const id = env.ChatRoom.idFromName("givesachat-main-v4");
       const room = env.ChatRoom.get(id);
 
       return room.fetch(

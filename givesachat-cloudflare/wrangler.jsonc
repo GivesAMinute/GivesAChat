@@ -28,20 +28,21 @@
     ]
   },
 
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["ChatRoom"]
+  // 🔥 Declarative DO lifecycle: no migrations, no tags
+  "exports": {
+    "ChatRoom": {
+      "type": "durable-object",
+      "storage": "sqlite"
     },
-    {
-      "tag": "v2",
-      "new_sqlite_classes": ["VeloraTokenStore"]
+    "VeloraTokenStore": {
+      "type": "durable-object",
+      "storage": "sqlite"
     },
-    {
-      "tag": "v3",
-      "new_sqlite_classes": ["PopupRoom"]
+    "PopupRoom": {
+      "type": "durable-object",
+      "storage": "sqlite"
     }
-  ],
+  },
 
   "vars": {
     "VELORA_CLIENT_ID": "velora_45271c710e18820f",
