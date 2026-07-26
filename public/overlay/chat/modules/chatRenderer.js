@@ -62,14 +62,9 @@ function isEmoteOnlyMessage(html) {
   return div.textContent.trim().length === 0 && div.querySelectorAll("img").length > 0;
 }
 
-/* ---------------------------------------------------------
-   Extract emote names WITHOUT modifying HTML
---------------------------------------------------------- */
 function extractEmoteNames(html, username) {
   const div = document.createElement("div");
   div.innerHTML = html;
-
-  const names = [];
 
   div.querySelectorAll("img").forEach(img => {
     let name = img.alt || img.dataset.hover || "emote";
@@ -85,10 +80,10 @@ function extractEmoteNames(html, username) {
 
     if (!name) name = "emote";
 
-    names.push(name);
+    img.replaceWith(document.createTextNode(` ${name} `));
   });
 
-  return names.join(" ");
+  return div.textContent || div.innerText || "";
 }
 
 function formatEmoteList(str) {
@@ -100,25 +95,9 @@ function formatEmoteList(str) {
 }
 
 /* ---------------------------------------------------------
-   Handle Chat Messages (queued, with dedupe)
+   Handle Chat Messages (queued)
 --------------------------------------------------------- */
-let lastDedupeKey = null;
-
 function handleChat(payload, container) {
-  if (!container) return;
-
-  // Simple dedupe: if same key as last, ignore
-  const dedupeKey =
-    payload.dedupeKey ||
-    payload.id ||
-    (payload.data && payload.data.id) ||
-    `${payload.platform}:${payload.username}:${payload.html}`;
-
-  if (dedupeKey && lastDedupeKey === dedupeKey) {
-    return;
-  }
-  lastDedupeKey = dedupeKey;
-
   if (payload.platform === "youtube" && payload.username.startsWith("@")) {
     payload.username = payload.username.substring(1);
   }
