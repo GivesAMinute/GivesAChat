@@ -63,7 +63,7 @@ function isEmoteOnlyMessage(html) {
 }
 
 /* ---------------------------------------------------------
-   FIXED: Extract emote names WITHOUT modifying HTML
+   Extract emote names WITHOUT modifying HTML
 --------------------------------------------------------- */
 function extractEmoteNames(html, username) {
   const div = document.createElement("div");
@@ -100,9 +100,25 @@ function formatEmoteList(str) {
 }
 
 /* ---------------------------------------------------------
-   Handle Chat Messages (queued)
+   Handle Chat Messages (queued, with dedupe)
 --------------------------------------------------------- */
+let lastDedupeKey = null;
+
 function handleChat(payload, container) {
+  if (!container) return;
+
+  // Simple dedupe: if same key as last, ignore
+  const dedupeKey =
+    payload.dedupeKey ||
+    payload.id ||
+    (payload.data && payload.data.id) ||
+    `${payload.platform}:${payload.username}:${payload.html}`;
+
+  if (dedupeKey && lastDedupeKey === dedupeKey) {
+    return;
+  }
+  lastDedupeKey = dedupeKey;
+
   if (payload.platform === "youtube" && payload.username.startsWith("@")) {
     payload.username = payload.username.substring(1);
   }
