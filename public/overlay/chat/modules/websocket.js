@@ -103,7 +103,7 @@ function handleBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ MAIN OVERLAY WEBSOCKET — FIXED TO CLOUDFLARE WORKER
+   ⭐ MAIN OVERLAY WEBSOCKET — FIXED
 --------------------------------------------------------- */
 let socket = null;
 let heartbeat = null;
