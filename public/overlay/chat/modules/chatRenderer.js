@@ -9,13 +9,10 @@ import { colorForUsername } from "../utils/usernameColors.js";
    ⭐ Beam Sticker Renderer (Animated + Static)
 --------------------------------------------------------- */
 function renderBeamSticker(sticker) {
-  // Beam stickers use a UUID-like src value
-  // Animated = .webm, Static = .png
   const url = sticker.animated
     ? `https://chat-stickers.beamstream.gg/${sticker.src}.webm`
     : `https://chat-stickers.beamstream.gg/${sticker.src}.png`;
 
-  // Wrapper controls bubble footprint
   const wrapper = document.createElement("div");
   wrapper.style.display = "inline-block";
   wrapper.style.transform = "scale(0.5)";
@@ -185,7 +182,7 @@ function handleChat(payload, container) {
   const bubble = document.createElement("div");
   bubble.className = "bubble";
 
-  // ⭐ Velora-specific visual effects
+  // Velora visual effects
   if (payload.platform === "velora") {
     if (payload.effect && payload.effect.startsWith("glow_")) {
       const name = payload.effect.replace("glow_", "").toLowerCase();
@@ -211,7 +208,7 @@ function handleChat(payload, container) {
     }
   }
 
-  // ⭐ Platform-specific message content
+  // ⭐ Message content: keep Velora as-is, add Beam safely
   if (payload.platform === "velora") {
     bubble.innerHTML = `
       <div class="chat-message-content">
@@ -224,8 +221,10 @@ function handleChat(payload, container) {
       </div>
     `;
   } else if (payload.platform === "beam") {
-    // Beam: use plain text message field
-    const text = payload.message || "";
+    // Beam: prefer payload.message if present, otherwise fall back to html
+    const text = (payload.message && payload.message.length > 0)
+      ? payload.message
+      : (payload.html || "");
     bubble.innerHTML = `
       <div class="chat-message-content">
         <span class="velora-line">
@@ -237,7 +236,6 @@ function handleChat(payload, container) {
       </div>
     `;
   } else {
-    // Other platforms (YouTube, Blaze, etc.) can reuse html/message if present
     const text = payload.html || payload.message || "";
     bubble.innerHTML = `
       <div class="chat-message-content">
@@ -275,12 +273,16 @@ function handleChat(payload, container) {
 
   container.appendChild(wrapper);
 
-  // ⭐ TTS: platform-aware clean message extraction
+  // ⭐ TTS: platform-aware clean message
   let cleanMessage = "";
+
   if (payload.platform === "velora") {
     cleanMessage = extractEmoteNames(payload.html || "", payload.username);
   } else if (payload.platform === "beam") {
-    cleanMessage = payload.message || "";
+    // Beam: use message if present, else html
+    cleanMessage = (payload.message && payload.message.length > 0)
+      ? payload.message
+      : (payload.html || "");
   } else {
     cleanMessage = (payload.html || payload.message || "").toString();
   }
