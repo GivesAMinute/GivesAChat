@@ -74,7 +74,7 @@ function getMessagesContainer() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ BROADCAST HANDLER
+   ⭐ BROADCAST HANDLER — FIXED
 --------------------------------------------------------- */
 function handleBroadcast(payload) {
   const container = getMessagesContainer();
@@ -92,7 +92,13 @@ function handleBroadcast(payload) {
   }
 
   if (payload.type === "chat") {
-    handleChat(payload, container);
+    // ⭐ FIX: Merge platform + data before passing to chatRenderer
+    const merged = {
+      platform: payload.platform,
+      ...payload.data
+    };
+
+    handleChat(merged, container);
     return;
   }
 
@@ -115,7 +121,6 @@ const isIOS =
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 function setupSocket() {
-  // ⭐ FIXED: Hard-coded Worker WebSocket URL
   const wsURL = "wss://givesachat-cloudflare.benonkoebsch.workers.dev/ws/chat";
 
   if (socket && socket.readyState === WebSocket.OPEN) {
