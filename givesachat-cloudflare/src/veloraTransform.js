@@ -201,16 +201,24 @@ export async function transformVeloraEvent(event, payload, env) {
 }
 
 /**
- * ⭐ Beam Event Transformer (NEW — safe, isolated)
+ * ⭐ Beam Event Transformer (updated to feed overlay html)
  */
 export function transformBeamEvent(raw) {
+  const text = raw?.contents?.text || "";
+
   return {
     type: "chat",
     platform: "beam",
-    username: raw.sender?.name || "Unknown",
-    avatar: raw.sender?.avatar || null,
-    message: raw.contents?.text || "",
-    sticker: raw.contents?.sticker || null,
+
+    username: raw?.sender?.name || "Unknown",
+    avatar: raw?.sender?.avatar || null,
+
+    // This is what chatRenderer uses for the bubble text
+    html: text,
+
+    // Sticker object stays as-is (already rendering)
+    sticker: raw?.sticker || raw?.contents?.sticker || null,
+
     raw
   };
 }
