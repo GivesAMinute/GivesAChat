@@ -74,7 +74,7 @@ function getMessagesContainer() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ BROADCAST HANDLER (Velora only)
+   ⭐ BROADCAST HANDLER
 --------------------------------------------------------- */
 function handleBroadcast(payload) {
   const container = getMessagesContainer();
@@ -103,21 +103,21 @@ function handleBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ MAIN OVERLAY WEBSOCKET (Velora)
+   ⭐ MAIN OVERLAY WEBSOCKET — FIXED TO CLOUDFLARE WORKER
 --------------------------------------------------------- */
 let socket = null;
 let heartbeat = null;
 let reconnectTimer = null;
-let isReconnecting = false;   // ⭐ prevents double reconnect loops
+let isReconnecting = false;
 
 const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 function setupSocket() {
-  const wsURL = `${location.origin.replace("http", "ws")}/ws/chat`;
+  // ⭐ FIXED: Hard-coded Worker WebSocket URL
+  const wsURL = "wss://givesachat-cloudflare.benonkoebsch.workers.dev/ws/chat";
 
-  // ⭐ Only close if fully open — prevents double-close loops
   if (socket && socket.readyState === WebSocket.OPEN) {
     try { socket.close(); } catch {}
   }
@@ -149,7 +149,7 @@ function setupSocket() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Heartbeat — detects dead sockets
+   ⭐ Heartbeat
 --------------------------------------------------------- */
 function startHeartbeat() {
   clearInterval(heartbeat);
@@ -164,10 +164,10 @@ function startHeartbeat() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Reconnect — FIXED (no double reconnect)
+   ⭐ Reconnect
 --------------------------------------------------------- */
 function reconnect() {
-  if (isReconnecting) return;   // ⭐ prevents double reconnect
+  if (isReconnecting) return;
   isReconnecting = true;
 
   clearInterval(heartbeat);
