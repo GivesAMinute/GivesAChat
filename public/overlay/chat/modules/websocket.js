@@ -74,7 +74,7 @@ function getMessagesContainer() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ BROADCAST HANDLER — FIXED
+   ⭐ BROADCAST HANDLER — Velora preserved, Beam fixed
 --------------------------------------------------------- */
 function handleBroadcast(payload) {
   const container = getMessagesContainer();
@@ -92,7 +92,13 @@ function handleBroadcast(payload) {
   }
 
   if (payload.type === "chat") {
-    // ⭐ FIX: Merge platform + data before passing to chatRenderer
+    // Velora (and any flat payloads) stay as-is
+    if (!payload.data || payload.platform === "velora") {
+      handleChat(payload, container);
+      return;
+    }
+
+    // Beam / external / anything using { data: { ... } }
     const merged = {
       platform: payload.platform,
       ...payload.data
