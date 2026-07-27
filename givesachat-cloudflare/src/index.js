@@ -7,7 +7,7 @@ import {
   exchangeAuthCode,
   getVeloraAccessToken
 } from "./veloraAuth.js";
-import { transformVeloraEvent, transformBeamEvent } from "./veloraTransform.js";
+import { transformVeloraEvent } from "./veloraTransform.js";   // ⭐ FIXED: removed transformBeamEvent
 import { VeloraTokenStore } from "./veloraTokenStore.js";
 
 export { ChatRoom, VeloraTokenStore, PopupRoom };
@@ -220,54 +220,54 @@ export default {
     }
 
     /* ---------------------------------------------------------
-   10. Beam → Worker → DO broadcast (NEW)
---------------------------------------------------------- */
-if (url.pathname === "/api/events/beam" && request.method === "POST") {
-  let beamEvent;
+       10. Beam → Worker → DO broadcast
+    --------------------------------------------------------- */
+    if (url.pathname === "/api/events/beam" && request.method === "POST") {
+      let beamEvent;
 
-  try {
-    beamEvent = await request.json();
-  } catch {
-    return new Response("Invalid JSON", { status: 400 });
+      try {
+        beamEvent = await request.json();
+      } catch {
+        return new Response("Invalid JSON", { status: 400 });
+      }
+
+      // VM already normalized Beam payload → broadcast directly
+      const id = env.ChatRoom.idFromName("givesachat-main-v4");
+      const room = env.ChatRoom.get(id);
+
+      return room.fetch(
+        new Request("https://dummy/broadcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(beamEvent)
+        })
+      );
+    }
+
+    /* ---------------------------------------------------------
+       11. External → Worker → DO broadcast (YouTube, etc)
+    --------------------------------------------------------- */
+    if (url.pathname === "/api/events/external" && request.method === "POST") {
+      let externalEvent;
+
+      try {
+        externalEvent = await request.json();
+      } catch {
+        return new Response("Invalid JSON", { status: 400 });
+      }
+
+      const id = env.ChatRoom.idFromName("givesachat-main-v4");
+      const room = env.ChatRoom.get(id);
+
+      return room.fetch(
+        new Request("https://dummy/broadcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(externalEvent)
+        })
+      );
+    }
+
+    return new Response("Not found", { status: 404 });
   }
-
-  // VM already normalized this; just broadcast it directly
-  const id = env.ChatRoom.idFromName("givesachat-main-v4");
-  const room = env.ChatRoom.get(id);
-
-  return room.fetch(
-    new Request("https://dummy/broadcast", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(beamEvent)
-    })
-  );
-}
-
-/* ---------------------------------------------------------
-   11. External → Worker → DO broadcast (YouTube, etc)
---------------------------------------------------------- */
-if (url.pathname === "/api/events/external" && request.method === "POST") {
-  let externalEvent;
-
-  try {
-    externalEvent = await request.json();
-  } catch {
-    return new Response("Invalid JSON", { status: 400 });
-  }
-
-  // Expect already-normalized payload from VM:
-  // { platform, username, avatar, badges, message, html, sticker, timestamp }
-  const id = env.ChatRoom.idFromName("givesachat-main-v4");
-  const room = env.ChatRoom.get(id);
-
-  return room.fetch(
-    new Request("https://dummy/broadcast", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(externalEvent)
-    })
-  );
-}
-
-
+};
