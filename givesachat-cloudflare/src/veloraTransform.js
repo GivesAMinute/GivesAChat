@@ -1,5 +1,3 @@
-// givesachat-cloudflare/src/veloraTransform.js
-
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 import { applyVeloraEmotes } from "./veloraEmotes.js";
 
@@ -173,7 +171,7 @@ export async function transformVeloraEvent(event, payload, env) {
       };
     }
 
-    // ⭐ STREAM ALERTS (Worker-side, not used by chat lane)
+    // ⭐ STREAM ALERTS
     const alertEvents = [
       "channel.follow",
       "channel.subscribe",
@@ -200,4 +198,19 @@ export async function transformVeloraEvent(event, payload, env) {
     console.error("[VELORA] transformVeloraEvent error:", err);
     return null;
   }
+}
+
+/**
+ * ⭐ Beam Event Transformer (NEW — safe, isolated)
+ */
+export function transformBeamEvent(raw) {
+  return {
+    type: "chat",
+    platform: "beam",
+    username: raw.sender?.name || "Unknown",
+    avatar: raw.sender?.avatar || null,
+    message: raw.contents?.text || "",
+    sticker: raw.contents?.sticker || null,
+    raw
+  };
 }

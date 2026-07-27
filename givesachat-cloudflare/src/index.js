@@ -1,5 +1,3 @@
-// givesachat-cloudflare/src/index.js
-
 import { VERSION } from "./version.js";
 
 import { ChatRoom } from "./chatRoom.js";
@@ -9,7 +7,7 @@ import {
   exchangeAuthCode,
   getVeloraAccessToken
 } from "./veloraAuth.js";
-import { transformVeloraEvent } from "./veloraTransform.js";
+import { transformVeloraEvent, transformBeamEvent } from "./veloraTransform.js";
 import { VeloraTokenStore } from "./veloraTokenStore.js";
 
 export { ChatRoom, VeloraTokenStore, PopupRoom };
@@ -34,7 +32,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       1. Beamstream viewer proxy (viewers ONLY, no chat/events)
+       1. Beamstream viewer proxy (viewers ONLY)
     --------------------------------------------------------- */
     if (url.pathname === "/api/viewers") {
       try {
@@ -189,7 +187,6 @@ export default {
 
     /* ---------------------------------------------------------
        9. Velora → Worker → DO broadcast
-       (ONLY Velora events are accepted here)
     --------------------------------------------------------- */
     if (url.pathname === "/api/events/velora" && request.method === "POST") {
       let veloraEvent;
@@ -206,7 +203,6 @@ export default {
         env
       );
 
-      // ⭐ HARD BLOCK: If transformVeloraEvent ever returns Beam, ignore it
       if (!mapped || mapped.platform === "beam") {
         return new Response("Ignored", { status: 200 });
       }
@@ -224,10 +220,29 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       10. HARD BLOCK — Beam events NEVER allowed
+       10. Beam → Worker → DO broadcast (NEW)
     --------------------------------------------------------- */
-    if (url.pathname === "/api/events/beam") {
-      return new Response("Beam blocked", { status: 200 });
+    if (url.pathname === "/api/events/beam" && request.method === "POST") {
+      let beamEvent;
+
+      try {
+        beamEvent = await request.json();
+      } catch {
+        return new Response("Invalid JSON", { status: 400 });
+      }
+
+      const mapped = transformBeamEvent(beamEvent);
+
+      const id = env.ChatRoom.idFromName("givesachat-main-v4");
+      const room = env.ChatRoom.get(id);
+
+      return room.fetch(
+        new Request("https://dummy/broadcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(mapped)
+        })
+      );
     }
 
     return new Response("Not found", { status: 404 });
