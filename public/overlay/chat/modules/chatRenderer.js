@@ -139,6 +139,9 @@ function formatEmoteList(str) {
    ⭐ Handle Chat Messages (queued)
 --------------------------------------------------------- */
 function handleChat(payload, container) {
+  // ⭐ FIX: Ensure platform always exists
+  payload.platform = payload.platform || "beam";
+
   if (payload.platform === "youtube" && payload.username.startsWith("@")) {
     payload.username = payload.username.substring(1);
   }
@@ -221,10 +224,7 @@ function handleChat(payload, container) {
       </div>
     `;
   } else if (payload.platform === "beam") {
-    // Beam: prefer payload.message if present, otherwise fall back to html
-    const text = (payload.message && payload.message.length > 0)
-      ? payload.message
-      : (payload.html || "");
+    const text = payload.message || payload.html || "";
     bubble.innerHTML = `
       <div class="chat-message-content">
         <span class="velora-line">
@@ -279,10 +279,7 @@ function handleChat(payload, container) {
   if (payload.platform === "velora") {
     cleanMessage = extractEmoteNames(payload.html || "", payload.username);
   } else if (payload.platform === "beam") {
-    // Beam: use message if present, else html
-    cleanMessage = (payload.message && payload.message.length > 0)
-      ? payload.message
-      : (payload.html || "");
+    cleanMessage = payload.message || payload.html || "";
   } else {
     cleanMessage = (payload.html || payload.message || "").toString();
   }

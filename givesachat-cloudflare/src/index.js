@@ -7,7 +7,7 @@ import {
   exchangeAuthCode,
   getVeloraAccessToken
 } from "./veloraAuth.js";
-import { transformVeloraEvent } from "./veloraTransform.js";   // ⭐ FIXED: removed transformBeamEvent
+import { transformVeloraEvent } from "./veloraTransform.js";
 import { VeloraTokenStore } from "./veloraTokenStore.js";
 
 export { ChatRoom, VeloraTokenStore, PopupRoom };
@@ -32,7 +32,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       1. Beamstream viewer proxy (viewers ONLY)
+       1. Beamstream viewer proxy
     --------------------------------------------------------- */
     if (url.pathname === "/api/viewers") {
       try {
@@ -165,7 +165,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       8. DO routing block (Velora token store)
+       8. DO routing block
     --------------------------------------------------------- */
     if (url.pathname.startsWith("/velora-token")) {
       const id = env.VeloraTokenStore.idFromName("velora-tokens");
@@ -220,18 +220,32 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       10. Beam → Worker → DO broadcast
+       10. Beam → Worker → DO broadcast (SCRAPER NORMALIZED)
     --------------------------------------------------------- */
     if (url.pathname === "/api/events/beam" && request.method === "POST") {
       let beamEvent;
 
       try {
         beamEvent = await request.json();
+        console.log("BEAM EVENT RAW:", JSON.stringify(beamEvent));
       } catch {
         return new Response("Invalid JSON", { status: 400 });
       }
 
-      // VM already normalized Beam payload → broadcast directly
+      const normalized = {
+        type: "chat",
+        platform: "beam",
+        data: {
+          username: beamEvent.username || "",
+          message: beamEvent.html || beamEvent.message || "",
+          html: beamEvent.html || "",
+          avatar: beamEvent.avatar || null,
+          badges: beamEvent.badges || [],
+          sticker: beamEvent.sticker || null,
+          timestamp: beamEvent.timestamp || Date.now()
+        }
+      };
+
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
       const room = env.ChatRoom.get(id);
 
@@ -239,13 +253,13 @@ export default {
         new Request("https://dummy/broadcast", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(beamEvent)
+          body: JSON.stringify(normalized)
         })
       );
     }
 
     /* ---------------------------------------------------------
-       11. External → Worker → DO broadcast (YouTube, etc)
+       11. External → Worker → DO broadcast (SCRAPER NORMALIZED)
     --------------------------------------------------------- */
     if (url.pathname === "/api/events/external" && request.method === "POST") {
       let externalEvent;
@@ -256,6 +270,20 @@ export default {
         return new Response("Invalid JSON", { status: 400 });
       }
 
+      const normalized = {
+        type: "chat",
+        platform: externalEvent.platform || "external",
+        data: {
+          username: externalEvent.username || "",
+          message: externalEvent.html || externalEvent.message || "",
+          html: externalEvent.html || "",
+          avatar: externalEvent.avatar || null,
+          badges: externalEvent.badges || [],
+          sticker: externalEvent.sticker || null,
+          timestamp: externalEvent.timestamp || Date.now()
+        }
+      };
+
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
       const room = env.ChatRoom.get(id);
 
@@ -263,7 +291,7 @@ export default {
         new Request("https://dummy/broadcast", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(externalEvent)
+          body: JSON.stringify(normalized)
         })
       );
     }
