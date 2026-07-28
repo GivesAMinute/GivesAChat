@@ -2,8 +2,8 @@
 
 import _shared from "/overlay/shared/_shared.js";
 import { handleReward } from "./rewardRenderer.js";
-import { handleChat, renderVeloraSystemMessage } from "./chatRenderer.js";
-import { handleVeloraStreamAlert } from "./alertRenderer.js";
+import { handleChat } from "./chatRenderer.js";
+import { handleVeloraStreamAlert, renderVeloraSystemMessage } from "./alertRenderer.js";
 
 /* ---------------------------------------------------------
    ⭐ DEDUPE — 1 second window only

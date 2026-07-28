@@ -220,43 +220,47 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       10. Beam → Worker → DO broadcast (SCRAPER NORMALIZED)
-    --------------------------------------------------------- */
-    if (url.pathname === "/api/events/beam" && request.method === "POST") {
-      let beamEvent;
+   10. Beam → Worker → DO broadcast (SCRAPER NORMALIZED)
+--------------------------------------------------------- */
+if (url.pathname === "/api/events/beam" && request.method === "POST") {
+  let beamEvent;
 
-      try {
-        beamEvent = await request.json();
-        console.log("BEAM EVENT RAW:", JSON.stringify(beamEvent));
-      } catch {
-        return new Response("Invalid JSON", { status: 400 });
-      }
+  try {
+    beamEvent = await request.json();
+  } catch {
+    return new Response("Invalid JSON", { status: 400 });
+  }
 
-      const normalized = {
-        type: "chat",
-        platform: "beam",
-        data: {
-          username: beamEvent.username || "",
-          message: beamEvent.html || beamEvent.message || "",
-          html: beamEvent.html || "",
-          avatar: beamEvent.avatar || null,
-          badges: beamEvent.badges || [],
-          sticker: beamEvent.sticker || null,
-          timestamp: beamEvent.timestamp || Date.now()
-        }
-      };
+  // ⭐ FIX: Ignore Velora messages coming from Beam
+  if (beamEvent.platform === "velora") {
+    return new Response("Ignored external Velora", { status: 200 });
+  }
 
-      const id = env.ChatRoom.idFromName("givesachat-main-v4");
-      const room = env.ChatRoom.get(id);
-
-      return room.fetch(
-        new Request("https://dummy/broadcast", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(normalized)
-        })
-      );
+  const normalized = {
+    type: "chat",
+    platform: beamEvent.platform || "beam",
+    data: {
+      username: beamEvent.username || "",
+      message: beamEvent.html || beamEvent.message || "",
+      html: beamEvent.html || "",
+      avatar: beamEvent.avatar || null,
+      badges: beamEvent.badges || [],
+      sticker: beamEvent.sticker || null,
+      timestamp: beamEvent.timestamp || Date.now()
     }
+  };
+
+  const id = env.ChatRoom.idFromName("givesachat-main-v4");
+  const room = env.ChatRoom.get(id);
+
+  return room.fetch(
+    new Request("https://dummy/broadcast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(normalized)
+    })
+  );
+}
 
     /* ---------------------------------------------------------
        11. External → Worker → DO broadcast (SCRAPER NORMALIZED)
