@@ -399,6 +399,13 @@
 }
 
 /* ---------------------------------------------------------
+   ⭐ FIX: Galaxy bubble width matches normal bubble
+--------------------------------------------------------- */
+.effect-galaxy > .chat-message-content {
+  max-width: 615px !important; /* same as .bubble */
+}
+
+/* ---------------------------------------------------------
    ⭐ Galaxy Animations
 --------------------------------------------------------- */
 @keyframes galaxy-border-flow {
