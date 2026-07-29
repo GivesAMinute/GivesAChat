@@ -12,6 +12,9 @@ const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
+/* ---------------------------------------------------------
+   ⭐ Popups Socket Manager
+--------------------------------------------------------- */
 class PopupsSocketManager {
   constructor({ type, url, token = null, onEvent }) {
     this.type = type;
@@ -154,11 +157,88 @@ function handlePopupBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Event Handler (popup + stripped-back chat forwarding)
+   ⭐ Correct Velora → Chat Mapping (ALL event types)
+--------------------------------------------------------- */
+function forwardVeloraToChat(event, data) {
+
+  let alertType = null;
+  let displayName = null;
+  let username = null;
+  let count = null;
+  let viewers = null;
+  let volts = null;
+  let tier = null;
+  let months = null;
+
+  switch (event) {
+
+    case "channel.follow":
+      alertType = "follow";
+      displayName = data.displayName;
+      username = data.username;
+      break;
+
+    case "channel.subscribe":
+      alertType = data.months && data.months > 1 ? "resub" : "subscribe";
+      displayName = data.displayName;
+      username = data.username;
+      tier = data.tier || "1";
+      months = data.months || 1;
+      break;
+
+    case "channel.subscription.gift":
+      alertType = "gift";
+      displayName = data.gifterDisplayName;
+      username = data.gifterUsername;
+      count = data.quantity || 1;
+      tier = data.tier || "1";
+      break;
+
+    case "channel.raid":
+      alertType = "raid";
+      displayName = data.fromDisplayName;
+      username = data.fromUsername;
+      viewers = data.viewerCount || 0;
+      break;
+
+    case "channel.volts":
+      alertType = "volts";
+      displayName = data.displayName;
+      username = data.username;
+      volts = data.amount || 0;
+      break;
+
+    default:
+      alertType = "generic";
+      displayName = data.displayName || data.username;
+      username = data.username || data.displayName;
+      break;
+  }
+
+  sendToChatOverlay({
+    type: "velora_system",
+    event: "channel.stream_alert",
+    data: {
+      alertType,
+      displayName,
+      username,
+      count,
+      viewers,
+      volts,
+      tier,
+      months,
+      message: null,
+      customSoundUrl: data.customSoundUrl || null
+    }
+  });
+}
+
+/* ---------------------------------------------------------
+   ⭐ Velora Event Handler (popup + chat)
 --------------------------------------------------------- */
 function handleVeloraEvent({ event, data, timestamp }) {
+
   const isAlert =
-    event === "channel.stream_alert" ||
     event === "channel.follow" ||
     event === "channel.subscribe" ||
     event === "channel.subscription.gift" ||
@@ -166,7 +246,8 @@ function handleVeloraEvent({ event, data, timestamp }) {
     event === "channel.volts";
 
   if (isAlert) {
-    // Full popup card
+
+    // Popup overlay full card
     renderVeloraAlertCard({
       event,
       timestamp,
@@ -180,26 +261,8 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: data.duration || null
     });
 
-    // ⭐ Stripped-back chat overlay card (Velora Finished format)
-    sendToChatOverlay({
-      type: "velora_system",
-      event: "channel.stream_alert",
-      data: {
-        alertType:
-          data.alertType ||
-          data.type ||
-          event.replace("channel.", ""),
-
-        displayName: data.displayName || data.username || null,
-        username: data.username || data.displayName || null,
-
-        count: data.count || data.amount || data.total || null,
-        viewers: data.viewers || null,
-
-        message: null,
-        customSoundUrl: data.customSoundUrl || null
-      }
-    });
+    // ⭐ Correct stripped-back chat payload
+    forwardVeloraToChat(event, data);
 
     return;
   }
@@ -216,6 +279,7 @@ function handleVeloraEvent({ event, data, timestamp }) {
     return;
   }
 
+  // Card messages (stickers, sounds, celebrations)
   if (data.cardAdded) {
     const card = data.cardAdded;
     const payload = card.payload || {};
@@ -233,25 +297,7 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: payload.duration || null
     });
 
-    sendToChatOverlay({
-      type: "velora_system",
-      event: "channel.stream_alert",
-      data: {
-        alertType:
-          payload.alertType ||
-          payload.type ||
-          card.type.replace("channel.", ""),
-
-        displayName: payload.displayName || payload.username || null,
-        username: payload.username || payload.displayName || null,
-
-        count: payload.count || payload.amount || payload.total || null,
-        viewers: payload.viewers || null,
-
-        message: null,
-        customSoundUrl: payload.customSoundUrl || null
-      }
-    });
+    forwardVeloraToChat(card.type, payload);
   }
 }
 
@@ -275,7 +321,7 @@ export async function setupPopupSocket() {
 
   sharedPopups.ws = doManager.socket;
 
-  // Chat WS restored (Velora Finished architecture)
+  // Chat WS (Velora Finished architecture)
   sharedPopups.chatWS = new WebSocket(sharedPopups.chatWSURL);
 
   const token = await loadVeloraAccessToken();
