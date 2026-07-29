@@ -499,3 +499,22 @@
   100% { filter: brightness(1); }
 }
 
+/* ---------------------------------------------------------
+   ⭐ FIX: Normalize Galaxy bubble size
+--------------------------------------------------------- */
+
+/* Reduce border mask thickness */
+.effect-galaxy::before {
+  padding: 1px !important;   /* was 2px */
+}
+
+/* Reduce glow expansion */
+.effect-galaxy::after {
+  inset: -10px !important;   /* was -6px, now matches glow effects */
+  filter: blur(20px) !important; /* slightly increased to compensate */
+}
+
+/* Keep bubble interior identical to normal bubbles */
+.effect-galaxy > .chat-message-content {
+  padding: 10px 14px !important; /* match regular bubble */
+}
