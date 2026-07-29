@@ -157,10 +157,9 @@ function handlePopupBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Correct Velora → Chat Mapping (ALL event types)
+   ⭐ Velora → Chat mapping (uses real Velora payload shapes)
 --------------------------------------------------------- */
-function forwardVeloraToChat(event, data) {
-
+function buildVeloraChatData(event, data) {
   let alertType = null;
   let displayName = null;
   let username = null;
@@ -171,7 +170,6 @@ function forwardVeloraToChat(event, data) {
   let months = null;
 
   switch (event) {
-
     case "channel.follow":
       alertType = "follow";
       displayName = data.displayName;
@@ -215,39 +213,33 @@ function forwardVeloraToChat(event, data) {
       break;
   }
 
-  sendToChatOverlay({
-    type: "velora_system",
-    event: "channel.stream_alert",
-    data: {
-      alertType,
-      displayName,
-      username,
-      count,
-      viewers,
-      volts,
-      tier,
-      months,
-      message: null,
-      customSoundUrl: data.customSoundUrl || null
-    }
-  });
+  return {
+    alertType,
+    displayName,
+    username,
+    count,
+    viewers,
+    volts,
+    tier,
+    months,
+    message: null,
+    customSoundUrl: data.customSoundUrl || null
+  };
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Event Handler (popup + chat)
+   ⭐ Velora Event Handler — popup + chat
 --------------------------------------------------------- */
 function handleVeloraEvent({ event, data, timestamp }) {
-
-  const isAlert =
+  const isChannelAlert =
     event === "channel.follow" ||
     event === "channel.subscribe" ||
     event === "channel.subscription.gift" ||
     event === "channel.raid" ||
     event === "channel.volts";
 
-  if (isAlert) {
-
-    // Popup overlay full card
+  if (isChannelAlert) {
+    // Popup overlay full card (unchanged)
     renderVeloraAlertCard({
       event,
       timestamp,
@@ -261,8 +253,14 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: data.duration || null
     });
 
-    // ⭐ Correct stripped-back chat payload
-    forwardVeloraToChat(event, data);
+    // Stripped‑back chat card payload
+    const chatData = buildVeloraChatData(event, data);
+
+    sendToChatOverlay({
+      type: "velora_system",
+      event,        // keep event as-is; websocket.js already knows how to route it
+      data: chatData
+    });
 
     return;
   }
@@ -279,7 +277,7 @@ function handleVeloraEvent({ event, data, timestamp }) {
     return;
   }
 
-  // Card messages (stickers, sounds, celebrations)
+  // Card messages (stickers, sounds, celebrations) coming via chat.message
   if (data.cardAdded) {
     const card = data.cardAdded;
     const payload = card.payload || {};
@@ -297,12 +295,18 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: payload.duration || null
     });
 
-    forwardVeloraToChat(card.type, payload);
+    // For card-based celebrations, just forward the raw payload;
+    // your existing chat pipeline already knows how to handle these.
+    sendToChatOverlay({
+      type: "velora_system",
+      event: card.type,
+      data: payload
+    });
   }
 }
 
 /* ---------------------------------------------------------
-   ⭐ Setup Popups Socket
+   ⭐ Setup Popups Socket (Velora Finished style)
 --------------------------------------------------------- */
 export async function setupPopupSocket() {
   await loadVeloraFonts();
@@ -321,8 +325,9 @@ export async function setupPopupSocket() {
 
   sharedPopups.ws = doManager.socket;
 
-  // Chat WS (Velora Finished architecture)
-  sharedPopups.chatWS = new WebSocket(sharedPopups.chatWSURL);
+  // Chat overlay WebSocket (unchanged from Velora Finished)
+  const chatSocket = new WebSocket(sharedPopups.chatWSURL);
+  sharedPopups.chatWS = chatSocket;
 
   const token = await loadVeloraAccessToken();
   if (!token) return;
