@@ -5,6 +5,9 @@ import { handleRewardPopup } from "./rewardRendererPopups.js";
 import { renderVeloraAlertCard, loadVeloraFonts } from "./veloraRendererPopups.js";
 import { io } from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
 
+/* ---------------------------------------------------------
+   ⭐ Detect iOS (Safari WebKit)
+--------------------------------------------------------- */
 const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -140,7 +143,7 @@ class PopupsSocketManager {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Popup Broadcast Handler — unchanged
+   ⭐ Popup Broadcast Handler
 --------------------------------------------------------- */
 function handlePopupBroadcast(payload) {
   if (!payload.cardDesign) return;
@@ -151,7 +154,7 @@ function handlePopupBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Event Handler — restored forwarding
+   ⭐ Velora Event Handler (popup + stripped-back chat forwarding)
 --------------------------------------------------------- */
 function handleVeloraEvent({ event, data, timestamp }) {
   const isAlert =
@@ -163,7 +166,7 @@ function handleVeloraEvent({ event, data, timestamp }) {
     event === "channel.volts";
 
   if (isAlert) {
-    // Render popup alert
+    // Full popup card
     renderVeloraAlertCard({
       event,
       timestamp,
@@ -177,11 +180,25 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: data.duration || null
     });
 
-    // ⭐ RESTORED — forward stripped-back alert to chat overlay
+    // ⭐ Stripped-back chat overlay card (Velora Finished format)
     sendToChatOverlay({
       type: "velora_system",
-      event,
-      data
+      event: "channel.stream_alert",
+      data: {
+        alertType:
+          data.alertType ||
+          data.type ||
+          event.replace("channel.", ""),
+
+        displayName: data.displayName || data.username || null,
+        username: data.username || data.displayName || null,
+
+        count: data.count || data.amount || data.total || null,
+        viewers: data.viewers || null,
+
+        message: null,
+        customSoundUrl: data.customSoundUrl || null
+      }
     });
 
     return;
@@ -190,7 +207,6 @@ function handleVeloraEvent({ event, data, timestamp }) {
   if (event === "channel_point_redeem") {
     handleRewardPopup(data);
 
-    // Forward reward to chat overlay (unchanged)
     sendToChatOverlay({
       type: "reward",
       platform: "velora",
@@ -217,17 +233,30 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: payload.duration || null
     });
 
-    // ⭐ RESTORED — forward stripped-back alert to chat overlay
     sendToChatOverlay({
       type: "velora_system",
-      event: card.type,
-      data: payload
+      event: "channel.stream_alert",
+      data: {
+        alertType:
+          payload.alertType ||
+          payload.type ||
+          card.type.replace("channel.", ""),
+
+        displayName: payload.displayName || payload.username || null,
+        username: payload.username || payload.displayName || null,
+
+        count: payload.count || payload.amount || payload.total || null,
+        viewers: payload.viewers || null,
+
+        message: null,
+        customSoundUrl: payload.customSoundUrl || null
+      }
     });
   }
 }
 
 /* ---------------------------------------------------------
-   ⭐ Setup Popups Socket — unchanged except forwarding restored
+   ⭐ Setup Popups Socket
 --------------------------------------------------------- */
 export async function setupPopupSocket() {
   await loadVeloraFonts();
@@ -246,8 +275,8 @@ export async function setupPopupSocket() {
 
   sharedPopups.ws = doManager.socket;
 
-  const chatSocket = new WebSocket(sharedPopups.chatWSURL);
-  sharedPopups.chatWS = chatSocket;
+  // Chat WS restored (Velora Finished architecture)
+  sharedPopups.chatWS = new WebSocket(sharedPopups.chatWSURL);
 
   const token = await loadVeloraAccessToken();
   if (!token) return;
