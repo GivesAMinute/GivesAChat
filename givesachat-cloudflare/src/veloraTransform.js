@@ -171,7 +171,7 @@ export async function transformVeloraEvent(event, payload, env) {
       };
     }
 
-    // ⭐ STREAM ALERTS
+    // ⭐ STREAM ALERTS — FIXED (restores stripped‑back chat card)
     const alertEvents = [
       "channel.follow",
       "channel.subscribe",
@@ -183,13 +183,24 @@ export async function transformVeloraEvent(event, payload, env) {
 
     if (alertEvents.includes(event)) {
       return {
-        type: "alert",
+        type: "velora_system",
+        event: "channel.stream_alert",
         platform: "velora",
-        event,
-        username: data.displayName || data.username || null,
-        avatar: data.avatarUrl || null,
-        amount: data.amount || data.total || null,
-        message: data.message || null
+        data: {
+          alertType:
+            data.alertType ||
+            data.type ||
+            event.replace("channel.", ""), // normalize
+
+          displayName: data.displayName || data.username || null,
+          username: data.username || data.displayName || null,
+
+          count: data.count || data.amount || data.total || null,
+          viewers: data.viewers || null,
+
+          message: data.message || null,
+          customSoundUrl: data.customSoundUrl || null
+        }
       };
     }
 
@@ -213,10 +224,8 @@ export function transformBeamEvent(raw) {
     username: raw?.sender?.name || "Unknown",
     avatar: raw?.sender?.avatar || null,
 
-    // This is what chatRenderer uses for the bubble text
     html: text,
 
-    // Sticker object stays as-is (already rendering)
     sticker: raw?.sticker || raw?.contents?.sticker || null,
 
     raw
