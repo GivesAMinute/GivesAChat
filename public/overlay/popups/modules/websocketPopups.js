@@ -1,6 +1,6 @@
 // public/overlay/popups/modules/websocketPopups.js
 
-import sharedPopups, { loadVeloraAccessToken } from "/overlay/shared/_sharedPopups.js";
+import sharedPopups, { loadVeloraAccessToken, sendToChatOverlay } from "/overlay/shared/_sharedPopups.js";
 import { handleRewardPopup } from "./rewardRendererPopups.js";
 import { renderVeloraAlertCard, loadVeloraFonts } from "./veloraRendererPopups.js";
 import { io } from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
@@ -140,7 +140,7 @@ class PopupsSocketManager {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Popup Broadcast Handler — ONLY popups, no chat
+   ⭐ Popup Broadcast Handler — unchanged
 --------------------------------------------------------- */
 function handlePopupBroadcast(payload) {
   if (!payload.cardDesign) return;
@@ -151,17 +151,19 @@ function handlePopupBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Event Handler — ONLY popup alerts
+   ⭐ Velora Event Handler — restored forwarding
 --------------------------------------------------------- */
 function handleVeloraEvent({ event, data, timestamp }) {
-  if (
+  const isAlert =
     event === "channel.stream_alert" ||
     event === "channel.follow" ||
     event === "channel.subscribe" ||
     event === "channel.subscription.gift" ||
     event === "channel.raid" ||
-    event === "channel.volts"
-  ) {
+    event === "channel.volts";
+
+  if (isAlert) {
+    // Render popup alert
     renderVeloraAlertCard({
       event,
       timestamp,
@@ -175,12 +177,27 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: data.duration || null
     });
 
-    return; // ⭐ NO forwarding to chat overlay
+    // ⭐ RESTORED — forward stripped-back alert to chat overlay
+    sendToChatOverlay({
+      type: "velora_system",
+      event,
+      data
+    });
+
+    return;
   }
 
   if (event === "channel_point_redeem") {
     handleRewardPopup(data);
-    return; // ⭐ NO forwarding to chat overlay
+
+    // Forward reward to chat overlay (unchanged)
+    sendToChatOverlay({
+      type: "reward",
+      platform: "velora",
+      ...data
+    });
+
+    return;
   }
 
   if (data.cardAdded) {
@@ -200,12 +217,17 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: payload.duration || null
     });
 
-    return; // ⭐ NO forwarding to chat overlay
+    // ⭐ RESTORED — forward stripped-back alert to chat overlay
+    sendToChatOverlay({
+      type: "velora_system",
+      event: card.type,
+      data: payload
+    });
   }
 }
 
 /* ---------------------------------------------------------
-   ⭐ Setup Popups Socket — NO chat WebSocket
+   ⭐ Setup Popups Socket — unchanged except forwarding restored
 --------------------------------------------------------- */
 export async function setupPopupSocket() {
   await loadVeloraFonts();
@@ -224,8 +246,8 @@ export async function setupPopupSocket() {
 
   sharedPopups.ws = doManager.socket;
 
-  // ❌ Removed — popup overlay must NOT connect to chat WebSocket
-  // Popup overlay should ONLY handle popup events, not chat.
+  const chatSocket = new WebSocket(sharedPopups.chatWSURL);
+  sharedPopups.chatWS = chatSocket;
 
   const token = await loadVeloraAccessToken();
   if (!token) return;
