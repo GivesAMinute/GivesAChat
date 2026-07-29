@@ -443,12 +443,12 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Rainbow Effect (Outer Glow Only — Correct)
+   ⭐ Rainbow Effect — Correct Outer Glow Wrapper
 --------------------------------------------------------- */
 .effect-rainbow {
   position: relative;
   border-radius: 12px;
-  padding: 3px;
+  padding: 3px; /* OUTER WRAPPER, same as glow */
   background: linear-gradient(
     90deg,
     #ef4444,
@@ -478,7 +478,7 @@
   z-index: 1;
 }
 
-/* ⭐ Bubble interior stays clean (same as glow effects) */
+/* ⭐ Inner bubble stays clean */
 .effect-rainbow > .chat-message-content {
   background: #0d0d0d;
   border-radius: 10px;
