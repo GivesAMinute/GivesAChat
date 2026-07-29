@@ -5,13 +5,13 @@ import { handleRewardPopup } from "./rewardRendererPopups.js";
 import { renderVeloraAlertCard, loadVeloraFonts } from "./veloraRendererPopups.js";
 import { io } from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
 
-/* ---------------------------------------------------------
-   ⭐ Detect iOS (Safari WebKit)
---------------------------------------------------------- */
 const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
+/* ---------------------------------------------------------
+   Socket Manager (unchanged)
+--------------------------------------------------------- */
 class PopupsSocketManager {
   constructor({ type, url, token = null, onEvent }) {
     this.type = type;
@@ -25,9 +25,7 @@ class PopupsSocketManager {
     this.ready = false;
     this.reconnectTimer = null;
 
-    setTimeout(() => {
-      this.connect();
-    }, 100);
+    setTimeout(() => this.connect(), 100);
   }
 
   connect() {
@@ -105,10 +103,7 @@ class PopupsSocketManager {
     } catch {}
 
     const delay = isIOS ? 1500 : 300;
-
-    this.reconnectTimer = setTimeout(() => {
-      this.connect();
-    }, delay);
+    this.reconnectTimer = setTimeout(() => this.connect(), delay);
   }
 
   startHeartbeat() {
@@ -143,7 +138,7 @@ class PopupsSocketManager {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Popup Broadcast Handler
+   Popup Broadcast Handler
 --------------------------------------------------------- */
 function handlePopupBroadcast(payload) {
   if (!payload.cardDesign) return;
@@ -154,20 +149,16 @@ function handlePopupBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Event Handler (popup + stripped-back chat forwarding)
+   ⭐ Velora Event Handler (FINAL WORKING VERSION)
 --------------------------------------------------------- */
 function handleVeloraEvent({ event, data, timestamp }) {
-  console.log("[VELORA RAW EVENT]", event, JSON.stringify(data, null, 2));
-  const isAlert =
-    event === "channel.stream_alert" ||
-    event === "channel.follow" ||
-    event === "channel.subscribe" ||
-    event === "channel.subscription.gift" ||
-    event === "channel.raid" ||
-    event === "channel.volts";
 
-  if (isAlert) {
-    // Full popup card
+  console.log("[VELORA RAW EVENT]", event, JSON.stringify(data, null, 2));
+
+  // Velora ALWAYS sends channel.stream_alert for alerts
+  if (event === "channel.stream_alert") {
+
+    // Popup overlay (unchanged)
     renderVeloraAlertCard({
       event,
       timestamp,
@@ -181,69 +172,38 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: data.duration || null
     });
 
-    // ⭐ Correct Velora → Chat mapping (minimal + safe)
-    let alertType = event.replace("channel.", "");
-    let displayName = data.displayName || data.username || null;
-    let username = data.username || data.displayName || null;
-    let count = null;
-    let viewers = null;
-    let volts = null;
-    let tier = null;
-    let months = null;
+    // ⭐ Extract correct fields from templateData
+    const t = data.templateData || {};
 
-    switch (event) {
-      case "channel.follow":
-        alertType = "follow";
-        break;
+    const chatData = {
+      alertType: data.alertType,          // "follow", "subscription", "gift_sub", "resub", "raid", "volts"
+      displayName: data.displayName,
+      username: data.username,
 
-      case "channel.subscribe":
-        alertType = data.months && data.months > 1 ? "resub" : "subscribe";
-        tier = data.tier || "1";
-        months = data.months || 1;
-        break;
+      // Numbers come from templateData
+      count: t.amount || null,            // gift_sub amount
+      viewers: t.viewers || null,         // raid viewers
+      volts: t.amount || null,            // volts amount
+      tier: t.tier || null,               // subscription tier
+      months: t.months || null,           // resub months
 
-      case "channel.subscription.gift":
-        alertType = "gift";
-        displayName = data.gifterDisplayName || data.gifterUsername || displayName;
-        username = data.gifterUsername || data.gifterDisplayName || username;
-        count = data.quantity || 1;
-        tier = data.tier || "1";
-        break;
+      // Final message text
+      message: data.message || null,
 
-      case "channel.raid":
-        alertType = "raid";
-        displayName = data.fromDisplayName || data.fromUsername || displayName;
-        username = data.fromUsername || data.fromDisplayName || username;
-        viewers = data.viewerCount || 0;
-        break;
+      customSoundUrl: data.customSoundUrl || null
+    };
 
-      case "channel.volts":
-        alertType = "volts";
-        volts = data.amount || 0;
-        break;
-    }
-
-    // ⭐ MUST stay "channel.stream_alert" or chat overlay will ignore it
+    // ⭐ MUST stay channel.stream_alert or chatRenderer ignores it
     sendToChatOverlay({
       type: "velora_system",
       event: "channel.stream_alert",
-      data: {
-        alertType,
-        displayName,
-        username,
-        count,
-        viewers,
-        volts,
-        tier,
-        months,
-        message: null,
-        customSoundUrl: data.customSoundUrl || null
-      }
+      data: chatData
     });
 
     return;
   }
 
+  // Channel points (unchanged)
   if (event === "channel_point_redeem") {
     handleRewardPopup(data);
 
@@ -256,6 +216,7 @@ function handleVeloraEvent({ event, data, timestamp }) {
     return;
   }
 
+  // Card messages (unchanged)
   if (data.cardAdded) {
     const card = data.cardAdded;
     const payload = card.payload || {};
@@ -277,18 +238,10 @@ function handleVeloraEvent({ event, data, timestamp }) {
       type: "velora_system",
       event: "channel.stream_alert",
       data: {
-        alertType:
-          payload.alertType ||
-          payload.type ||
-          card.type.replace("channel.", ""),
-
-        displayName: payload.displayName || payload.username || null,
-        username: payload.username || payload.displayName || null,
-
-        count: payload.count || payload.amount || payload.total || null,
-        viewers: payload.viewers || null,
-
-        message: null,
+        alertType: payload.alertType || payload.type,
+        displayName: payload.displayName || payload.username,
+        username: payload.username || payload.displayName,
+        message: payload.message || null,
         customSoundUrl: payload.customSoundUrl || null
       }
     });
@@ -296,7 +249,7 @@ function handleVeloraEvent({ event, data, timestamp }) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Setup Popups Socket
+   Setup Popups Socket (unchanged)
 --------------------------------------------------------- */
 export async function setupPopupSocket() {
   await loadVeloraFonts();
@@ -315,7 +268,6 @@ export async function setupPopupSocket() {
 
   sharedPopups.ws = doManager.socket;
 
-  // Chat WS restored (Velora Finished architecture)
   sharedPopups.chatWS = new WebSocket(sharedPopups.chatWSURL);
 
   const token = await loadVeloraAccessToken();
