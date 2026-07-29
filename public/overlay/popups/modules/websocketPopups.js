@@ -157,6 +157,7 @@ function handlePopupBroadcast(payload) {
    ⭐ Velora Event Handler (popup + stripped-back chat forwarding)
 --------------------------------------------------------- */
 function handleVeloraEvent({ event, data, timestamp }) {
+  console.log("[VELORA RAW EVENT]", event, JSON.stringify(data, null, 2));
   const isAlert =
     event === "channel.stream_alert" ||
     event === "channel.follow" ||
