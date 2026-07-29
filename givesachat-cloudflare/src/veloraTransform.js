@@ -190,7 +190,7 @@ export async function transformVeloraEvent(event, payload, env) {
           alertType:
             data.alertType ||
             data.type ||
-            event.replace("channel.", ""), // normalize
+            event.replace("channel.", ""),
 
           displayName: data.displayName || data.username || null,
           username: data.username || data.displayName || null,
