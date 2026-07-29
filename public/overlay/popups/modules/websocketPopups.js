@@ -166,7 +166,7 @@ function handleVeloraEvent({ event, data, timestamp }) {
     event === "channel.volts";
 
   if (isAlert) {
-    // Full popup card (unchanged)
+    // Full popup card
     renderVeloraAlertCard({
       event,
       timestamp,
@@ -180,56 +180,49 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: data.duration || null
     });
 
-    // ⭐ Map real Velora payload fields into what chatRenderer expects
-    let alertType =
-      data.alertType ||
-      data.type ||
-      event.replace("channel.", "");
-
+    // ⭐ Correct Velora → Chat mapping (minimal + safe)
+    let alertType = event.replace("channel.", "");
     let displayName = data.displayName || data.username || null;
     let username = data.username || data.displayName || null;
     let count = null;
     let viewers = null;
     let volts = null;
+    let tier = null;
+    let months = null;
 
     switch (event) {
       case "channel.follow":
         alertType = "follow";
-        // displayName / username already set above
         break;
 
       case "channel.subscribe":
-        alertType = "subscribe";
-        // tier / months exist in data, but your current renderer
-        // hardcodes "Tier 1!" and doesn't use months yet.
-        // If you want dynamic tier/months, we can tweak the renderer next.
+        alertType = data.months && data.months > 1 ? "resub" : "subscribe";
+        tier = data.tier || "1";
+        months = data.months || 1;
         break;
 
       case "channel.subscription.gift":
         alertType = "gift";
         displayName = data.gifterDisplayName || data.gifterUsername || displayName;
         username = data.gifterUsername || data.gifterDisplayName || username;
-        count = data.quantity || data.count || null;
+        count = data.quantity || 1;
+        tier = data.tier || "1";
         break;
 
       case "channel.raid":
         alertType = "raid";
         displayName = data.fromDisplayName || data.fromUsername || displayName;
         username = data.fromUsername || data.fromDisplayName || username;
-        viewers = data.viewerCount || data.viewers || null;
+        viewers = data.viewerCount || 0;
         break;
 
       case "channel.volts":
         alertType = "volts";
-        // amount is available as data.amount; renderer currently
-        // just says "sent volts!" without the number.
-        volts = data.amount || null;
-        break;
-
-      default:
+        volts = data.amount || 0;
         break;
     }
 
+    // ⭐ MUST stay "channel.stream_alert" or chat overlay will ignore it
     sendToChatOverlay({
       type: "velora_system",
       event: "channel.stream_alert",
@@ -240,6 +233,8 @@ function handleVeloraEvent({ event, data, timestamp }) {
         count,
         viewers,
         volts,
+        tier,
+        months,
         message: null,
         customSoundUrl: data.customSoundUrl || null
       }
