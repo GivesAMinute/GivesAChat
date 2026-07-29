@@ -139,6 +139,7 @@ function formatEmoteList(str) {
    ⭐ Handle Chat Messages (queued)
 --------------------------------------------------------- */
 function handleChat(payload, container) {
+  // ⭐ FIX: Ensure platform always exists
   payload.platform = payload.platform || "beam";
 
   if (payload.platform === "youtube" && payload.username.startsWith("@")) {
@@ -181,20 +182,11 @@ function handleChat(payload, container) {
     badgesHTML = icons.join("");
   }
 
-  /* ---------------------------------------------------------
-     ⭐ Bubble (inner content)
-  --------------------------------------------------------- */
   const bubble = document.createElement("div");
   bubble.className = "bubble";
 
-  /* ---------------------------------------------------------
-     ⭐ Effect Wrapper (Velora only)
-  --------------------------------------------------------- */
-  let effectWrapper = bubble;
-
+  // Velora visual effects
   if (payload.platform === "velora") {
-    effectWrapper = document.createElement("div");
-
     if (payload.effect && payload.effect.startsWith("glow_")) {
       const name = payload.effect.replace("glow_", "").toLowerCase();
       const glowMap = {
@@ -205,49 +197,66 @@ function handleChat(payload, container) {
         azure: "effect-glow-azure",
         violet: "effect-glow-violet"
       };
-      effectWrapper.classList.add("effect-color-glow");
-      if (glowMap[name]) effectWrapper.classList.add(glowMap[name]);
+      bubble.classList.add("effect-color-glow");
+      if (glowMap[name]) bubble.classList.add(glowMap[name]);
     }
 
     if (payload.effect && payload.effect.startsWith("galaxy_")) {
       const suffix = payload.effect.replace("galaxy_", "").toLowerCase();
-      effectWrapper.classList.add("effect-galaxy", `effect-galaxy-${suffix}`);
+      bubble.classList.add("effect-galaxy", `effect-galaxy-${suffix}`);
     }
 
     if (payload.effect === "rainbow") {
-      effectWrapper.classList.add("effect-rainbow");
+      bubble.classList.add("effect-rainbow");
     }
+  }
 
-    effectWrapper.appendChild(bubble);
+  // ⭐ Message content: keep Velora as-is, add Beam safely
+  if (payload.platform === "velora") {
+    bubble.innerHTML = `
+      <div class="chat-message-content">
+        <span class="velora-line">
+          ${avatar}
+          ${badgesHTML}
+          <span class="username">${payload.username}</span>
+        </span>
+        <span class="text">${payload.html}</span>
+      </div>
+    `;
+  } else if (payload.platform === "beam") {
+    const text = payload.message || payload.html || "";
+    bubble.innerHTML = `
+      <div class="chat-message-content">
+        <span class="velora-line">
+          ${avatar}
+          ${badgesHTML}
+          <span class="username">${payload.username}</span>
+        </span>
+        <span class="text">${text}</span>
+      </div>
+    `;
+  } else {
+    const text = payload.html || payload.message || "";
+    bubble.innerHTML = `
+      <div class="chat-message-content">
+        <span class="velora-line">
+          ${avatar}
+          ${badgesHTML}
+          <span class="username">${payload.username}</span>
+        </span>
+        <span class="text">${text}</span>
+      </div>
+    `;
   }
 
   /* ---------------------------------------------------------
-     ⭐ Message content
-  --------------------------------------------------------- */
-  const text = payload.html || payload.message || "";
-
-  bubble.innerHTML = `
-    <div class="chat-message-content">
-      <span class="velora-line">
-        ${avatar}
-        ${badgesHTML}
-        <span class="username">${payload.username}</span>
-      </span>
-      <span class="text">${text}</span>
-    </div>
-  `;
-
-  /* ---------------------------------------------------------
-     ⭐ Beam Sticker
+     ⭐ Inject Beam Sticker (if present)
   --------------------------------------------------------- */
   if (payload.sticker) {
     const stickerEl = renderBeamSticker(payload.sticker);
     bubble.appendChild(stickerEl);
   }
 
-  /* ---------------------------------------------------------
-     ⭐ Gigantify
-  --------------------------------------------------------- */
   if (payload.platform === "velora" && payload.effect === "gigantify") {
     bubble.classList.add("effect-gigantify");
     const textNode = bubble.querySelector(".text");
@@ -255,7 +264,7 @@ function handleChat(payload, container) {
   }
 
   wrapper.appendChild(icon);
-  wrapper.appendChild(effectWrapper);
+  wrapper.appendChild(bubble);
 
   const usernameSpan = wrapper.querySelector(".username");
   if (usernameSpan) {
@@ -264,9 +273,7 @@ function handleChat(payload, container) {
 
   container.appendChild(wrapper);
 
-  /* ---------------------------------------------------------
-     ⭐ TTS
-  --------------------------------------------------------- */
+  // ⭐ TTS: platform-aware clean message
   let cleanMessage = "";
 
   if (payload.platform === "velora") {
@@ -322,9 +329,10 @@ function renderVeloraSystemMessage(event, data, container) {
     text = `${data.displayName || data.username} raided with ${data.viewers || ""} viewers!`;
   }
   else if (data.alertType === "volts") {
-    const amount = data.volts || data.count || 0;
-    text = `${data.displayName || data.username} sent ${amount} Volts!`;
+  const amount = data.volts || data.count || 0;
+  text = `${data.displayName || data.username} sent ${amount} Volts!`;
   }
+
   else {
     text = data.message || `${data.displayName || data.username}`;
   }
