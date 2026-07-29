@@ -143,7 +143,7 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora System Alert Bubble (Stripped‑Back Card)
+   ⭐ Velora System Alert Bubble
 --------------------------------------------------------- */
 .velora-system-bubble {
   position: relative;
@@ -191,7 +191,7 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Themes (follow, subscribe, gift, raid, volts, generic)
+   ⭐ Velora Themes
 --------------------------------------------------------- */
 .velora-theme-follow .velora-system-bubble,
 .velora-theme-subscribe .velora-system-bubble,
@@ -282,6 +282,9 @@
 .effect-glow-azure   { --glow-color-1:#0ea5e9; --glow-color-2:#38bdf8; --glow-color-3:#0284c7; }
 .effect-glow-violet  { --glow-color-1:#8b5cf6; --glow-color-2:#a78bfa; --glow-color-3:#6d28d9; }
 
+/* ---------------------------------------------------------
+   ⭐ Glow Animations
+--------------------------------------------------------- */
 @keyframes color-border-flow {
   0% { background-position: 0% 50%; }
   100% { background-position: 300% 50%; }
@@ -294,30 +297,32 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Effect — Correct Alignment (Matches Normal Bubble)
+   ⭐ Galaxy Effect — Perfect Version (Matches Normal Bubble)
 --------------------------------------------------------- */
 .effect-galaxy {
   position: relative;
-  border-radius: 12px;      /* match glow */
+  border-radius: 12px;      /* match glow + bubble wrapper */
   padding: 3px;             /* match glow */
   overflow: visible !important;
 }
 
-/* ⭐ Inner bubble stays EXACTLY as your normal bubble */
+/* ⭐ Inner bubble matches .bubble EXACTLY */
 .effect-galaxy > .chat-message-content {
   position: relative;
   z-index: 2;
-  border-radius: 10px;      /* match glow + normal bubble */
-  background: rgba(13,13,13,0.65) !important;
 
-  /* ⭐ DO NOT override padding — use your normal bubble padding */
-  padding: 12px 16px !important;
+  /* match .bubble */
+  background: rgba(13,13,13,0.65) !important;
+  border-radius: 14px !important;
+  padding: 10px 14px !important;
+  max-width: 615px !important;
+  flex-shrink: 1 !important;
 
   overflow: visible !important;
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Border
+   ⭐ Galaxy Border (outer wrapper)
 --------------------------------------------------------- */
 .effect-galaxy::before {
   content: "";
@@ -335,7 +340,7 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Glow
+   ⭐ Galaxy Glow (outer glow)
 --------------------------------------------------------- */
 .effect-galaxy::after {
   content: "";
@@ -350,15 +355,16 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Starfield + Tint (unchanged)
+   ⭐ Starfield (inside bubble, visual only)
 --------------------------------------------------------- */
 .effect-galaxy .chat-message-content::before {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 10px;
+  border-radius: 14px; /* match bubble radius */
   pointer-events: none;
   z-index: 3;
+
   background:
     radial-gradient(3px 3px at 12% 22%, rgba(255,255,255,0.95), transparent),
     radial-gradient(3px 3px at 78% 18%, rgba(255,255,255,0.9), transparent),
@@ -369,25 +375,23 @@
     radial-gradient(1.2px 1.2px at 70% 55%, rgba(255,255,255,0.5), transparent),
     radial-gradient(1.2px 1.2px at 45% 15%, rgba(255,255,255,0.45), transparent),
     radial-gradient(3px 3px at 60% 50%, var(--star-accent), transparent);
+
   animation: star-twinkle-random 4s ease-in-out infinite;
 }
 
+/* ---------------------------------------------------------
+   ⭐ Tint Layer (inside bubble)
+--------------------------------------------------------- */
 .effect-galaxy .chat-message-content::after {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 10px;
+  border-radius: 14px; /* match bubble */
   pointer-events: none;
   z-index: 2;
   background: var(--galaxy-tint, transparent);
   opacity: 0.22;
   mix-blend-mode: screen;
-}
-
-/* Keep text above overlays */
-.effect-galaxy .chat-message-content * {
-  position: relative;
-  z-index: 10 !important;
 }
 
 /* ---------------------------------------------------------
@@ -396,13 +400,6 @@
 .effect-galaxy .chat-message-content * {
   position: relative;
   z-index: 10 !important;
-}
-
-/* ---------------------------------------------------------
-   ⭐ FIX: Galaxy bubble width matches normal bubble
---------------------------------------------------------- */
-.effect-galaxy > .chat-message-content {
-  max-width: 615px !important; /* same as .bubble */
 }
 
 /* ---------------------------------------------------------
@@ -520,4 +517,43 @@
   0%   { filter: brightness(1); }
   50%  { filter: brightness(1.22); }
   100% { filter: brightness(1); }
+}
+
+/* ---------------------------------------------------------
+   ⭐ Gigantify Effect (Velora-only)
+--------------------------------------------------------- */
+.effect-gigantify {
+  animation: gigantify-right-pulse 1.2s ease-in-out infinite;
+  transform-origin: left center;
+}
+
+@keyframes gigantify-right-pulse {
+  0%   { transform: scaleX(1) scaleY(1); }
+  50%  { transform: scaleX(1.18) scaleY(1.06); }
+  100% { transform: scaleX(1) scaleY(1); }
+}
+
+/* ---------------------------------------------------------
+   ⭐ Velora Badge Pointer Events
+--------------------------------------------------------- */
+.velora-badges,
+.velora-badge {
+  pointer-events: auto !important;
+}
+
+/* ---------------------------------------------------------
+   ⭐ Velora Reward Exit Animations
+--------------------------------------------------------- */
+.fade-out .velora-reward-card {
+  animation: rewardSwipeLeft 0.6s ease-out forwards;
+}
+
+.fade-out .velora-reward-bg {
+  animation: rewardSwipeLeft 0.75s ease-out forwards;
+  animation-delay: 0.25s;
+}
+
+@keyframes rewardSwipeLeft {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-220px); }
 }
