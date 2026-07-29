@@ -294,61 +294,65 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Effect
+   ⭐ Galaxy Effect — Clean, Correct, Non‑Stretching Version
 --------------------------------------------------------- */
 .effect-galaxy {
   position: relative;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 3px;
-  background: transparent;
   overflow: visible !important;
 }
 
 .effect-galaxy > .chat-message-content {
   position: relative;
   z-index: 2;
-  border-radius: 8px;
+  border-radius: 10px;
   background: rgba(13,13,13,0.65) !important;
-  padding: 10px 14px;
+  padding: 12px 16px;
   overflow: visible !important;
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Border + Glow
+   ⭐ Galaxy Border
 --------------------------------------------------------- */
 .effect-galaxy::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 2px;
+  padding: 1px;
   background: var(--galaxy-border-gradient);
   background-size: 300% 100%;
   animation: galaxy-border-flow 4s linear infinite;
+
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 }
 
+/* ---------------------------------------------------------
+   ⭐ Galaxy Glow
+--------------------------------------------------------- */
 .effect-galaxy::after {
   content: "";
   position: absolute;
-  inset: -6px;
-  border-radius: 14px;
+  inset: -14px;
+  border-radius: inherit;
   background: var(--galaxy-glow-color);
-  filter: blur(16px);
+  filter: blur(26px);
+  opacity: 0.85;
   z-index: 1;
   animation: galaxy-glow-pulse 3s ease-in-out infinite;
 }
 
 /* ---------------------------------------------------------
-   ⭐ Enhanced Starfield
+   ⭐ Starfield
 --------------------------------------------------------- */
 .effect-galaxy .chat-message-content::before {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   pointer-events: none;
   z-index: 3;
 
@@ -366,23 +370,14 @@
   animation: star-twinkle-random 4s ease-in-out infinite;
 }
 
-@keyframes star-twinkle-random {
-  0%   { opacity: 0.55; transform: scale(1); }
-  20%  { opacity: 0.95; transform: scale(1.05); }
-  40%  { opacity: 0.65; transform: scale(1.02); }
-  60%  { opacity: 1;    transform: scale(1.07); }
-  80%  { opacity: 0.7;  transform: scale(1.03); }
-  100% { opacity: 0.55; transform: scale(1); }
-}
-
 /* ---------------------------------------------------------
-   ⭐ Interior Tint Layer
+   ⭐ Tint Layer
 --------------------------------------------------------- */
 .effect-galaxy .chat-message-content::after {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   pointer-events: none;
   z-index: 2;
   background: var(--galaxy-tint, transparent);
@@ -391,7 +386,7 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Force Foreground Above Galaxy Layers
+   ⭐ Foreground Above Galaxy Layers
 --------------------------------------------------------- */
 .effect-galaxy .chat-message-content * {
   position: relative;
@@ -407,8 +402,17 @@
 }
 
 @keyframes galaxy-glow-pulse {
-  0%,100% { opacity: .5; filter: blur(16px); }
-  50%     { opacity: .8; filter: blur(20px); }
+  0%,100% { opacity: .5; filter: blur(26px); }
+  50%     { opacity: .8; filter: blur(30px); }
+}
+
+@keyframes star-twinkle-random {
+  0%   { opacity: 0.55; transform: scale(1); }
+  20%  { opacity: 0.95; transform: scale(1.05); }
+  40%  { opacity: 0.65; transform: scale(1.02); }
+  60%  { opacity: 1;    transform: scale(1.07); }
+  80%  { opacity: 0.7;  transform: scale(1.03); }
+  100% { opacity: 0.55; transform: scale(1); }
 }
 
 /* ---------------------------------------------------------
@@ -440,6 +444,13 @@
   --galaxy-glow-color: rgba(244,114,182,0.5);
   --star-accent: rgba(251,191,36,0.9);
   --galaxy-tint: linear-gradient(135deg,rgba(244,114,182,0.22),rgba(251,191,36,0.18));
+}
+
+.effect-galaxy-violet {
+  --galaxy-border-gradient: linear-gradient(90deg,#8b5cf6,#7c3aed,#6d28d9,#7c3aed,#8b5cf6);
+  --galaxy-glow-color: rgba(139,92,246,0.5);
+  --star-accent: rgba(167,139,250,0.9);
+  --galaxy-tint: linear-gradient(135deg,rgba(139,92,246,0.22),rgba(167,139,250,0.18));
 }
 
 /* ---------------------------------------------------------
@@ -497,24 +508,4 @@
   0%   { filter: brightness(1); }
   50%  { filter: brightness(1.22); }
   100% { filter: brightness(1); }
-}
-
-/* ---------------------------------------------------------
-   ⭐ FIX: Normalize Galaxy bubble size
---------------------------------------------------------- */
-
-/* Reduce border mask thickness */
-.effect-galaxy::before {
-  padding: 1px !important;   /* was 2px */
-}
-
-/* Reduce glow expansion */
-.effect-galaxy::after {
-  inset: -10px !important;   /* was -6px, now matches glow effects */
-  filter: blur(20px) !important; /* slightly increased to compensate */
-}
-
-/* Keep bubble interior identical to normal bubbles */
-.effect-galaxy > .chat-message-content {
-  padding: 10px 14px !important; /* match regular bubble */
 }
