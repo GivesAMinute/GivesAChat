@@ -297,71 +297,53 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Effect — Perfect Version (Matches Normal Bubble)
+   ⭐ Galaxy Effect — Same Layout As Glow (FINAL)
 --------------------------------------------------------- */
 .effect-galaxy {
   position: relative;
-  border-radius: 12px;      /* match glow + bubble wrapper */
-  padding: 3px;             /* match glow */
-  overflow: visible !important;
+  border-radius: 12px;            /* same as glow */
+  padding: 3px;                   /* same as glow */
+  background: var(--galaxy-border-gradient);
+  background-size: 300% 100%;
+  animation:
+    galaxy-border-flow 4s linear infinite,
+    glow-pulse 2.2s ease-in-out infinite; /* reuse glow pulse */
+  overflow: visible;
 }
 
-/* ⭐ Inner bubble matches .bubble EXACTLY */
+/* ⭐ Inner bubble identical to Glow + identical to .bubble */
 .effect-galaxy > .chat-message-content {
+  background: #0d0d0d;            /* same as glow */
+  border-radius: 10px;            /* same as glow */
+  padding: 12px 16px;             /* same as glow */
   position: relative;
   z-index: 2;
 
-  /* match .bubble */
-  background: rgba(13,13,13,0.65) !important;
-  border-radius: 14px !important;
-  padding: 10px 14px !important;
-  max-width: 615px !important;
-  flex-shrink: 1 !important;
-
-  overflow: visible !important;
+  /* ⭐ identical width rules to .bubble */
+  max-width: 615px;
+  flex-shrink: 1;
 }
 
-/* ---------------------------------------------------------
-   ⭐ Galaxy Border (outer wrapper)
---------------------------------------------------------- */
-.effect-galaxy::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px; /* thin border */
-  background: var(--galaxy-border-gradient);
-  background-size: 300% 100%;
-  animation: galaxy-border-flow 4s linear infinite;
-
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-}
-
-/* ---------------------------------------------------------
-   ⭐ Galaxy Glow (outer glow)
---------------------------------------------------------- */
+/* ⭐ Outer glow identical geometry to Glow */
 .effect-galaxy::after {
   content: "";
   position: absolute;
-  inset: -14px;             /* match glow */
+  inset: -14px;                   /* same as glow */
   border-radius: inherit;
+  filter: blur(26px);             /* same as glow */
   background: var(--galaxy-glow-color);
-  filter: blur(26px);       /* match glow */
   opacity: 0.85;
   z-index: 1;
-  animation: galaxy-glow-pulse 3s ease-in-out infinite;
 }
 
 /* ---------------------------------------------------------
-   ⭐ Starfield (inside bubble, visual only)
+   ⭐ Starfield (visual only, no layout impact)
 --------------------------------------------------------- */
 .effect-galaxy .chat-message-content::before {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 14px; /* match bubble radius */
+  border-radius: 10px;            /* match inner bubble */
   pointer-events: none;
   z-index: 3;
 
@@ -379,14 +361,12 @@
   animation: star-twinkle-random 4s ease-in-out infinite;
 }
 
-/* ---------------------------------------------------------
-   ⭐ Tint Layer (inside bubble)
---------------------------------------------------------- */
+/* ⭐ Tint layer */
 .effect-galaxy .chat-message-content::after {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 14px; /* match bubble */
+  border-radius: 10px;
   pointer-events: none;
   z-index: 2;
   background: var(--galaxy-tint, transparent);
@@ -394,9 +374,7 @@
   mix-blend-mode: screen;
 }
 
-/* ---------------------------------------------------------
-   ⭐ Foreground Above Galaxy Layers
---------------------------------------------------------- */
+/* ⭐ Foreground above overlays */
 .effect-galaxy .chat-message-content * {
   position: relative;
   z-index: 10 !important;
@@ -406,13 +384,8 @@
    ⭐ Galaxy Animations
 --------------------------------------------------------- */
 @keyframes galaxy-border-flow {
-  0%   { background-position: 0 50%; }
+  0%   { background-position: 0% 50%; }
   100% { background-position: 300% 50%; }
-}
-
-@keyframes galaxy-glow-pulse {
-  0%,100% { opacity: .5; filter: blur(26px); }
-  50%     { opacity: .8; filter: blur(30px); }
 }
 
 @keyframes star-twinkle-random {
