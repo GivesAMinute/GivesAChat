@@ -297,7 +297,7 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Effect — Same Layout As Glow (FINAL)
+   ⭐ Galaxy Effect — Visual Only, Bubble Controls Width
 --------------------------------------------------------- */
 .effect-galaxy {
   position: relative;
@@ -307,46 +307,39 @@
   background-size: 300% 100%;
   animation:
     galaxy-border-flow 4s linear infinite,
-    glow-pulse 2.2s ease-in-out infinite; /* reuse glow pulse */
+    glow-pulse 2.2s ease-in-out infinite;
   overflow: visible;
 }
 
-/* ⭐ Inner bubble identical to Glow + identical to .bubble */
+/* ⭐ Inner bubble: NO width rules here, let .bubble handle it */
 .effect-galaxy > .chat-message-content {
   background: #0d0d0d;            /* same as glow */
   border-radius: 10px;            /* same as glow */
   padding: 12px 16px;             /* same as glow */
   position: relative;
   z-index: 2;
-
-  /* ⭐ identical width rules to .bubble */
-  max-width: 615px;
-  flex-shrink: 1;
 }
 
-/* ⭐ Outer glow identical geometry to Glow */
+/* ⭐ Outer glow */
 .effect-galaxy::after {
   content: "";
   position: absolute;
-  inset: -14px;                   /* same as glow */
+  inset: -14px;
   border-radius: inherit;
-  filter: blur(26px);             /* same as glow */
+  filter: blur(26px);
   background: var(--galaxy-glow-color);
   opacity: 0.85;
   z-index: 1;
 }
 
-/* ---------------------------------------------------------
-   ⭐ Starfield (visual only, no layout impact)
---------------------------------------------------------- */
+/* ⭐ Starfield */
 .effect-galaxy .chat-message-content::before {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 10px;            /* match inner bubble */
+  border-radius: 10px;
   pointer-events: none;
   z-index: 3;
-
   background:
     radial-gradient(3px 3px at 12% 22%, rgba(255,255,255,0.95), transparent),
     radial-gradient(3px 3px at 78% 18%, rgba(255,255,255,0.9), transparent),
@@ -357,11 +350,10 @@
     radial-gradient(1.2px 1.2px at 70% 55%, rgba(255,255,255,0.5), transparent),
     radial-gradient(1.2px 1.2px at 45% 15%, rgba(255,255,255,0.45), transparent),
     radial-gradient(3px 3px at 60% 50%, var(--star-accent), transparent);
-
   animation: star-twinkle-random 4s ease-in-out infinite;
 }
 
-/* ⭐ Tint layer */
+/* ⭐ Tint */
 .effect-galaxy .chat-message-content::after {
   content: "";
   position: absolute;
@@ -374,7 +366,7 @@
   mix-blend-mode: screen;
 }
 
-/* ⭐ Foreground above overlays */
+/* ⭐ Foreground */
 .effect-galaxy .chat-message-content * {
   position: relative;
   z-index: 10 !important;
