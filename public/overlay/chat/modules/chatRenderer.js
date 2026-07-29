@@ -329,8 +329,10 @@ function renderVeloraSystemMessage(event, data, container) {
     text = `${data.displayName || data.username} raided with ${data.viewers || ""} viewers!`;
   }
   else if (data.alertType === "volts") {
-    text = `${data.displayName || data.username} sent volts!`;
+  const amount = data.volts || data.count || 0;
+  text = `${data.displayName || data.username} sent ${amount} Volts!`;
   }
+
   else {
     text = data.message || `${data.displayName || data.username}`;
   }
