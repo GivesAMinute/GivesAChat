@@ -61,7 +61,7 @@ body {
 --------------------------------------------------------- */
 #messages {
   position: absolute;
-  bottom: 35px;            /* where messages begin */
+  bottom: 0px;            /* where messages begin */
   top: 180px;              /* header height + padding */
   left: 0;
   width: 100%;
