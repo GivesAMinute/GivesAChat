@@ -61,11 +61,11 @@ body {
 --------------------------------------------------------- */
 #messages {
   position: absolute;
-  bottom: 5px;            /* where messages begin */
+  bottom: 35px;            /* where messages begin */
   top: 180px;              /* header height + padding */
   left: 0;
   width: 100%;
-  padding: 0 20px 0 10px;
+  padding: 0 20px 24px 10px;
 
   display: flex;
   flex-direction: column;
