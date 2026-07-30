@@ -137,20 +137,16 @@ function handleChat(payload, container) {
       bubble.classList.add("effect-rainbow");
     }
 
-    // ⭐ Gigantify — apply ONLY to text + emotes
-    if (payload.effect === "gigantify") {
-      requestAnimationFrame(() => {
-        const content = bubble.querySelector(".chat-message-content");
-        if (!content) return;
+    // ⭐ Gigantify — apply ONLY to message text/emotes
+if (payload.effect === "gigantify") {
+  requestAnimationFrame(() => {
+    const content = bubble.querySelector(".chat-message-content");
+    if (!content) return;
 
-        const text = content.querySelector(".text");
-        const line = content.querySelector(".velora-line");
-
-        if (text) text.classList.add("effect-gigantify");
-        if (line) line.classList.add("effect-gigantify");
-      });
-    }
-  }
+    const text = content.querySelector(".text");
+    if (text) text.classList.add("effect-gigantify");
+  });
+}
 
   bubble.innerHTML = `
     <div class="chat-message-content">
