@@ -202,9 +202,14 @@ function handleChat(payload, container) {
     }
 
     if (payload.effect && payload.effect.startsWith("galaxy_")) {
-      const suffix = payload.effect.replace("galaxy_", "").toLowerCase();
-      bubble.classList.add("effect-galaxy", `effect-galaxy-${suffix}`);
-    }
+  const suffix = payload.effect.replace("galaxy_", "").toLowerCase();
+
+  // ⭐ Delay Galaxy effect until after layout
+  requestAnimationFrame(() => {
+    bubble.classList.add("effect-galaxy", `effect-galaxy-${suffix}`);
+  });
+}
+
 
     if (payload.effect === "rainbow") {
       bubble.classList.add("effect-rainbow");
