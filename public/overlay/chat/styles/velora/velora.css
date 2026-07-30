@@ -221,7 +221,7 @@
 /* ---------------------------------------------------------
    ⭐ Galaxy Effect (FULL ORIGINAL WORKING VERSION)
 --------------------------------------------------------- */
-/*
+
 .effect-galaxy {
   position: relative;
   border-radius: 12px;
@@ -242,7 +242,7 @@
 /* ---------------------------------------------------------
    ⭐ Galaxy Border
 --------------------------------------------------------- */
-/*
+
 .effect-galaxy::before {
   content: "";
   position: absolute;
@@ -256,12 +256,10 @@
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 }
-*/
 
 /* ---------------------------------------------------------
    ⭐ Galaxy Glow
 --------------------------------------------------------- */
-/* 
 
 .effect-galaxy::after {
   content: "";
@@ -275,12 +273,9 @@
   animation: galaxy-glow-pulse 3s ease-in-out infinite;
 }
 
-*/
-
 /* ---------------------------------------------------------
    ⭐ FULL STARFIELD (ORIGINAL)
 --------------------------------------------------------- */
-/* 
 
 .effect-galaxy .chat-message-content::before {
   content: "";
@@ -303,12 +298,11 @@
 
   animation: star-twinkle-random 4s ease-in-out infinite;
 }
-*/
 
 /* ---------------------------------------------------------
    ⭐ Tint Layer
 --------------------------------------------------------- */
-/*
+
 .effect-galaxy .chat-message-content::after {
   content: "";
   position: absolute;
@@ -321,7 +315,6 @@
   mix-blend-mode: screen;
 }
 
-*/
 /* ---------------------------------------------------------
    ⭐ Foreground
 --------------------------------------------------------- */
