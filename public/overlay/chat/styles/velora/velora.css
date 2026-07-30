@@ -297,50 +297,46 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Effect — MATCH Glow/Rainbow Geometry
+   ⭐ Galaxy Effect — clone Glow geometry, different colors
 --------------------------------------------------------- */
 .effect-galaxy {
   position: relative;
-  border-radius: 12px;     /* same wrapper radius as glow/rainbow */
-  padding: 3px;            /* same wrapper padding as glow/rainbow */
+  border-radius: 12px; /* same as glow/rainbow wrapper */
+  padding: 3px;        /* same as glow/rainbow wrapper */
+  background: linear-gradient(
+    90deg,
+    var(--galaxy-color-1),
+    var(--galaxy-color-2),
+    var(--galaxy-color-3)
+  );
+  background-size: 300% 100%;
+  animation:
+    galaxy-border-flow 4s linear infinite,
+    glow-pulse 2.2s ease-in-out infinite;
   overflow: visible;
 }
 
-/* ⭐ Inner bubble (same as glow/rainbow inner) */
 .effect-galaxy > .chat-message-content {
   background: #0d0d0d;
-  border-radius: 10px;     /* same inner radius */
-  padding: 12px 16px;      /* same inner padding */
+  border-radius: 10px;   /* same inner radius as glow/rainbow */
+  padding: 12px 16px;    /* same inner padding */
   position: relative;
   z-index: 2;
 }
 
-/* ⭐ Border wrapper (outside bubble, same geometry as glow/rainbow) */
-.effect-galaxy::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--galaxy-border-gradient);
-  background-size: 300% 100%;
-  animation: galaxy-border-flow 4s linear infinite;
-  z-index: 1;
-}
-
-/* ⭐ Outer glow (same geometry as glow/rainbow) */
+/* outer glow, same geometry as glow/rainbow */
 .effect-galaxy::after {
   content: "";
   position: absolute;
   inset: -14px;
   border-radius: inherit;
-  background: var(--galaxy-glow-color);
   filter: blur(26px);
+  background: inherit;
   opacity: 0.85;
-  z-index: 0;
-  animation: galaxy-glow-pulse 3s ease-in-out infinite;
+  z-index: 1;
 }
 
-/* ⭐ Starfield (inside bubble, same geometry as glow/rainbow inner) */
+/* optional subtle starfield inside bubble, not affecting width */
 .effect-galaxy > .chat-message-content::before {
   content: "";
   position: absolute;
@@ -348,98 +344,56 @@
   border-radius: 10px;
   pointer-events: none;
   z-index: 3;
-
   background:
-    radial-gradient(3px 3px at 12% 22%, rgba(255,255,255,0.95), transparent),
-    radial-gradient(3px 3px at 78% 18%, rgba(255,255,255,0.9), transparent),
-    radial-gradient(2px 2px at 33% 66%, rgba(255,255,255,0.75), transparent),
-    radial-gradient(2px 2px at 55% 42%, rgba(255,255,255,0.7), transparent),
-    radial-gradient(2px 2px at 88% 72%, rgba(255,255,255,0.65), transparent),
-    radial-gradient(1.2px 1.2px at 20% 80%, rgba(255,255,255,0.55), transparent),
-    radial-gradient(1.2px 1.2px at 70% 55%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1.2px 1.2px at 45% 15%, rgba(255,255,255,0.45), transparent),
-    radial-gradient(3px 3px at 60% 50%, var(--star-accent), transparent);
-
-  animation: star-twinkle-random 4s ease-in-out infinite;
+    radial-gradient(3px 3px at 12% 22%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(2px 2px at 78% 18%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(2px 2px at 33% 66%, rgba(255,255,255,0.4), transparent);
+  opacity: 0.6;
 }
 
-/* ⭐ Tint layer (inside bubble) */
-.effect-galaxy > .chat-message-content::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 10px;
-  pointer-events: none;
-  z-index: 2;
-  background: var(--galaxy-tint, transparent);
-  opacity: 0.22;
-  mix-blend-mode: screen;
-}
-
-/* ⭐ Foreground above starfield */
+/* keep text above starfield */
 .effect-galaxy .chat-message-content * {
   position: relative;
   z-index: 10 !important;
 }
 
-/* ---------------------------------------------------------
-   ⭐ Galaxy Animations
---------------------------------------------------------- */
+/* animations */
 @keyframes galaxy-border-flow {
-  0%   { background-position: 0 50%; }
+  0%   { background-position: 0% 50%; }
   100% { background-position: 300% 50%; }
 }
 
-@keyframes galaxy-glow-pulse {
-  0%,100% { opacity: .5; filter: blur(26px); }
-  50%     { opacity: .8; filter: blur(30px); }
-}
-
-@keyframes star-twinkle-random {
-  0%   { opacity: 0.55; transform: scale(1); }
-  20%  { opacity: 0.95; transform: scale(1.05); }
-  40%  { opacity: 0.65; transform: scale(1.02); }
-  60%  { opacity: 1;    transform: scale(1.07); }
-  80%  { opacity: 0.7;  transform: scale(1.03); }
-  100% { opacity: 0.55; transform: scale(1); }
-}
-
 /* ---------------------------------------------------------
-   ⭐ Galaxy Variants
+   ⭐ Galaxy Color Variants (match your previous intent)
 --------------------------------------------------------- */
 .effect-galaxy-nebula {
-  --galaxy-border-gradient: linear-gradient(90deg,#c084fc,#9333ea,#7c3aed,#a855f7,#c084fc);
-  --galaxy-glow-color: rgba(147,51,234,0.5);
-  --star-accent: rgba(192,132,252,0.9);
-  --galaxy-tint: linear-gradient(135deg,rgba(147,51,234,0.22),rgba(192,132,252,0.18));
+  --galaxy-color-1:#c084fc;
+  --galaxy-color-2:#9333ea;
+  --galaxy-color-3:#7c3aed;
 }
 
 .effect-galaxy-aurora {
-  --galaxy-border-gradient: linear-gradient(90deg,#5eead4,#2dd4bf,#14b8a6,#34d399,#5eead4);
-  --galaxy-glow-color: rgba(45,212,191,0.5);
-  --star-accent: rgba(94,234,212,0.9);
-  --galaxy-tint: linear-gradient(135deg,rgba(45,212,191,0.22),rgba(34,197,94,0.18));
+  --galaxy-color-1:#5eead4;
+  --galaxy-color-2:#2dd4bf;
+  --galaxy-color-3:#14b8a6;
 }
 
 .effect-galaxy-cosmic {
-  --galaxy-border-gradient: linear-gradient(90deg,#60a5fa,#3b82f6,#2563eb,#3b82f6,#60a5fa);
-  --galaxy-glow-color: rgba(59,130,246,0.5);
-  --star-accent: rgba(96,165,250,0.9);
-  --galaxy-tint: linear-gradient(135deg,rgba(59,130,246,0.22),rgba(147,197,253,0.18));
+  --galaxy-color-1:#60a5fa;
+  --galaxy-color-2:#3b82f6;
+  --galaxy-color-3:#2563eb;
 }
 
 .effect-galaxy-stardust {
-  --galaxy-border-gradient: linear-gradient(90deg,#fda4af,#f472b6,#ec4899,#f472b6,#fda4af);
-  --galaxy-glow-color: rgba(244,114,182,0.5);
-  --star-accent: rgba(251,191,36,0.9);
-  --galaxy-tint: linear-gradient(135deg,rgba(244,114,182,0.22),rgba(251,191,36,0.18));
+  --galaxy-color-1:#fda4af;
+  --galaxy-color-2:#f472b6;
+  --galaxy-color-3:#ec4899;
 }
 
 .effect-galaxy-violet {
-  --galaxy-border-gradient: linear-gradient(90deg,#8b5cf6,#7c3aed,#6d28d9,#7c3aed,#8b5cf6);
-  --galaxy-glow-color: rgba(139,92,246,0.5);
-  --star-accent: rgba(167,139,250,0.9);
-  --galaxy-tint: linear-gradient(135deg,rgba(139,92,246,0.22),rgba(167,139,250,0.18));
+  --galaxy-color-1:#8b5cf6;
+  --galaxy-color-2:#7c3aed;
+  --galaxy-color-3:#6d28d9;
 }
 
 /* ---------------------------------------------------------
