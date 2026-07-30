@@ -124,6 +124,10 @@ function handleChat(payload, container) {
   bubble.className = "bubble";
 
   if (payload.platform === "velora") {
+
+    /* ---------------------------------------------------------
+       ⭐ Glow Effects
+    --------------------------------------------------------- */
     if (payload.effect && payload.effect.startsWith("glow_")) {
       const name = payload.effect.replace("glow_", "").toLowerCase();
       const glowMap = {
@@ -138,11 +142,26 @@ function handleChat(payload, container) {
       if (glowMap[name]) bubble.classList.add(glowMap[name]);
     }
 
+    /* ---------------------------------------------------------
+       ⭐ Galaxy → Glow Mapping (FIX)
+       All galaxy_* effects now behave exactly like Glow
+    --------------------------------------------------------- */
     if (payload.effect && payload.effect.startsWith("galaxy_")) {
-      const suffix = payload.effect.replace("galaxy_", "").toLowerCase();
-      bubble.classList.add("effect-galaxy", `effect-galaxy-${suffix}`);
+      const name = payload.effect.replace("galaxy_", "").toLowerCase();
+      const glowMapGalaxy = {
+        nebula:  "effect-glow-violet",
+        aurora:  "effect-glow-emerald",
+        cosmic:  "effect-glow-azure",
+        stardust:"effect-glow-golden",
+        violet:  "effect-glow-violet"
+      };
+      bubble.classList.add("effect-color-glow");
+      if (glowMapGalaxy[name]) bubble.classList.add(glowMapGalaxy[name]);
     }
 
+    /* ---------------------------------------------------------
+       ⭐ Rainbow
+    --------------------------------------------------------- */
     if (payload.effect === "rainbow") {
       bubble.classList.add("effect-rainbow");
     }
@@ -159,6 +178,9 @@ function handleChat(payload, container) {
     </div>
   `;
 
+  /* ---------------------------------------------------------
+     ⭐ Gigantify
+  --------------------------------------------------------- */
   if (payload.platform === "velora" && payload.effect === "gigantify") {
     bubble.classList.add("effect-gigantify");
 
