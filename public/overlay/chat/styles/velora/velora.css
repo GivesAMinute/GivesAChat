@@ -12,14 +12,15 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Stripped-Back Card — Sheen Overlay (WORKING)
+   ⭐ Velora System Bubble — Final Combined Sheen + Gold Shimmer
 --------------------------------------------------------- */
-.velora-system-bubble::after {
+.velora-system-bubble::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
 
+  /* White sheen layer */
   background: linear-gradient(
     120deg,
     rgba(255,255,255,0.0) 0%,
@@ -30,11 +31,42 @@
   opacity: 0.55;
   mix-blend-mode: screen;
   pointer-events: none;
-  z-index: 3;
+  z-index: 2;
 
   animation: velora-sheen-move 3.8s linear infinite;
 }
 
+.velora-system-bubble::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+
+  /* Gold shimmer layer */
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 215, 64, 0.32) 50%,
+    transparent 100%
+  );
+
+  opacity: 0.45;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 3;
+
+  animation: veloraShimmer 3.2s linear infinite;
+}
+
+@keyframes velora-sheen-move {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes veloraShimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
 
 /* ---------------------------------------------------------
    ⭐ Reward Background Wrapper
