@@ -4,7 +4,7 @@ import { renderVeloraBadges } from "../badges/velora/index.js";
 import { colorForUsername } from "../utils/usernameColors.js";
 
 /* ---------------------------------------------------------
-   ⭐ Global Queue System (no overlapping audio/TTS)
+   Queue System
 --------------------------------------------------------- */
 const messageQueue = [];
 let queueRunning = false;
@@ -27,9 +27,7 @@ async function processQueue() {
         window.sharedRewardAudio.src = job.soundUrl;
         window.sharedRewardAudio.volume = 1.0;
         await window.sharedRewardAudio.play().catch(() => {});
-      } catch (e) {
-        console.warn("[Queue] Sound failed:", e);
-      }
+      } catch (e) {}
     }
 
     if (job.delayMs) {
@@ -39,9 +37,7 @@ async function processQueue() {
     if (job.ttsText) {
       try {
         await speakText(job.ttsText);
-      } catch (e) {
-        console.warn("[Queue] TTS failed:", e);
-      }
+      } catch (e) {}
     }
 
     await new Promise(res => setTimeout(res, 150));
@@ -51,15 +47,7 @@ async function processQueue() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Detect iOS / iPadOS
---------------------------------------------------------- */
-const isIOS = (() => {
-  const ua = navigator.userAgent || navigator.vendor || window.opera;
-  return /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-})();
-
-/* ---------------------------------------------------------
-   ⭐ Emote Parsing Helpers
+   Emote Helpers
 --------------------------------------------------------- */
 function isEmoteOnlyMessage(html) {
   const div = document.createElement("div");
@@ -100,39 +88,7 @@ function formatEmoteList(str) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Variant Detection (Option A)
---------------------------------------------------------- */
-function detectGalaxyVariant(hex) {
-  if (!hex) return "effect-galaxy-nebula"; // fallback
-
-  const c = hex.toLowerCase();
-
-  // Purples → Nebula
-  if (["#c084fc", "#9333ea", "#7c3aed", "#a855f7"].includes(c)) {
-    return "effect-galaxy-nebula";
-  }
-
-  // Teals → Aurora
-  if (["#5eead4", "#2dd4bf", "#14b8a6", "#34d399"].includes(c)) {
-    return "effect-galaxy-aurora";
-  }
-
-  // Blues → Cosmic
-  if (["#60a5fa", "#3b82f6", "#2563eb"].includes(c)) {
-    return "effect-galaxy-cosmic";
-  }
-
-  // Pinks/Gold → Stardust
-  if (["#fda4af", "#f472b6", "#ec4899", "#fbbf24"].includes(c)) {
-    return "effect-galaxy-stardust";
-  }
-
-  // Default
-  return "effect-galaxy-nebula";
-}
-
-/* ---------------------------------------------------------
-   ⭐ Handle Chat Messages (queued)
+   ⭐ ORIGINAL WORKING EFFECT HANDLING
 --------------------------------------------------------- */
 function handleChat(payload, container) {
   console.log("[OVERLAY] incoming chat payload:", payload);
@@ -159,30 +115,33 @@ function handleChat(payload, container) {
   bubble.className = "bubble";
 
   /* ---------------------------------------------------------
-     ⭐ Velora Effects (Corrected for new API)
+     ⭐ ORIGINAL EFFECT LOGIC (WORKING VERSION)
+     Glow → effect-color-glow + glow variants
+     Galaxy → effect-galaxy + effect-galaxy-<variant>
+     Rainbow → effect-rainbow
+     Gigantify → effect-gigantify
   --------------------------------------------------------- */
+
   if (payload.platform === "velora") {
 
-    /* Glow */
-    if (payload.effect === "glow") {
-      bubble.classList.add("effect-color-glow");
-      // Optional: derive glow variant from effectColor
+    // Glow
+    if (payload.effect && payload.effect.startsWith("glow_")) {
+      const name = payload.effect.replace("glow_", "").toLowerCase();
+      bubble.classList.add("effect-color-glow", `effect-glow-${name}`);
     }
 
-    /* Galaxy — NEW correct behavior */
-    if (payload.effect === "galaxy") {
-      bubble.classList.add("effect-galaxy");
-
-      const variant = detectGalaxyVariant(payload.effectColor);
-      bubble.classList.add(variant);
+    // Galaxy (original working format)
+    if (payload.effect && payload.effect.startsWith("galaxy_")) {
+      const name = payload.effect.replace("galaxy_", "").toLowerCase();
+      bubble.classList.add("effect-galaxy", `effect-galaxy-${name}`);
     }
 
-    /* Rainbow */
+    // Rainbow
     if (payload.effect === "rainbow") {
       bubble.classList.add("effect-rainbow");
     }
 
-    /* Gigantify */
+    // Gigantify
     if (payload.effect === "gigantify") {
       bubble.classList.add("effect-gigantify");
     }
@@ -235,7 +194,7 @@ function handleChat(payload, container) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora System Alert (queued)
+   Velora System Alerts (unchanged)
 --------------------------------------------------------- */
 function renderVeloraSystemMessage(event, data, container) {
   if (!container) return;
@@ -287,30 +246,11 @@ function renderVeloraSystemMessage(event, data, container) {
   wrapper.appendChild(bubble);
   container.appendChild(wrapper);
 
-  let delayMs = 4500;
-
-  if (data.customSoundUrl) {
-    const tempAudio = new Audio();
-    tempAudio.src = data.customSoundUrl;
-
-    tempAudio.addEventListener("loadedmetadata", () => {
-      if (!isNaN(tempAudio.duration) && tempAudio.duration > 0) {
-        delayMs = Math.ceil(tempAudio.duration * 1000) + 500;
-      }
-
-      enqueue({
-        soundUrl: data.customSoundUrl,
-        delayMs,
-        ttsText: `Velora Stream Alert. ${text}`
-      });
-    });
-  } else {
-    enqueue({
-      soundUrl: null,
-      delayMs: 0,
-      ttsText: `Velora Stream Alert. ${text}`
-    });
-  }
+  enqueue({
+    soundUrl: data.customSoundUrl || null,
+    delayMs: 0,
+    ttsText: `Velora Stream Alert. ${text}`
+  });
 
   setTimeout(() => {
     wrapper.classList.add("fade-out");
