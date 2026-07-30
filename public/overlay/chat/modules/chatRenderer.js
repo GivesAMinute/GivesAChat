@@ -147,6 +147,7 @@ if (payload.effect === "gigantify") {
     if (text) text.classList.add("effect-gigantify");
   });
 }
+  }
 
   bubble.innerHTML = `
     <div class="chat-message-content">
