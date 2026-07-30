@@ -258,6 +258,8 @@
 /* ---------------------------------------------------------
    ⭐ Galaxy Glow
 --------------------------------------------------------- */
+/* 
+
 .effect-galaxy::after {
   content: "";
   position: absolute;
@@ -270,10 +272,14 @@
   animation: galaxy-glow-pulse 3s ease-in-out infinite;
 }
 
+*/
+
 /* ---------------------------------------------------------
    ⭐ FULL STARFIELD (ORIGINAL)
 --------------------------------------------------------- */
-/* .effect-galaxy .chat-message-content::before {
+/* 
+
+.effect-galaxy .chat-message-content::before {
   content: "";
   position: absolute;
   inset: 0;
