@@ -297,51 +297,55 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Effect — Bubble-safe version
-   (applied directly to .bubble, no width change)
+   ⭐ Galaxy Effect — MATCH Glow/Rainbow Geometry
 --------------------------------------------------------- */
 .effect-galaxy {
   position: relative;
-  border-radius: 14px;      /* match .bubble */
-  /* IMPORTANT: no padding here, let .bubble control width */
-  overflow: visible !important;
+  border-radius: 12px;     /* same wrapper radius as glow/rainbow */
+  padding: 3px;            /* same wrapper padding as glow/rainbow */
+  overflow: visible;
 }
 
-/* ⭐ Border (thin, hugging bubble) */
+/* ⭐ Inner bubble (same as glow/rainbow inner) */
+.effect-galaxy > .chat-message-content {
+  background: #0d0d0d;
+  border-radius: 10px;     /* same inner radius */
+  padding: 12px 16px;      /* same inner padding */
+  position: relative;
+  z-index: 2;
+}
+
+/* ⭐ Border wrapper (outside bubble, same geometry as glow/rainbow) */
 .effect-galaxy::before {
   content: "";
   position: absolute;
-  inset: 0;                 /* exactly bubble bounds */
+  inset: 0;
   border-radius: inherit;
-  padding: 1px;             /* thin border */
   background: var(--galaxy-border-gradient);
   background-size: 300% 100%;
   animation: galaxy-border-flow 4s linear infinite;
-
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  z-index: 1;
 }
 
-/* ⭐ Outer glow (does NOT affect bubble width) */
+/* ⭐ Outer glow (same geometry as glow/rainbow) */
 .effect-galaxy::after {
   content: "";
   position: absolute;
-  inset: -14px;             /* glow outside */
+  inset: -14px;
   border-radius: inherit;
   background: var(--galaxy-glow-color);
   filter: blur(26px);
   opacity: 0.85;
-  z-index: 1;
+  z-index: 0;
   animation: galaxy-glow-pulse 3s ease-in-out infinite;
 }
 
-/* ⭐ Starfield (inside bubble, visual only) */
-.effect-galaxy .chat-message-content::before {
+/* ⭐ Starfield (inside bubble, same geometry as glow/rainbow inner) */
+.effect-galaxy > .chat-message-content::before {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 14px;      /* match bubble radius */
+  border-radius: 10px;
   pointer-events: none;
   z-index: 3;
 
@@ -359,12 +363,12 @@
   animation: star-twinkle-random 4s ease-in-out infinite;
 }
 
-/* ⭐ Tint Layer (inside bubble) */
-.effect-galaxy .chat-message-content::after {
+/* ⭐ Tint layer (inside bubble) */
+.effect-galaxy > .chat-message-content::after {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 14px;      /* match bubble */
+  border-radius: 10px;
   pointer-events: none;
   z-index: 2;
   background: var(--galaxy-tint, transparent);
@@ -372,7 +376,7 @@
   mix-blend-mode: screen;
 }
 
-/* ⭐ Foreground Above Galaxy Layers */
+/* ⭐ Foreground above starfield */
 .effect-galaxy .chat-message-content * {
   position: relative;
   z-index: 10 !important;
