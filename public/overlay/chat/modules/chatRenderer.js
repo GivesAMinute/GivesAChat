@@ -58,6 +58,9 @@ const isIOS = (() => {
   return /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
 })();
 
+/* ---------------------------------------------------------
+   ⭐ Emote Parsing Helpers
+--------------------------------------------------------- */
 function isEmoteOnlyMessage(html) {
   const div = document.createElement("div");
   div.innerHTML = html;
@@ -97,6 +100,38 @@ function formatEmoteList(str) {
 }
 
 /* ---------------------------------------------------------
+   ⭐ Galaxy Variant Detection (Option A)
+--------------------------------------------------------- */
+function detectGalaxyVariant(hex) {
+  if (!hex) return "effect-galaxy-nebula"; // fallback
+
+  const c = hex.toLowerCase();
+
+  // Purples → Nebula
+  if (["#c084fc", "#9333ea", "#7c3aed", "#a855f7"].includes(c)) {
+    return "effect-galaxy-nebula";
+  }
+
+  // Teals → Aurora
+  if (["#5eead4", "#2dd4bf", "#14b8a6", "#34d399"].includes(c)) {
+    return "effect-galaxy-aurora";
+  }
+
+  // Blues → Cosmic
+  if (["#60a5fa", "#3b82f6", "#2563eb"].includes(c)) {
+    return "effect-galaxy-cosmic";
+  }
+
+  // Pinks/Gold → Stardust
+  if (["#fda4af", "#f472b6", "#ec4899", "#fbbf24"].includes(c)) {
+    return "effect-galaxy-stardust";
+  }
+
+  // Default
+  return "effect-galaxy-nebula";
+}
+
+/* ---------------------------------------------------------
    ⭐ Handle Chat Messages (queued)
 --------------------------------------------------------- */
 function handleChat(payload, container) {
@@ -123,47 +158,33 @@ function handleChat(payload, container) {
   const bubble = document.createElement("div");
   bubble.className = "bubble";
 
+  /* ---------------------------------------------------------
+     ⭐ Velora Effects (Corrected for new API)
+  --------------------------------------------------------- */
   if (payload.platform === "velora") {
 
-    /* ---------------------------------------------------------
-       ⭐ Glow Effects
-    --------------------------------------------------------- */
-    if (payload.effect && payload.effect.startsWith("glow_")) {
-      const name = payload.effect.replace("glow_", "").toLowerCase();
-      const glowMap = {
-        crimson: "effect-glow-crimson",
-        sunset: "effect-glow-sunset",
-        golden: "effect-glow-golden",
-        emerald: "effect-glow-emerald",
-        azure: "effect-glow-azure",
-        violet: "effect-glow-violet"
-      };
+    /* Glow */
+    if (payload.effect === "glow") {
       bubble.classList.add("effect-color-glow");
-      if (glowMap[name]) bubble.classList.add(glowMap[name]);
+      // Optional: derive glow variant from effectColor
     }
 
-    /* ---------------------------------------------------------
-       ⭐ Galaxy → Glow Mapping (FIX)
-       All galaxy_* effects now behave exactly like Glow
-    --------------------------------------------------------- */
-    if (payload.effect && payload.effect.startsWith("galaxy_")) {
-      const name = payload.effect.replace("galaxy_", "").toLowerCase();
-      const glowMapGalaxy = {
-        nebula:  "effect-glow-violet",
-        aurora:  "effect-glow-emerald",
-        cosmic:  "effect-glow-azure",
-        stardust:"effect-glow-golden",
-        violet:  "effect-glow-violet"
-      };
-      bubble.classList.add("effect-color-glow");
-      if (glowMapGalaxy[name]) bubble.classList.add(glowMapGalaxy[name]);
+    /* Galaxy — NEW correct behavior */
+    if (payload.effect === "galaxy") {
+      bubble.classList.add("effect-galaxy");
+
+      const variant = detectGalaxyVariant(payload.effectColor);
+      bubble.classList.add(variant);
     }
 
-    /* ---------------------------------------------------------
-       ⭐ Rainbow
-    --------------------------------------------------------- */
+    /* Rainbow */
     if (payload.effect === "rainbow") {
       bubble.classList.add("effect-rainbow");
+    }
+
+    /* Gigantify */
+    if (payload.effect === "gigantify") {
+      bubble.classList.add("effect-gigantify");
     }
   }
 
@@ -177,16 +198,6 @@ function handleChat(payload, container) {
       <span class="text">${payload.html}</span>
     </div>
   `;
-
-  /* ---------------------------------------------------------
-     ⭐ Gigantify
-  --------------------------------------------------------- */
-  if (payload.platform === "velora" && payload.effect === "gigantify") {
-    bubble.classList.add("effect-gigantify");
-
-    const textNode = bubble.querySelector(".text");
-    if (textNode) textNode.classList.add("effect-gigantify");
-  }
 
   wrapper.appendChild(icon);
   wrapper.appendChild(bubble);
