@@ -88,7 +88,7 @@ function formatEmoteList(str) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ ORIGINAL WORKING EFFECT HANDLING (CORRECTED)
+   ⭐ EFFECT HANDLING (FINAL FIXED VERSION)
 --------------------------------------------------------- */
 function handleChat(payload, container) {
   console.log("[OVERLAY] incoming chat payload:", payload);
@@ -115,7 +115,7 @@ function handleChat(payload, container) {
   bubble.className = "bubble";
 
   /* ---------------------------------------------------------
-     ⭐ EFFECT LOGIC (FIXED GIGANTIFY)
+     ⭐ EFFECT LOGIC (Gigantify FIXED)
   --------------------------------------------------------- */
 
   if (payload.platform === "velora") {
@@ -137,14 +137,18 @@ function handleChat(payload, container) {
       bubble.classList.add("effect-rainbow");
     }
 
-    // ⭐ Gigantify — FIXED: apply to message content only
+    // ⭐ Gigantify — apply ONLY to text + emotes
     if (payload.effect === "gigantify") {
-      // bubble.classList.add("effect-gigantify");  ❌ WRONG
-      // Apply to content only ✔
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         const content = bubble.querySelector(".chat-message-content");
-        if (content) content.classList.add("effect-gigantify");
-      }, 0);
+        if (!content) return;
+
+        const text = content.querySelector(".text");
+        const line = content.querySelector(".velora-line");
+
+        if (text) text.classList.add("effect-gigantify");
+        if (line) line.classList.add("effect-gigantify");
+      });
     }
   }
 

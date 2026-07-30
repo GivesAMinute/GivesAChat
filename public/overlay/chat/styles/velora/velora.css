@@ -549,3 +549,11 @@
   100% { background-position: 200% 50%; }
 }
 
+.bubble {
+  transform: none !important;
+}
+
+.chat-message-content {
+  transform: none !important;
+}
+
