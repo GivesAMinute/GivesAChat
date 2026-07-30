@@ -238,7 +238,6 @@
   padding: 12px 16px;
   overflow: visible !important;
 }
-*/
 
 /* ---------------------------------------------------------
    ⭐ Galaxy Border
@@ -326,6 +325,7 @@
 /* ---------------------------------------------------------
    ⭐ Foreground
 --------------------------------------------------------- */
+/*
 .effect-galaxy .chat-message-content * {
   position: relative;
   z-index: 10 !important;
