@@ -12,9 +12,9 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Stripped-Back Card — Sheen Overlay (RESTORED)
+   ⭐ Velora Stripped-Back Card — Sheen Overlay (WORKING)
 --------------------------------------------------------- */
-.velora-system-message::after {
+.velora-system-bubble::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -35,10 +35,6 @@
   animation: velora-sheen-move 3.8s linear infinite;
 }
 
-@keyframes velora-sheen-move {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
 
 /* ---------------------------------------------------------
    ⭐ Reward Background Wrapper
