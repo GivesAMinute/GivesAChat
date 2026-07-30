@@ -12,7 +12,7 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora System Bubble — Final Combined Sheen + Gold Shimmer
+   ⭐ Velora System Bubble — Final Combined Sheen + Gold Shimmer (FIXED)
 --------------------------------------------------------- */
 .velora-system-bubble::before {
   content: "";
@@ -27,6 +27,7 @@
     rgba(255,255,255,0.18) 45%,
     rgba(255,255,255,0.0) 100%
   );
+  background-size: 200% 100%;   /* ⭐ REQUIRED FOR MOVEMENT */
 
   opacity: 0.55;
   mix-blend-mode: screen;
@@ -49,6 +50,7 @@
     rgba(255, 215, 64, 0.32) 50%,
     transparent 100%
   );
+  background-size: 200% 100%;   /* ⭐ REQUIRED FOR MOVEMENT */
 
   opacity: 0.45;
   mix-blend-mode: screen;
