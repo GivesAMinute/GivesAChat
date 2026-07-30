@@ -10,7 +10,7 @@ const isIOS =
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 /* ---------------------------------------------------------
-   Socket Manager (unchanged)
+   ⭐ Popups Socket Manager — FINAL NEVER-SLEEP VERSION
 --------------------------------------------------------- */
 class PopupsSocketManager {
   constructor({ type, url, token = null, onEvent }) {
@@ -20,15 +20,20 @@ class PopupsSocketManager {
     this.onEvent = onEvent;
 
     this.socket = null;
-    this.heartbeat = null;
-    this.queue = [];
     this.ready = false;
+
+    this.heartbeat = null;
     this.reconnectTimer = null;
+    this.backoff = 500; // grows on failure
+
+    this.lastMessageTime = Date.now();
 
     setTimeout(() => this.connect(), 100);
   }
 
   connect() {
+    clearTimeout(this.reconnectTimer);
+
     const opts =
       this.type === "velora"
         ? {
@@ -44,47 +49,57 @@ class PopupsSocketManager {
         ? io(this.url, opts)
         : new WebSocket(this.url);
 
+    /* ---------------------------------------------------------
+       ⭐ SOCKET.IO (Velora)
+    --------------------------------------------------------- */
     if (this.type === "velora") {
       this.socket.on("connect", () => {
         this.ready = true;
-        this.flushQueue();
+        this.backoff = 500;
+        this.lastMessageTime = Date.now();
         this.startHeartbeat();
-      });
-
-      this.socket.on("connect_error", () => {
-        this.ready = false;
-        this.reconnect();
       });
 
       this.socket.on("disconnect", () => {
         this.ready = false;
-        this.reconnect();
+        this.scheduleReconnect();
+      });
+
+      this.socket.on("connect_error", () => {
+        this.ready = false;
+        this.scheduleReconnect();
       });
 
       this.socket.on("event", (payload) => {
+        this.lastMessageTime = Date.now();
         this.onEvent(payload);
       });
 
       return;
     }
 
+    /* ---------------------------------------------------------
+       ⭐ RAW WEBSOCKET (DigitalOcean)
+    --------------------------------------------------------- */
     this.socket.addEventListener("open", () => {
       this.ready = true;
-      this.flushQueue();
+      this.backoff = 500;
+      this.lastMessageTime = Date.now();
       this.startHeartbeat();
     });
 
     this.socket.addEventListener("close", () => {
       this.ready = false;
-      this.reconnect();
+      this.scheduleReconnect();
     });
 
     this.socket.addEventListener("error", () => {
       this.ready = false;
-      this.reconnect();
+      this.scheduleReconnect();
     });
 
     this.socket.addEventListener("message", (event) => {
+      this.lastMessageTime = Date.now();
       try {
         const payload = JSON.parse(event.data);
         this.onEvent(payload);
@@ -92,48 +107,47 @@ class PopupsSocketManager {
     });
   }
 
-  reconnect() {
-    clearInterval(this.heartbeat);
-    clearTimeout(this.reconnectTimer);
-
-    try {
-      if (this.socket && this.type !== "velora") {
-        this.socket.close();
-      }
-    } catch {}
-
-    const delay = isIOS ? 1500 : 300;
-    this.reconnectTimer = setTimeout(() => this.connect(), delay);
-  }
-
+  /* ---------------------------------------------------------
+     ⭐ HEARTBEAT — keeps Cloudflare Worker awake forever
+--------------------------------------------------------- */
   startHeartbeat() {
     clearInterval(this.heartbeat);
 
     this.heartbeat = setInterval(() => {
-      if (!this.ready || !this.socket) return;
+      if (!this.socket) return;
 
-      if (this.type === "velora") {
-        this.socket.emit("ping");
-      } else {
-        if (this.socket.readyState !== WebSocket.OPEN) {
-          this.ready = false;
-          this.reconnect();
-        }
+      const now = Date.now();
+
+      // If no messages for 20s → assume dead socket
+      if (now - this.lastMessageTime > 20000) {
+        this.ready = false;
+        this.scheduleReconnect();
+        return;
       }
-    }, 3000);
+
+      // Send keepalive ping
+      try {
+        if (this.type === "velora") {
+          this.socket.emit("ping");
+        } else if (this.socket.readyState === WebSocket.OPEN) {
+          this.socket.send(JSON.stringify({ type: "ping" }));
+        }
+      } catch {}
+
+    }, 5000); // ping every 5s
   }
 
-  queueMessage(msg) {
-    this.queue.push(msg);
-  }
+  /* ---------------------------------------------------------
+     ⭐ RECONNECT WITH BACKOFF
+--------------------------------------------------------- */
+  scheduleReconnect() {
+    clearTimeout(this.reconnectTimer);
 
-  flushQueue() {
-    if (!this.ready) return;
+    this.backoff = Math.min(this.backoff * 1.5, 8000);
 
-    while (this.queue.length > 0) {
-      const msg = this.queue.shift();
-      this.onEvent(msg);
-    }
+    this.reconnectTimer = setTimeout(() => {
+      this.connect();
+    }, this.backoff);
   }
 }
 
@@ -149,16 +163,12 @@ function handlePopupBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Event Handler (FINAL WORKING VERSION)
+   ⭐ Velora Event Handler (unchanged)
 --------------------------------------------------------- */
 function handleVeloraEvent({ event, data, timestamp }) {
-
   console.log("[VELORA RAW EVENT]", event, JSON.stringify(data, null, 2));
 
-  // Velora ALWAYS sends channel.stream_alert for alerts
   if (event === "channel.stream_alert") {
-
-    // Popup overlay (unchanged)
     renderVeloraAlertCard({
       event,
       timestamp,
@@ -172,38 +182,28 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: data.duration || null
     });
 
-    // ⭐ Extract correct fields from templateData
     const t = data.templateData || {};
 
-    const chatData = {
-      alertType: data.alertType,          // "follow", "subscription", "gift_sub", "resub", "raid", "volts"
-      displayName: data.displayName,
-      username: data.username,
-
-      // Numbers come from templateData
-      count: t.amount || null,            // gift_sub amount
-      viewers: t.viewers || null,         // raid viewers
-      volts: t.amount || null,            // volts amount
-      tier: t.tier || null,               // subscription tier
-      months: t.months || null,           // resub months
-
-      // Final message text
-      message: data.message || null,
-
-      customSoundUrl: data.customSoundUrl || null
-    };
-
-    // ⭐ MUST stay channel.stream_alert or chatRenderer ignores it
     sendToChatOverlay({
       type: "velora_system",
       event: "channel.stream_alert",
-      data: chatData
+      data: {
+        alertType: data.alertType,
+        displayName: data.displayName,
+        username: data.username,
+        count: t.amount || null,
+        viewers: t.viewers || null,
+        volts: t.amount || null,
+        tier: t.tier || null,
+        months: t.months || null,
+        message: data.message || null,
+        customSoundUrl: data.customSoundUrl || null
+      }
     });
 
     return;
   }
 
-  // Channel points (unchanged)
   if (event === "channel_point_redeem") {
     handleRewardPopup(data);
 
@@ -216,7 +216,6 @@ function handleVeloraEvent({ event, data, timestamp }) {
     return;
   }
 
-  // Card messages (unchanged)
   if (data.cardAdded) {
     const card = data.cardAdded;
     const payload = card.payload || {};
@@ -249,7 +248,7 @@ function handleVeloraEvent({ event, data, timestamp }) {
 }
 
 /* ---------------------------------------------------------
-   Setup Popups Socket (unchanged)
+   ⭐ Setup Popups Socket — FINAL NEVER-SLEEP VERSION
 --------------------------------------------------------- */
 export async function setupPopupSocket() {
   await loadVeloraFonts();
@@ -257,13 +256,7 @@ export async function setupPopupSocket() {
   const doManager = new PopupsSocketManager({
     type: "do",
     url: sharedPopups.wsURL,
-    onEvent: (payload) => {
-      if (!doManager.ready) {
-        doManager.queueMessage(payload);
-        return;
-      }
-      handlePopupBroadcast(payload);
-    }
+    onEvent: (payload) => handlePopupBroadcast(payload)
   });
 
   sharedPopups.ws = doManager.socket;
@@ -277,12 +270,6 @@ export async function setupPopupSocket() {
     type: "velora",
     url: "wss://api.velora.tv/ws/events",
     token,
-    onEvent: (payload) => {
-      if (!veloraManager.ready) {
-        veloraManager.queueMessage(payload);
-        return;
-      }
-      handleVeloraEvent(payload);
-    }
+    onEvent: (payload) => handleVeloraEvent(payload)
   });
 }
