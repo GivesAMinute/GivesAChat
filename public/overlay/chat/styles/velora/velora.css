@@ -528,6 +528,26 @@
   to   { opacity: 0; transform: translateX(-220px); }
 }
 
-/* ---------------------------------------------------------
-   ⭐ END OF FILE — Velora CSS (Finished Version)
---------------------------------------------------------- */
+.velora-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.velora-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.inline-avatar {
+  flex-shrink: 0;
+}
+
+.username {
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
