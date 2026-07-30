@@ -285,8 +285,3 @@ body {
   }
 }
 
-.effect-galaxy > .chat-message-content {
-  max-width: 615px !important;
-  flex-shrink: 1 !important;
-}
-
