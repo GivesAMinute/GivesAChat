@@ -164,62 +164,9 @@
   letter-spacing: 0.3px;
 }
 
-.velora-system-label {
-  font-weight: 700;
-  color: #ffd54f;
-  margin-right: 6px;
-}
-
 .velora-system-text {
   color: #ffffff;
   opacity: 0.92;
-}
-
-.velora-system-message .bubble {
-  box-shadow: 0 0 14px rgba(255, 215, 64, 0.22);
-}
-
-/* ---------------------------------------------------------
-   ⭐ Velora Themes
---------------------------------------------------------- */
-.velora-theme-follow .velora-system-bubble,
-.velora-theme-subscribe .velora-system-bubble,
-.velora-theme-gift .velora-system-bubble,
-.velora-theme-raid .velora-system-bubble,
-.velora-theme-volts .velora-system-bubble,
-.velora-theme-generic .velora-system-bubble {
-  border-color: #c89f2a !important;
-  box-shadow:
-    0 0 5px #c89f2a !important,
-    0 0 14px rgba(200, 159, 42, 0.65) !important,
-    inset 0 0 8px rgba(200, 159, 42, 0.45) !important;
-}
-
-/* ---------------------------------------------------------
-   ⭐ Gold Shimmer
---------------------------------------------------------- */
-.velora-system-bubble::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    120deg,
-    transparent 0%,
-    rgba(255, 215, 64, 0.32) 50%,
-    transparent 100%
-  );
-  transform: skewX(-20deg);
-  pointer-events: none;
-  animation: veloraShimmer 3.2s linear infinite;
-  border-radius: inherit;
-}
-
-@keyframes veloraShimmer {
-  0%   { left: -100%; }
-  100% { left: 100%; }
 }
 
 /* ---------------------------------------------------------
@@ -271,21 +218,9 @@
 .effect-glow-azure   { --glow-color-1:#0ea5e9; --glow-color-2:#38bdf8; --glow-color-3:#0284c7; }
 .effect-glow-violet  { --glow-color-1:#8b5cf6; --glow-color-2:#a78bfa; --glow-color-3:#6d28d9; }
 
-@keyframes color-border-flow {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 300% 50%; }
-}
-
-@keyframes glow-pulse {
-  0%   { filter: brightness(1); }
-  50%  { filter: brightness(1.35); }
-  100% { filter: brightness(1); }
-}
-
 /* ---------------------------------------------------------
-   ⭐ Galaxy Effect (FINISHED VERSION)
+   ⭐ Galaxy Effect — Glow Geometry + Galaxy Visuals
 --------------------------------------------------------- */
-/* Force Galaxy to use Glow geometry */
 .effect-galaxy {
   position: relative;
   border-radius: 12px;      /* match glow */
@@ -303,11 +238,12 @@
   overflow: visible !important;
 }
 
-/* Kill any weird extra spacing on the header line */
+/* Header line fix */
 .velora-line {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
 }
 
 .velora-badges {
@@ -316,17 +252,15 @@
   gap: 4px;
 }
 
-.velora-badges .tooltip-wrapper {
-  display: inline-flex;
-  align-items: center;
+.inline-avatar {
+  flex-shrink: 0;
 }
 
 .username {
   margin: 0;
   padding: 0;
+  flex-shrink: 0;
 }
-
-
 
 /* ---------------------------------------------------------
    ⭐ Galaxy Border + Glow
@@ -348,10 +282,11 @@
 .effect-galaxy::after {
   content: "";
   position: absolute;
-  inset: -6px;
-  border-radius: 14px;
+  inset: -14px;             /* match glow */
+  border-radius: inherit;
   background: var(--galaxy-glow-color);
-  filter: blur(16px);
+  filter: blur(26px);       /* match glow */
+  opacity: 0.85;
   z-index: 1;
   animation: galaxy-glow-pulse 3s ease-in-out infinite;
 }
@@ -363,7 +298,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   pointer-events: none;
   z-index: 3;
 
@@ -381,15 +316,6 @@
   animation: star-twinkle-random 4s ease-in-out infinite;
 }
 
-@keyframes star-twinkle-random {
-  0%   { opacity: 0.55; transform: scale(1); }
-  20%  { opacity: 0.95; transform: scale(1.05); }
-  40%  { opacity: 0.65; transform: scale(1.02); }
-  60%  { opacity: 1;    transform: scale(1.07); }
-  80%  { opacity: 0.7;  transform: scale(1.03); }
-  100% { opacity: 0.55; transform: scale(1); }
-}
-
 /* ---------------------------------------------------------
    ⭐ Interior Tint Layer
 --------------------------------------------------------- */
@@ -397,7 +323,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   pointer-events: none;
   z-index: 2;
   background: var(--galaxy-tint, transparent);
@@ -526,14 +452,6 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Badge Pointer Events
---------------------------------------------------------- */
-.velora-badges,
-.velora-badge {
-  pointer-events: auto !important;
-}
-
-/* ---------------------------------------------------------
    ⭐ Velora Reward Exit Animations
 --------------------------------------------------------- */
 .fade-out .velora-reward-card {
@@ -549,36 +467,3 @@
   from { opacity: 1; transform: translateX(0); }
   to   { opacity: 0; transform: translateX(-220px); }
 }
-
-.velora-line {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-}
-
-.velora-badges {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.inline-avatar {
-  flex-shrink: 0;
-}
-
-.username {
-  margin: 0;
-  padding: 0;
-  flex-shrink: 0;
-}
-
-/* Remove Galaxy inner pseudo-elements from layout */
-.effect-galaxy .chat-message-content::before,
-.effect-galaxy .chat-message-content::after {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  display: block;
-}
-
