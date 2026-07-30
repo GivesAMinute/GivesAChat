@@ -183,9 +183,13 @@
     var(--glow-color-3)
   );
   background-size: 500% 100%;
+
+  /* ⭐ Added shimmer animation */
   animation:
     color-border-flow 1.8s linear infinite,
-    glow-pulse 2.2s ease-in-out infinite;
+    glow-pulse 2.2s ease-in-out infinite,
+    glow-shimmer 3.4s linear infinite;
+
   overflow: visible;
 }
 
@@ -217,6 +221,14 @@
 .effect-glow-emerald { --glow-color-1:#10b981; --glow-color-2:#34d399; --glow-color-3:#059669; }
 .effect-glow-azure   { --glow-color-1:#0ea5e9; --glow-color-2:#38bdf8; --glow-color-3:#0284c7; }
 .effect-glow-violet  { --glow-color-1:#8b5cf6; --glow-color-2:#a78bfa; --glow-color-3:#6d28d9; }
+
+/* ---------------------------------------------------------
+   ⭐ Glow Shimmer Animation (NEW)
+--------------------------------------------------------- */
+@keyframes glow-shimmer {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
 
 /* ---------------------------------------------------------
    ⭐ Galaxy Effect (FULL ORIGINAL WORKING VERSION)
@@ -467,3 +479,8 @@
 
 @keyframes rewardSwipeLeft {
   from { opacity: 1; transform: translate
+  
+  @keyframes border-shimmer {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
