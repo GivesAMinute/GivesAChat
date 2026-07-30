@@ -267,6 +267,30 @@ function handleChat(payload, container) {
   wrapper.appendChild(bubble);
   
   /* ---------------------------------------------------------
+   ⭐ HARD DEBUG: numeric geometry
+--------------------------------------------------------- */
+if (payload.platform === "velora") {
+  const bubbleEl = bubble;
+  const rect = bubbleEl.getBoundingClientRect();
+  const inner = bubbleEl.querySelector(".chat-message-content");
+  const innerRect = inner ? inner.getBoundingClientRect() : null;
+
+  console.group(`VELORA BOX DEBUG — ${payload.effect || "no-effect"}`);
+  console.log("Classes:", bubbleEl.className);
+  console.log("Bubble offsetWidth:", bubbleEl.offsetWidth);
+  console.log("Bubble clientWidth:", bubbleEl.clientWidth);
+  console.log("Bubble rect:", rect);
+
+  if (innerRect) {
+    console.log("Inner offsetWidth:", inner.offsetWidth);
+    console.log("Inner clientWidth:", inner.clientWidth);
+    console.log("Inner rect:", innerRect);
+  }
+
+  console.groupEnd();
+}
+  
+  /* ---------------------------------------------------------
    ⭐ DEBUG: Inspect final bubble + computed styles
 --------------------------------------------------------- */
 if (payload.platform === "velora") {
