@@ -285,7 +285,7 @@
 /* ---------------------------------------------------------
    ⭐ Galaxy Effect (FINISHED VERSION)
 --------------------------------------------------------- */
-/* Make Galaxy match Glow/Rainbow geometry */
+/* Force Galaxy to use Glow geometry */
 .effect-galaxy {
   position: relative;
   border-radius: 12px;      /* match glow */
@@ -303,7 +303,29 @@
   overflow: visible !important;
 }
 
-/* keep your existing ::before, ::after, starfield, tint, variants as-is */
+/* Kill any weird extra spacing on the header line */
+.velora-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.velora-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.velora-badges .tooltip-wrapper {
+  display: inline-flex;
+  align-items: center;
+}
+
+.username {
+  margin: 0;
+  padding: 0;
+}
+
 
 
 /* ---------------------------------------------------------
