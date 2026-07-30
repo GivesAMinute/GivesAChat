@@ -88,7 +88,7 @@ function formatEmoteList(str) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ ORIGINAL WORKING EFFECT HANDLING
+   ⭐ ORIGINAL WORKING EFFECT HANDLING (CORRECTED)
 --------------------------------------------------------- */
 function handleChat(payload, container) {
   console.log("[OVERLAY] incoming chat payload:", payload);
@@ -115,11 +115,7 @@ function handleChat(payload, container) {
   bubble.className = "bubble";
 
   /* ---------------------------------------------------------
-     ⭐ ORIGINAL EFFECT LOGIC (WORKING VERSION)
-     Glow → effect-color-glow + glow variants
-     Galaxy → effect-galaxy + effect-galaxy-<variant>
-     Rainbow → effect-rainbow
-     Gigantify → effect-gigantify
+     ⭐ EFFECT LOGIC (FIXED GIGANTIFY)
   --------------------------------------------------------- */
 
   if (payload.platform === "velora") {
@@ -130,7 +126,7 @@ function handleChat(payload, container) {
       bubble.classList.add("effect-color-glow", `effect-glow-${name}`);
     }
 
-    // Galaxy (original working format)
+    // Galaxy
     if (payload.effect && payload.effect.startsWith("galaxy_")) {
       const name = payload.effect.replace("galaxy_", "").toLowerCase();
       bubble.classList.add("effect-galaxy", `effect-galaxy-${name}`);
@@ -141,9 +137,14 @@ function handleChat(payload, container) {
       bubble.classList.add("effect-rainbow");
     }
 
-    // Gigantify
+    // ⭐ Gigantify — FIXED: apply to message content only
     if (payload.effect === "gigantify") {
-      bubble.classList.add("effect-gigantify");
+      // bubble.classList.add("effect-gigantify");  ❌ WRONG
+      // Apply to content only ✔
+      setTimeout(() => {
+        const content = bubble.querySelector(".chat-message-content");
+        if (content) content.classList.add("effect-gigantify");
+      }, 0);
     }
   }
 
