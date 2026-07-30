@@ -156,9 +156,9 @@
 }
 
 .velora-system-title {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 800;
-  color: #d49f02;
+  color: #d49f02 !important;
   opacity: 0.95;
   margin-left: -4px;
   letter-spacing: 0.3px;
