@@ -428,14 +428,6 @@ function renderVeloraSystemMessage(event, data, container) {
 
   wrapper.appendChild(icon);
   wrapper.appendChild(bubble);
-
-// ⭐ Apply Galaxy AFTER layout
-if (payload.platform === "velora" && payload.effect?.startsWith("galaxy_")) {
-  requestAnimationFrame(() => {
-    bubble.classList.add("galaxy-ready");
-  });
-}
-
   container.appendChild(wrapper);
 
   let delayMs = 4500;
