@@ -573,3 +573,12 @@
   flex-shrink: 0;
 }
 
+/* Remove Galaxy inner pseudo-elements from layout */
+.effect-galaxy .chat-message-content::before,
+.effect-galaxy .chat-message-content::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: block;
+}
+
