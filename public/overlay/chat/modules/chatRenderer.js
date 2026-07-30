@@ -269,26 +269,35 @@ function handleChat(payload, container) {
   /* ---------------------------------------------------------
    ⭐ HARD DEBUG: numeric geometry
 --------------------------------------------------------- */
+wrapper.appendChild(icon);
+wrapper.appendChild(bubble);
+
 if (payload.platform === "velora") {
-  const bubbleEl = bubble;
-  const rect = bubbleEl.getBoundingClientRect();
-  const inner = bubbleEl.querySelector(".chat-message-content");
-  const innerRect = inner ? inner.getBoundingClientRect() : null;
+  // wait for next frame so layout is done
+  requestAnimationFrame(() => {
+    const bubbleEl = bubble;
+    const inner = bubbleEl.querySelector(".chat-message-content");
 
-  console.group(`VELORA BOX DEBUG — ${payload.effect || "no-effect"}`);
-  console.log("Classes:", bubbleEl.className);
-  console.log("Bubble offsetWidth:", bubbleEl.offsetWidth);
-  console.log("Bubble clientWidth:", bubbleEl.clientWidth);
-  console.log("Bubble rect:", rect);
+    const rect = bubbleEl.getBoundingClientRect();
+    const innerRect = inner ? inner.getBoundingClientRect() : null;
 
-  if (innerRect) {
-    console.log("Inner offsetWidth:", inner.offsetWidth);
-    console.log("Inner clientWidth:", inner.clientWidth);
-    console.log("Inner rect:", innerRect);
-  }
+    console.group(`VELORA BOX DEBUG — ${payload.effect || "no-effect"}`);
+    console.log("Classes:", bubbleEl.className);
+    console.log("Bubble offsetWidth:", bubbleEl.offsetWidth);
+    console.log("Bubble clientWidth:", bubbleEl.clientWidth);
+    console.log("Bubble rect:", rect);
 
-  console.groupEnd();
+    if (innerRect) {
+      console.log("Inner offsetWidth:", inner.offsetWidth);
+      console.log("Inner clientWidth:", inner.clientWidth);
+      console.log("Inner rect:", innerRect);
+    }
+
+    console.groupEnd();
+  });
 }
+
+
   
   /* ---------------------------------------------------------
    ⭐ DEBUG: Inspect final bubble + computed styles
@@ -419,6 +428,14 @@ function renderVeloraSystemMessage(event, data, container) {
 
   wrapper.appendChild(icon);
   wrapper.appendChild(bubble);
+
+// ⭐ Apply Galaxy AFTER layout
+if (payload.platform === "velora" && payload.effect?.startsWith("galaxy_")) {
+  requestAnimationFrame(() => {
+    bubble.classList.add("galaxy-ready");
+  });
+}
+
   container.appendChild(wrapper);
 
   let delayMs = 4500;

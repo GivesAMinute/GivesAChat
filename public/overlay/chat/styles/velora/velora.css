@@ -299,7 +299,7 @@
 /* ---------------------------------------------------------
    ⭐ Galaxy Effect — clone Glow geometry, different colors
 --------------------------------------------------------- */
-.effect-galaxy {
+.effect-galaxy.galaxy-ready {
   position: relative;
   border-radius: 12px; /* same as glow/rainbow wrapper */
   padding: 3px;        /* same as glow/rainbow wrapper */
