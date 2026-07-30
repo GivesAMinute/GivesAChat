@@ -265,6 +265,41 @@ function handleChat(payload, container) {
 
   wrapper.appendChild(icon);
   wrapper.appendChild(bubble);
+  
+  /* ---------------------------------------------------------
+   ⭐ DEBUG: Inspect final bubble + computed styles
+--------------------------------------------------------- */
+if (payload.platform === "velora") {
+  const bubbleEl = bubble;
+
+  console.group(`VELORA DEBUG — ${payload.effect || "no-effect"}`);
+
+  console.log("Classes:", bubbleEl.className);
+
+  console.log("DOM:", bubbleEl.outerHTML);
+
+  const cs = window.getComputedStyle(bubbleEl);
+
+  console.log("Computed Width:", cs.width);
+  console.log("Computed Padding:", cs.padding);
+  console.log("Computed Border:", cs.border);
+  console.log("Computed Border Radius:", cs.borderRadius);
+  console.log("Computed Background:", cs.background);
+  console.log("Computed Max-Width:", cs.maxWidth);
+  console.log("Computed Flex-Shrink:", cs.flexShrink);
+
+  const inner = bubbleEl.querySelector(".chat-message-content");
+  if (inner) {
+    const innerCS = window.getComputedStyle(inner);
+    console.log("Inner Width:", innerCS.width);
+    console.log("Inner Padding:", innerCS.padding);
+    console.log("Inner Border Radius:", innerCS.borderRadius);
+  }
+
+  console.groupEnd();
+}
+
+
 
   const usernameSpan = wrapper.querySelector(".username");
   if (usernameSpan) {
