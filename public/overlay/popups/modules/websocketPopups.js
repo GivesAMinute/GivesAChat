@@ -10,7 +10,7 @@ const isIOS =
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 /* ---------------------------------------------------------
-   ⭐ Popups Socket Manager — FINAL NEVER-SLEEP VERSION
+   ⭐ Popups Socket Manager — FINAL NEVER-SLEEP, NO-DUPES VERSION
 --------------------------------------------------------- */
 class PopupsSocketManager {
   constructor({ type, url, token = null, onEvent }) {
@@ -108,7 +108,7 @@ class PopupsSocketManager {
   }
 
   /* ---------------------------------------------------------
-     ⭐ HEARTBEAT — keeps Cloudflare Worker awake forever
+     ⭐ HEARTBEAT — keeps backends awake, detects dead sockets
 --------------------------------------------------------- */
   startHeartbeat() {
     clearInterval(this.heartbeat);
@@ -118,7 +118,7 @@ class PopupsSocketManager {
 
       const now = Date.now();
 
-      // If no messages for 20s → assume dead socket
+      // If no messages for 20s → assume dead socket and reconnect
       if (now - this.lastMessageTime > 20000) {
         this.ready = false;
         this.scheduleReconnect();
@@ -133,15 +133,26 @@ class PopupsSocketManager {
           this.socket.send(JSON.stringify({ type: "ping" }));
         }
       } catch {}
-
     }, 5000); // ping every 5s
   }
 
   /* ---------------------------------------------------------
-     ⭐ RECONNECT WITH BACKOFF
+     ⭐ RECONNECT WITH BACKOFF — closes old sockets to avoid dupes
 --------------------------------------------------------- */
   scheduleReconnect() {
     clearTimeout(this.reconnectTimer);
+    clearInterval(this.heartbeat);
+
+    try {
+      if (this.socket) {
+        if (this.type === "velora") {
+          // Properly close Socket.IO to drop Velora subscription
+          this.socket.disconnect();
+        } else {
+          this.socket.close();
+        }
+      }
+    } catch {}
 
     this.backoff = Math.min(this.backoff * 1.5, 8000);
 
@@ -163,11 +174,12 @@ function handlePopupBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Event Handler (unchanged)
+   ⭐ Velora Event Handler (FINAL WORKING VERSION)
 --------------------------------------------------------- */
 function handleVeloraEvent({ event, data, timestamp }) {
   console.log("[VELORA RAW EVENT]", event, JSON.stringify(data, null, 2));
 
+  // Velora alerts
   if (event === "channel.stream_alert") {
     renderVeloraAlertCard({
       event,
@@ -184,26 +196,29 @@ function handleVeloraEvent({ event, data, timestamp }) {
 
     const t = data.templateData || {};
 
+    const chatData = {
+      alertType: data.alertType,
+      displayName: data.displayName,
+      username: data.username,
+      count: t.amount || null,
+      viewers: t.viewers || null,
+      volts: t.amount || null,
+      tier: t.tier || null,
+      months: t.months || null,
+      message: data.message || null,
+      customSoundUrl: data.customSoundUrl || null
+    };
+
     sendToChatOverlay({
       type: "velora_system",
       event: "channel.stream_alert",
-      data: {
-        alertType: data.alertType,
-        displayName: data.displayName,
-        username: data.username,
-        count: t.amount || null,
-        viewers: t.viewers || null,
-        volts: t.amount || null,
-        tier: t.tier || null,
-        months: t.months || null,
-        message: data.message || null,
-        customSoundUrl: data.customSoundUrl || null
-      }
+      data: chatData
     });
 
     return;
   }
 
+  // Channel points
   if (event === "channel_point_redeem") {
     handleRewardPopup(data);
 
@@ -216,6 +231,7 @@ function handleVeloraEvent({ event, data, timestamp }) {
     return;
   }
 
+  // Card messages
   if (data.cardAdded) {
     const card = data.cardAdded;
     const payload = card.payload || {};
@@ -248,21 +264,26 @@ function handleVeloraEvent({ event, data, timestamp }) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Setup Popups Socket — FINAL NEVER-SLEEP VERSION
+   ⭐ Setup Popups Socket — FINAL NEVER-SLEEP, NO-DUPES VERSION
 --------------------------------------------------------- */
 export async function setupPopupSocket() {
   await loadVeloraFonts();
 
+  // DigitalOcean / main popup broadcast
   const doManager = new PopupsSocketManager({
     type: "do",
     url: sharedPopups.wsURL,
-    onEvent: (payload) => handlePopupBroadcast(payload)
+    onEvent: (payload) => {
+      handlePopupBroadcast(payload);
+    }
   });
 
   sharedPopups.ws = doManager.socket;
 
+  // Chat overlay WebSocket (unchanged)
   sharedPopups.chatWS = new WebSocket(sharedPopups.chatWSURL);
 
+  // Velora events
   const token = await loadVeloraAccessToken();
   if (!token) return;
 
@@ -270,6 +291,8 @@ export async function setupPopupSocket() {
     type: "velora",
     url: "wss://api.velora.tv/ws/events",
     token,
-    onEvent: (payload) => handleVeloraEvent(payload)
+    onEvent: (payload) => {
+      handleVeloraEvent(payload);
+    }
   });
 }
