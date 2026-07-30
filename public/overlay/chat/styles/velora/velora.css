@@ -259,7 +259,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 2px;
+  padding: 4px;
   background: var(--galaxy-border-gradient);
   background-size: 300% 100%;
 
@@ -274,12 +274,20 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Glow (optional shimmer)
+   ⭐ Subtle Galaxy Outer Glow
 --------------------------------------------------------- */
 .effect-galaxy::after {
+  content: "";
+  position: absolute;
+  inset: -10px;              /* smaller than Glow */
+  border-radius: inherit;
+  background: var(--galaxy-glow-color);
+  filter: blur(18px);        /* softer blur */
+  opacity: 0.45;             /* gentle glow */
+  z-index: 1;
   animation:
     galaxy-glow-pulse 3s ease-in-out infinite,
-    glow-shimmer 4s linear infinite;
+    glow-shimmer 4s linear infinite;   /* optional shimmer */
 }
 
 /* ---------------------------------------------------------
