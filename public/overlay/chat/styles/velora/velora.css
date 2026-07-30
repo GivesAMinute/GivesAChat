@@ -241,6 +241,7 @@
 /* ---------------------------------------------------------
    ⭐ Galaxy Border
 --------------------------------------------------------- */
+/*
 .effect-galaxy::before {
   content: "";
   position: absolute;
@@ -254,6 +255,7 @@
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 }
+*/
 
 /* ---------------------------------------------------------
    ⭐ Galaxy Glow
