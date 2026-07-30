@@ -103,31 +103,31 @@ function formatEmoteList(str) {
    ⭐ Galaxy Variant Detection (Option A)
 --------------------------------------------------------- */
 function detectGalaxyVariant(hex) {
-  if (!hex) return "effect-galaxy-nebula";
+  if (!hex) return "effect-galaxy-nebula"; // fallback
 
   const c = hex.toLowerCase();
 
-  // Nebula (purple)
+  // Purples → Nebula
   if (["#c084fc", "#9333ea", "#7c3aed", "#a855f7"].includes(c)) {
     return "effect-galaxy-nebula";
   }
 
-  // Aurora (teal/green)
+  // Teals → Aurora
   if (["#5eead4", "#2dd4bf", "#14b8a6", "#34d399"].includes(c)) {
     return "effect-galaxy-aurora";
   }
 
-  // Cosmic (blue)
+  // Blues → Cosmic
   if (["#60a5fa", "#3b82f6", "#2563eb"].includes(c)) {
     return "effect-galaxy-cosmic";
   }
 
-  // Stardust (pink)
-  if (["#fda4af", "#f472b6", "#ec4899", "#fb7185", "#f9a8d4"].includes(c)) {
+  // Pinks/Gold → Stardust
+  if (["#fda4af", "#f472b6", "#ec4899", "#fbbf24"].includes(c)) {
     return "effect-galaxy-stardust";
   }
 
-  // Fallback
+  // Default
   return "effect-galaxy-nebula";
 }
 
@@ -166,12 +166,13 @@ function handleChat(payload, container) {
     /* Glow */
     if (payload.effect === "glow") {
       bubble.classList.add("effect-color-glow");
-      // optional: derive glow variant from effectColor if desired
+      // Optional: derive glow variant from effectColor
     }
 
-    /* Galaxy */
+    /* Galaxy — NEW correct behavior */
     if (payload.effect === "galaxy") {
       bubble.classList.add("effect-galaxy");
+
       const variant = detectGalaxyVariant(payload.effectColor);
       bubble.classList.add(variant);
     }
