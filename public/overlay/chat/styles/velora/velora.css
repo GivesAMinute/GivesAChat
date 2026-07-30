@@ -252,9 +252,8 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Border
+   ⭐ Galaxy Border (with shimmer added)
 --------------------------------------------------------- */
-
 .effect-galaxy::before {
   content: "";
   position: absolute;
@@ -263,26 +262,24 @@
   padding: 2px;
   background: var(--galaxy-border-gradient);
   background-size: 300% 100%;
-  animation: galaxy-border-flow 4s linear infinite;
+
+  /* ⭐ Add shimmer animation */
+  animation:
+    galaxy-border-flow 4s linear infinite,
+    glow-shimmer 3.4s linear infinite;
+
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Glow
+   ⭐ Galaxy Glow (optional shimmer)
 --------------------------------------------------------- */
-
 .effect-galaxy::after {
-  content: "";
-  position: absolute;
-  inset: -14px;
-  border-radius: inherit;
-  background: var(--galaxy-glow-color);
-  filter: blur(26px);
-  opacity: 0.85;
-  z-index: 1;
-  animation: galaxy-glow-pulse 3s ease-in-out infinite;
+  animation:
+    galaxy-glow-pulse 3s ease-in-out infinite,
+    glow-shimmer 4s linear infinite;
 }
 
 /* ---------------------------------------------------------
