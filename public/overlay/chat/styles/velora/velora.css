@@ -557,6 +557,9 @@
   transform: none !important;
 }
 
+/* ---------------------------------------------------------
+   ⭐ Reward Icon Pulse (CHAT OVERLAY)
+--------------------------------------------------------- */
 .velora-icon-pulse {
   animation: veloraRewardPulse 1.2s ease-in-out infinite;
 }
@@ -567,6 +570,23 @@
   100% { transform: scale(1); }
 }
 
+/* ---------------------------------------------------------
+   ⭐ Reward Card Enter Animation (CHAT OVERLAY)
+--------------------------------------------------------- */
+.velora-reward-enter {
+  opacity: 0;
+  transform: translateX(-40px);
+  animation: veloraRewardEnter 0.25s ease-out forwards;
+}
+
+@keyframes veloraRewardEnter {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ---------------------------------------------------------
+   ⭐ Reward Card Exit Animation (CHAT OVERLAY)
+--------------------------------------------------------- */
 .velora-reward-exit {
   opacity: 0;
   transform: translateX(40px);
