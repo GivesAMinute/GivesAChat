@@ -28,7 +28,7 @@ body {
 }
 
 /* ---------------------------------------------------------
-   ⭐ CHANNEL POINTS POPUP
+   ⭐ CHANNEL POINTS POPUP (with pulse restored)
 --------------------------------------------------------- */
 .reward-popup-image {
   position: absolute;
@@ -40,14 +40,22 @@ body {
   object-fit: contain;
   pointer-events: none;
 
+  /* Enter animation */
   animation: popup-enter 0.3s ease-out;
   transition: opacity 0.8s ease-out;
 }
 
+/* ⭐ Pulse animation class (added) */
+.reward-popup-pulse {
+  animation: rewardPulse 1.2s ease-in-out infinite;
+}
+
+/* ⭐ Fade-out */
 .reward-popup-image.fade-out {
   opacity: 0;
 }
 
+/* ⭐ Enter animation */
 @keyframes popup-enter {
   0% {
     transform: translate(-50%, -50%) scale(0.6);
@@ -57,6 +65,13 @@ body {
     transform: translate(-50%, -50%) scale(1);
     opacity: 1;
   }
+}
+
+/* ⭐ Pulse animation keyframes (added) */
+@keyframes rewardPulse {
+  0%   { transform: translate(-50%, -50%) scale(1); }
+  50%  { transform: translate(-50%, -50%) scale(1.15); }
+  100% { transform: translate(-50%, -50%) scale(1); }
 }
 
 /* ---------------------------------------------------------
@@ -178,7 +193,6 @@ body {
 
 /* ---------------------------------------------------------
    ⭐ Base Bounce (cardAdded)
-   (you can leave these; they won't break layout even if you don't use them)
 --------------------------------------------------------- */
 .velora-anim-cardAdded {
   animation: veloraBounce 0.35s ease-out;
@@ -227,3 +241,4 @@ body {
   0%   { transform: scale(0.4); opacity: 0; }
   40%  { transform: scale(1.25); opacity: 1; }
   100% { transform: scale(1.0); }
+}
