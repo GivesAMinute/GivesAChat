@@ -1,19 +1,18 @@
 import { speakText } from "./tts.js";
 import { renderBlazeBadges } from "../badges/blaze/index.js";
 import { renderVeloraBadges } from "../badges/velora/index.js";
+import { renderYouTubeBadges } from "../badges/youtube/index.js";
 import { colorForUsername } from "../utils/usernameColors.js";
 
 /* ---------------------------------------------------------
-   ⭐ YouTube Normalizer (NEW)
+   ⭐ YouTube Normalizer
 --------------------------------------------------------- */
 function normalizeYouTubePayload(payload) {
-  // Remove @ prefix
   let username = payload.username || "";
   if (username.startsWith("@")) {
     username = username.substring(1);
   }
 
-  // Avatar normalization (Beam → YouTube sends different fields)
   const avatar =
     payload.avatar ||
     payload.authorPhoto ||
@@ -118,9 +117,7 @@ function formatEmoteList(str) {
 function handleChat(payload, container) {
   console.log("[OVERLAY] incoming chat payload:", payload);
 
-  /* ---------------------------------------------------------
-     ⭐ Normalize YouTube BEFORE rendering
-  --------------------------------------------------------- */
+  // Normalize YouTube BEFORE rendering
   if (payload.platform === "youtube") {
     payload = normalizeYouTubePayload(payload);
   }
@@ -142,8 +139,7 @@ function handleChat(payload, container) {
   } else if (payload.platform === "velora") {
     badgesHTML = renderVeloraBadges(payload);
   } else if (payload.platform === "youtube") {
-    // YouTube badges can be added later
-    badgesHTML = "";
+    badgesHTML = renderYouTubeBadges(payload);
   }
 
   const bubble = document.createElement("div");
@@ -172,7 +168,7 @@ function handleChat(payload, container) {
       bubble.classList.add("effect-rainbow");
     }
 
-    // ⭐ Gigantify — apply ONLY to message text/emotes
+    // Gigantify — apply ONLY to message text/emotes
     if (payload.effect === "gigantify") {
       requestAnimationFrame(() => {
         const content = bubble.querySelector(".chat-message-content");
