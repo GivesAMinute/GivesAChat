@@ -10,6 +10,9 @@ const isIOS = (() => {
   return /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
 })();
 
+/* ---------------------------------------------------------
+   ⭐ Reward Popup Renderer — FINAL VERSION (Pulse Restored)
+--------------------------------------------------------- */
 export function handleRewardPopup(payload) {
   console.log("[Popups] handleRewardPopup called with payload:", payload);
 
@@ -30,12 +33,12 @@ export function handleRewardPopup(payload) {
   }
 
   /* ---------------------------------------------------------
-     ⭐ FIX: Velora uses rewardTitle, not rewardName
+     ⭐ Velora uses rewardTitle, not rewardName
   --------------------------------------------------------- */
   const rewardName =
-    payload.rewardTitle ||   // Velora field
-    payload.rewardName ||    // fallback
-    payload.title ||         // fallback
+    payload.rewardTitle ||
+    payload.rewardName ||
+    payload.title ||
     "Reward";
 
   console.log("[Popups] rewardName:", rewardName);
@@ -53,13 +56,15 @@ export function handleRewardPopup(payload) {
     return;
   }
 
+  /* ---------------------------------------------------------
+     ⭐ Create popup image
+  --------------------------------------------------------- */
   const popup = document.createElement("img");
   popup.className = "reward-popup-image";
   popup.src = popupIcon;
 
   /* ---------------------------------------------------------
      ⭐ iOS: append popup but hide it visually
-     (audio still plays because popup system is invoked)
   --------------------------------------------------------- */
   if (isIOS) {
     popup.style.display = "none";
@@ -70,19 +75,30 @@ export function handleRewardPopup(payload) {
   console.log("[Popups] Popup image appended to DOM");
 
   /* ---------------------------------------------------------
-     ⭐ Play audio (OBS/Desktop/iOS all allowed)
+     ⭐ Play audio
   --------------------------------------------------------- */
   playRewardSound(payload.rewardId);
 
   /* ---------------------------------------------------------
-     ⭐ Fade-out animation (still runs even if hidden)
+     ⭐ PULSE ANIMATION (RESTORED)
+     We add the pulse class AFTER the element is in the DOM.
+  --------------------------------------------------------- */
+  requestAnimationFrame(() => {
+    popup.classList.add("reward-popup-pulse");
+  });
+
+  /* ---------------------------------------------------------
+     ⭐ Fade-out animation
   --------------------------------------------------------- */
   setTimeout(() => {
     popup.classList.add("fade-out");
     console.log("[Popups] Popup fade-out started");
+
     setTimeout(() => {
       popup.remove();
       console.log("[Popups] Popup removed from DOM");
     }, 800);
+
   }, 4000);
 }
+    
