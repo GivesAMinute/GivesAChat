@@ -2,7 +2,7 @@
 
 export function renderVeloraRewardCard(msg) {
   const wrapper = document.createElement("div");
-  wrapper.className = "velora-reward-card";
+  wrapper.className = "velora-reward-card velora-reward-enter";
 
   const bgEl = document.createElement("div");
   bgEl.className = "velora-reward-bg";
@@ -102,16 +102,14 @@ export function renderVeloraRewardCard(msg) {
   if (text2.color?.value) titleEl.style.color = text2.color.value;
 
   if (text2.animation === "pulse") {
-    // ⭐ Pulse only to the right + randomized delay
     titleEl.classList.add("velora-text-pulse", "velora-text-pulse-random");
-
-    const rand = Math.random(); // 0.0 → 1.0
+    const rand = Math.random();
     titleEl.style.setProperty("--rand", rand.toFixed(3));
   }
 
   textEl.appendChild(titleEl);
 
-  // ⭐ Right: reward icon — isolated wrapper prevents transform conflicts
+  // ⭐ Right: reward icon — wrapper isolates transform
   const rightEl = document.createElement("div");
   rightEl.className = "velora-reward-right";
 
@@ -122,7 +120,6 @@ export function renderVeloraRewardCard(msg) {
     null;
 
   if (iconUrl) {
-    // ⭐ Wrapper isolates transform so slide-out animation works
     const iconWrap = document.createElement("div");
     iconWrap.className = "velora-reward-icon-wrap";
 
@@ -141,6 +138,14 @@ export function renderVeloraRewardCard(msg) {
   bgEl.appendChild(textEl);
   bgEl.appendChild(rightEl);
   wrapper.appendChild(bgEl);
+
+  /* ---------------------------------------------------------
+     ⭐ Slide-out animation (MATCHES chat messages)
+  --------------------------------------------------------- */
+  setTimeout(() => {
+    wrapper.classList.add("velora-reward-exit");
+    setTimeout(() => wrapper.remove(), 800);
+  }, 45000);
 
   return wrapper;
 }
