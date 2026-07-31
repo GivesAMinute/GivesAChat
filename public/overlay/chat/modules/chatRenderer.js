@@ -4,6 +4,31 @@ import { renderVeloraBadges } from "../badges/velora/index.js";
 import { colorForUsername } from "../utils/usernameColors.js";
 
 /* ---------------------------------------------------------
+   ⭐ YouTube Normalizer (NEW)
+--------------------------------------------------------- */
+function normalizeYouTubePayload(payload) {
+  // Remove @ prefix
+  let username = payload.username || "";
+  if (username.startsWith("@")) {
+    username = username.substring(1);
+  }
+
+  // Avatar normalization (Beam → YouTube sends different fields)
+  const avatar =
+    payload.avatar ||
+    payload.authorPhoto ||
+    payload.profileImageUrl ||
+    null;
+
+  return {
+    ...payload,
+    username,
+    avatar,
+    platform: "youtube"
+  };
+}
+
+/* ---------------------------------------------------------
    Queue System
 --------------------------------------------------------- */
 const messageQueue = [];
@@ -88,10 +113,17 @@ function formatEmoteList(str) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ EFFECT HANDLING (FINAL FIXED VERSION)
+   ⭐ EFFECT HANDLING + PLATFORM NORMALIZATION
 --------------------------------------------------------- */
 function handleChat(payload, container) {
   console.log("[OVERLAY] incoming chat payload:", payload);
+
+  /* ---------------------------------------------------------
+     ⭐ Normalize YouTube BEFORE rendering
+  --------------------------------------------------------- */
+  if (payload.platform === "youtube") {
+    payload = normalizeYouTubePayload(payload);
+  }
 
   const wrapper = document.createElement("div");
   wrapper.className = "chat-message effect-enter";
@@ -109,6 +141,9 @@ function handleChat(payload, container) {
     badgesHTML = renderBlazeBadges(payload);
   } else if (payload.platform === "velora") {
     badgesHTML = renderVeloraBadges(payload);
+  } else if (payload.platform === "youtube") {
+    // YouTube badges can be added later
+    badgesHTML = "";
   }
 
   const bubble = document.createElement("div");
@@ -138,15 +173,15 @@ function handleChat(payload, container) {
     }
 
     // ⭐ Gigantify — apply ONLY to message text/emotes
-if (payload.effect === "gigantify") {
-  requestAnimationFrame(() => {
-    const content = bubble.querySelector(".chat-message-content");
-    if (!content) return;
+    if (payload.effect === "gigantify") {
+      requestAnimationFrame(() => {
+        const content = bubble.querySelector(".chat-message-content");
+        if (!content) return;
 
-    const text = content.querySelector(".text");
-    if (text) text.classList.add("effect-gigantify");
-  });
-}
+        const text = content.querySelector(".text");
+        if (text) text.classList.add("effect-gigantify");
+      });
+    }
   }
 
   bubble.innerHTML = `
