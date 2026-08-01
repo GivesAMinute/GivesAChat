@@ -588,3 +588,11 @@
   box-sizing: border-box;
 }
 
+/* ---------------------------------------------------------
+   ⭐ Inline position adjustment for channel points card
+--------------------------------------------------------- */
+.velora-reward-card {
+  margin-left: -10px;   /* move left */
+  margin-top: -6px;     /* move upward */
+}
+
