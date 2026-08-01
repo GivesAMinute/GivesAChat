@@ -522,58 +522,27 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Badge Pointer Events
+   ⭐ Velora Reward Card — Correct Layout + Animations
 --------------------------------------------------------- */
-.velora-badges,
-.velora-badge {
-  pointer-events: auto !important;
-}
 
-/* ---------------------------------------------------------
-   ⭐ Velora Reward Exit Animations
---------------------------------------------------------- */
-.fade-out .velora-reward-card {
-  animation: rewardSwipeLeft 0.6s ease-out forwards;
-}
+.velora-reward-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
 
-.fade-out .velora-reward-bg {
-  animation: rewardSwipeLeft 0.75s ease-out forwards;
-  animation-delay: 0.25s;
-}
+  width: 480px;
+  min-height: 90px;
 
-@keyframes rewardSwipeLeft {
-  from { opacity: 1; transform: translate
-  
-  @keyframes border-shimmer {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
+  margin: 6px 0;
+  padding: 10px 14px;
 
-.bubble {
-  transform: none !important;
-}
+  border-radius: 12px;
+  overflow: hidden;
 
-.chat-message-content {
-  transform: none !important;
-}
+  pointer-events: none;
 
-/* ---------------------------------------------------------
-   ⭐ Reward Icon Pulse (CHAT OVERLAY)
---------------------------------------------------------- */
-.velora-icon-pulse {
-  animation: veloraRewardPulse 1.2s ease-in-out infinite;
-}
-
-@keyframes veloraRewardPulse {
-  0%   { transform: scale(1); }
-  50%  { transform: scale(1.15); }
-  100% { transform: scale(1); }
-}
-
-/* ---------------------------------------------------------
-   ⭐ Reward Card Enter Animation (CHAT OVERLAY)
---------------------------------------------------------- */
-.velora-reward-enter {
+  /* Slide-in */
   opacity: 0;
   transform: translateX(-40px);
   animation: veloraRewardEnter 0.25s ease-out forwards;
@@ -584,12 +553,142 @@
   to   { opacity: 1; transform: translateX(0); }
 }
 
-/* ---------------------------------------------------------
-   ⭐ Reward Card Exit Animation (CHAT OVERLAY)
---------------------------------------------------------- */
+/* Slide-out */
 .velora-reward-exit {
   opacity: 0;
   transform: translateX(40px);
   transition: opacity 0.8s ease-out, transform 0.8s ease-out;
 }
 
+/* ---------------------------------------------------------
+   ⭐ Background + Texture
+--------------------------------------------------------- */
+
+.velora-reward-bg {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 10px;
+  border-radius: inherit;
+}
+
+.velora-reward-noise {
+  position: absolute;
+  inset: 0;
+  background-image: url("/overlay/chat/styles/velora/noise.png");
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.velora-reward-texture {
+  position: absolute;
+  inset: 0;
+  background-image: url("/overlay/chat/styles/velora/texture.png");
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------
+   ⭐ Left: Avatar
+--------------------------------------------------------- */
+
+.velora-reward-left {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+}
+
+.velora-reward-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* ---------------------------------------------------------
+   ⭐ Center: Text
+--------------------------------------------------------- */
+
+.velora-reward-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.velora-reward-textline1 {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.velora-reward-textline2 {
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+/* Pulse animation for title */
+.velora-text-pulse {
+  animation: veloraTextPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes veloraTextPulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* Randomized delay */
+.velora-text-pulse-random {
+  animation-delay: calc(var(--rand) * 0.6s);
+}
+
+/* Glow animation */
+.velora-text-glow {
+  animation: veloraGlow 1.4s ease-in-out infinite;
+}
+
+@keyframes veloraGlow {
+  0%   { text-shadow: 0 0 4px rgba(255,255,255,0.6); }
+  50%  { text-shadow: 0 0 12px rgba(255,255,255,1); }
+  100% { text-shadow: 0 0 4px rgba(255,255,255,0.6); }
+}
+
+/* ---------------------------------------------------------
+   ⭐ Right: Reward Icon
+--------------------------------------------------------- */
+
+.velora-reward-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 12px;
+}
+
+.velora-reward-icon-wrap {
+  width: 54px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.velora-reward-icon {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+
+/* Pulse animation for icon */
+.velora-icon-pulse {
+  animation: veloraIconPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes veloraIconPulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
