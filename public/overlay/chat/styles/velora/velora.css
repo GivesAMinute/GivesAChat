@@ -577,3 +577,14 @@
   from { opacity: 1; transform: translateX(0); }
   to   { opacity: 0; transform: translateX(-220px); }
 }
+
+/* ---------------------------------------------------------
+   ⭐ Correct lane placement for channel points card
+--------------------------------------------------------- */
+.velora-reward-card {
+  align-self: flex-start;
+  width: auto;
+  max-width: 615px;
+  box-sizing: border-box;
+}
+
