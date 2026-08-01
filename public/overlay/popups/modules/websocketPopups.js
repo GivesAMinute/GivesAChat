@@ -10,7 +10,7 @@ const isIOS =
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 /* ---------------------------------------------------------
-   ⭐ Popups Socket Manager — FINAL NEVER-SLEEP, NO-ZOMBIES VERSION
+   ⭐ Popups Socket Manager — HEARTBEAT DISABLED VERSION
 --------------------------------------------------------- */
 class PopupsSocketManager {
   constructor({ type, url, token = null, onEvent }) {
@@ -22,12 +22,8 @@ class PopupsSocketManager {
     this.socket = null;
     this.ready = false;
 
-    this.heartbeat = null;
     this.reconnectTimer = null;
     this.backoff = 500;
-
-    this.lastMessageTime = Date.now();
-    this.lastPongTime = Date.now();
 
     setTimeout(() => this.connect(), 100);
   }
@@ -57,9 +53,6 @@ class PopupsSocketManager {
       this.socket.on("connect", () => {
         this.ready = true;
         this.backoff = 500;
-        this.lastMessageTime = Date.now();
-        this.lastPongTime = Date.now();
-        this.startHeartbeat();
       });
 
       this.socket.on("disconnect", () => {
@@ -73,8 +66,6 @@ class PopupsSocketManager {
       });
 
       this.socket.on("event", (payload) => {
-        this.lastMessageTime = Date.now();
-        this.lastPongTime = Date.now();
         this.onEvent(payload);
       });
 
@@ -83,13 +74,11 @@ class PopupsSocketManager {
 
     /* ---------------------------------------------------------
        ⭐ RAW WEBSOCKET (Cloudflare Worker)
-    --------------------------------------------------------- */
+       Heartbeat disabled — ANY message is valid.
+--------------------------------------------------------- */
     this.socket.addEventListener("open", () => {
       this.ready = true;
       this.backoff = 500;
-      this.lastMessageTime = Date.now();
-      this.lastPongTime = Date.now();
-      this.startHeartbeat();
     });
 
     this.socket.addEventListener("close", () => {
@@ -103,76 +92,20 @@ class PopupsSocketManager {
     });
 
     this.socket.addEventListener("message", (event) => {
-      this.lastMessageTime = Date.now();
-      this.lastPongTime = Date.now();
-
       try {
         const payload = JSON.parse(event.data);
-
-        // Cloudflare Worker may send pong
-        if (payload.type === "pong") {
-          this.lastPongTime = Date.now();
-          return;
-        }
-
         this.onEvent(payload);
-      } catch {}
+      } catch {
+        // Non‑JSON messages still count as valid wake events
+      }
     });
   }
 
   /* ---------------------------------------------------------
-     ⭐ HEARTBEAT — detects zombie sockets + forces reconnect
---------------------------------------------------------- */
-  startHeartbeat() {
-    clearInterval(this.heartbeat);
-
-    this.heartbeat = setInterval(() => {
-      if (!this.socket) return;
-
-      const now = Date.now();
-
-      // ⭐ If no pong for 15 seconds → zombie socket → force reconnect
-      if (now - this.lastPongTime > 15000) {
-        this.ready = false;
-        this.forceReconnect();
-        return;
-      }
-
-      // ⭐ Send ping
-      try {
-        if (this.type === "velora") {
-          this.socket.emit("ping");
-        } else if (this.socket.readyState === WebSocket.OPEN) {
-          this.socket.send(JSON.stringify({ type: "ping" }));
-        }
-      } catch {}
-
-    }, 5000);
-  }
-
-  /* ---------------------------------------------------------
-     ⭐ FORCE RECONNECT — kills zombie sockets
---------------------------------------------------------- */
-  forceReconnect() {
-    try {
-      if (this.socket) {
-        if (this.type === "velora") {
-          this.socket.disconnect();
-        } else {
-          this.socket.close();
-        }
-      }
-    } catch {}
-
-    this.scheduleReconnect();
-  }
-
-  /* ---------------------------------------------------------
-     ⭐ RECONNECT WITH BACKOFF — no duplicates
+     ⭐ RECONNECT WITH BACKOFF — ONLY WHEN SOCKET CLOSES
 --------------------------------------------------------- */
   scheduleReconnect() {
     clearTimeout(this.reconnectTimer);
-    clearInterval(this.heartbeat);
 
     try {
       if (this.socket) {
@@ -289,7 +222,7 @@ function handleVeloraEvent({ event, data, timestamp }) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Setup Popups Socket — FINAL VERSION
+   ⭐ Setup Popups Socket — FINAL NEVER-SLEEP VERSION
 --------------------------------------------------------- */
 export async function setupPopupSocket() {
   await loadVeloraFonts();
