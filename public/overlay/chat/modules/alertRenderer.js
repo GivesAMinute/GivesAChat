@@ -5,7 +5,12 @@
  * Velora uses eventType instead of alertType, and different field names.
  */
 function normalizeVeloraAlert(raw) {
-  const type = raw.eventType || raw.alertType || "unknown";
+  // ⭐ Correct type detection for volts
+  const type =
+    raw.eventType ||
+    raw.alertType ||
+    (typeof raw.volts === "number" ? "volts" : null) ||
+    "unknown";
 
   // ⭐ Correct amount extraction for ALL Velora alert types
   const amount =
@@ -18,7 +23,7 @@ function normalizeVeloraAlert(raw) {
 
   return {
     type,
-    username: raw.username || raw.user || raw.sender || "Someone",
+    username: raw.username || raw.user?.displayName || raw.user?.username || "Someone",
     amount,
     tier: raw.tier || null,
     message: raw.message || null,
@@ -41,16 +46,15 @@ function formatVeloraAlert(alert) {
 
     case "gift_subscription":
     case "gift":
-      return `${alert.username} gifted ${alert.amount} subs!`;
+      return `${alert.username} gifted ${alert.amount} sub(s)!`;
 
     case "resub":
     case "resubscription":
-      return `${alert.username} resubscribed!`;
+      return `${alert.username} resubscribed for ${alert.amount} months!`;
 
     case "raid":
-      return `${alert.username} raided with ${alert.amount}!`;
+      return `${alert.username} raided with ${alert.amount} viewers!`;
 
-    case "volt_tip":
     case "volts":
       // ⭐ Correct volts formatting
       return `${alert.username} sent ${alert.amount} Volts!`;
