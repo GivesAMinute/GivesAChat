@@ -607,7 +607,7 @@
    ⭐ Reduce spacing BELOW the reward card only
 --------------------------------------------------------- */
 .velora-reward-card {
-  margin-bottom: -6px;   /* pull next message upward */
+  margin-bottom: -4px;   /* pull next message upward */
 }
 
 
