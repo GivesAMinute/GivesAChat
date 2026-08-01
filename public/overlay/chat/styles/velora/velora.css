@@ -698,34 +698,37 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Make reward card match chat bubble geometry
+   ⭐ ALIGN reward card with chat bubble WITHOUT becoming one
 --------------------------------------------------------- */
 
+/* Match bubble's lane geometry */
 .velora-reward-card {
-  /* Match bubble width behavior */
+  /* Same max width as bubble */
   max-width: 615px;
+
+  /* Same alignment inside #messages */
+  align-self: flex-start;
+
+  /* Remove fixed width that caused misalignment */
   width: auto;
 
-  /* Match bubble padding */
+  /* Keep your original gradient look */
+  background: none;
+  backdrop-filter: none;
+
+  /* Keep your original padding */
   padding: 10px 14px;
 
-  /* Match bubble background */
-  background: rgba(0,0,0,0.85);
-  backdrop-filter: blur(6px);
-
-  /* Match bubble radius */
+  /* Keep your original radius */
   border-radius: 14px;
 
-  /* Match bubble display */
+  /* DO NOT behave like a flex row container */
   display: block;
-
-  /* Match bubble alignment */
-  align-self: flex-start;
 
   /* Remove forced height */
   min-height: unset;
 
-  /* Remove flex row forcing */
+  /* Remove flex spacing that pushed avatar/text/icon apart */
   justify-content: unset;
   flex-direction: unset;
 }
@@ -735,12 +738,10 @@
 --------------------------------------------------------- */
 
 .velora-reward-exit {
-  animation: bubbleSwipeLeft 0.6s ease-out forwards;
+  animation: veloraRewardSwipeLeft 0.6s ease-out forwards;
 }
 
-/* Chat bubble slide-out keyframes reused */
-@keyframes bubbleSwipeLeft {
+@keyframes veloraRewardSwipeLeft {
   from { opacity: 1; transform: translateX(0); }
   to   { opacity: 0; transform: translateX(-220px); }
 }
-
