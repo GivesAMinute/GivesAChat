@@ -600,7 +600,15 @@
    ⭐ Reduce internal padding to match bubble spacing
 --------------------------------------------------------- */
 .velora-reward-bg {
-  padding: 10px 144px; 
+  padding: 10px 14px; 
 }
+
+/* ---------------------------------------------------------
+   ⭐ Reduce spacing BELOW the reward card only
+--------------------------------------------------------- */
+.velora-reward-card {
+  margin-bottom: -4px;   /* pull next message upward */
+}
+
 
 
