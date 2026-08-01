@@ -592,7 +592,7 @@
    ⭐ Inline position adjustment for channel points card
 --------------------------------------------------------- */
 .velora-reward-card {
-  margin-left: -16px;   /* move left */
+  margin-left: -12px;   /* move left */
   margin-top: -6px;     /* move upward */
 }
 
