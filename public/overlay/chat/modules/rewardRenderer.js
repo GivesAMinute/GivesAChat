@@ -18,6 +18,12 @@ function isOBSBrowserSource() {
 }
 
 export function handleReward(payload, container) {
+  // ⭐ Normalize volts amount so the card renderer ALWAYS receives it
+  const normalizedPayload = {
+    ...payload,
+    volts: payload.volts ?? payload.amount ?? payload.templateData?.amount ?? null
+  };
+
   const wrapper = document.createElement("div");
   wrapper.className = "chat-message platform-velora effect-enter";
 
@@ -26,7 +32,8 @@ export function handleReward(payload, container) {
   icon.src = `/icons/${payload.platform}.png`;
   wrapper.appendChild(icon);
 
-  const cardEl = renderVeloraRewardCard(payload);
+  // ⭐ Pass normalized payload so veloraRewardCard.js can show volts amount
+  const cardEl = renderVeloraRewardCard(normalizedPayload);
   wrapper.appendChild(cardEl);
 
   container.appendChild(wrapper);

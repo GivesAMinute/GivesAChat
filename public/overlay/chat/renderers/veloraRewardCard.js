@@ -39,11 +39,11 @@ export function renderVeloraRewardCard(msg) {
     bgEl.appendChild(texEl);
   }
 
-  // ⭐ Left: avatar (FIXED)
+  // ⭐ Left: avatar
   const leftEl = document.createElement("div");
   leftEl.className = "velora-reward-left";
 
-  const avatarUrl = msg.avatarUrl || msg.avatar; // ⭐ Velora uses avatarUrl
+  const avatarUrl = msg.avatarUrl || msg.avatar;
 
   if (avatarUrl) {
     const avatarEl = document.createElement("img");
@@ -80,18 +80,31 @@ export function renderVeloraRewardCard(msg) {
 
   textEl.appendChild(usernameEl);
 
-  // ⭐ textLine2 (reward name) — pulse removed
+  // ⭐ textLine2 (reward name OR volts message)
   const titleEl = document.createElement("div");
   titleEl.className = "velora-reward-textline2";
 
-  const rewardName =
-    msg.rewardTitle ||
-    msg.rewardName ||
-    msg.title ||
-    "Reward";
+  // ⭐ Detect volts tip
+  const voltsAmount =
+    msg.volts ??
+    msg.amount ??
+    msg.templateData?.amount ??
+    null;
 
-  titleEl.textContent =
-    text2.content?.replace("{Reward}", rewardName) || rewardName;
+  if (typeof voltsAmount === "number") {
+    // ⭐ Correct volts formatting
+    titleEl.textContent = `${msg.username} sent ${voltsAmount} Volts!`;
+  } else {
+    // ⭐ Normal reward name
+    const rewardName =
+      msg.rewardTitle ||
+      msg.rewardName ||
+      msg.title ||
+      "Reward";
+
+    titleEl.textContent =
+      text2.content?.replace("{Reward}", rewardName) || rewardName;
+  }
 
   if (text2.font) titleEl.style.fontFamily = `"${text2.font}", sans-serif`;
 
@@ -101,7 +114,6 @@ export function renderVeloraRewardCard(msg) {
 
   if (text2.color?.value) titleEl.style.color = text2.color.value;
 
-  // ⭐ no pulse on title anymore
   textEl.appendChild(titleEl);
 
   // ⭐ Right: reward icon
@@ -119,7 +131,6 @@ export function renderVeloraRewardCard(msg) {
     iconEl.className = "velora-reward-icon velora-icon-pulse";
     iconEl.src = iconUrl;
 
-    // ⭐ randomized pulse for icon
     const rand = Math.random();
     const delay = rand * 1.0;
     const duration = 0.9 + rand * 0.7;
@@ -138,7 +149,7 @@ export function renderVeloraRewardCard(msg) {
   bgEl.appendChild(rightEl);
   wrapper.appendChild(bgEl);
 
-  // ⭐ Reward-specific slide-out (CSS should mimic bubbleSwipeLeft)
+  // ⭐ Slide-out
   setTimeout(() => {
     wrapper.classList.add("velora-reward-exit");
     setTimeout(() => wrapper.remove(), 800);
