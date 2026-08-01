@@ -632,7 +632,9 @@
 
 /* Pulse animation for title */
 .velora-text-pulse {
-  animation: veloraTextPulse 1.2s ease-in-out infinite;
+  animation-name: veloraTextPulse;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
 }
 
 @keyframes veloraTextPulse {
@@ -684,7 +686,9 @@
 
 /* Pulse animation for icon */
 .velora-icon-pulse {
-  animation: veloraIconPulse 1.2s ease-in-out infinite;
+  animation-name: veloraIconPulse;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
 }
 
 @keyframes veloraIconPulse {

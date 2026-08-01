@@ -101,10 +101,18 @@ export function renderVeloraRewardCard(msg) {
 
   if (text2.color?.value) titleEl.style.color = text2.color.value;
 
+  /* ---------------------------------------------------------
+     ⭐ Randomized pulse for title
+  --------------------------------------------------------- */
   if (text2.animation === "pulse") {
-    titleEl.classList.add("velora-text-pulse", "velora-text-pulse-random");
-    const rand = Math.random();
-    titleEl.style.setProperty("--rand", rand.toFixed(3));
+    titleEl.classList.add("velora-text-pulse");
+
+    const rand = Math.random(); // 0 → 1
+    const delay = rand * 1.2;   // 0 → 1.2s
+    const duration = 1.0 + rand * 0.9; // 1.0 → 1.9s
+
+    titleEl.style.animationDelay = `${delay}s`;
+    titleEl.style.animationDuration = `${duration}s`;
   }
 
   textEl.appendChild(titleEl);
@@ -126,6 +134,16 @@ export function renderVeloraRewardCard(msg) {
     const iconEl = document.createElement("img");
     iconEl.className = "velora-reward-icon velora-icon-pulse";
     iconEl.src = iconUrl;
+
+    /* ---------------------------------------------------------
+       ⭐ Randomized pulse for icon
+    --------------------------------------------------------- */
+    const rand = Math.random(); // 0 → 1
+    const delay = rand * 1.4;   // 0 → 1.4s
+    const duration = 1.0 + rand * 0.8; // 1.0 → 1.8s
+
+    iconEl.style.animationDelay = `${delay}s`;
+    iconEl.style.animationDuration = `${duration}s`;
 
     iconWrap.appendChild(iconEl);
     rightEl.appendChild(iconWrap);
