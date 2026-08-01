@@ -594,6 +594,6 @@
 .velora-reward-card {
   margin-left: -10px;   /* move left */
   margin-top: -6px;     /* move upward */
-  margin-bottom: 6px;   /* match bubble spacing */
+  margin-bottom: 4px;   /* match bubble spacing */
 }
 
