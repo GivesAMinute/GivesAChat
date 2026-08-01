@@ -180,6 +180,21 @@ function handleChat(payload, container) {
     }
   }
 
+  /* ---------------------------------------------------------
+     ⭐ FIXED: Volts alerts now show amount in chat overlay
+  --------------------------------------------------------- */
+  let textContent = payload.html;
+
+  if (payload.platform === "velora" && payload.volts) {
+    const amount =
+      payload.volts ??
+      payload.amount ??
+      payload.templateData?.amount ??
+      0;
+
+    textContent = `${payload.username} sent ${amount} Volts!`;
+  }
+
   bubble.innerHTML = `
     <div class="chat-message-content">
       <span class="velora-line">
@@ -187,7 +202,7 @@ function handleChat(payload, container) {
         ${badgesHTML}
         <span class="username">${payload.username}</span>
       </span>
-      <span class="text">${payload.html}</span>
+      <span class="text">${textContent}</span>
     </div>
   `;
 
@@ -248,15 +263,14 @@ function renderVeloraSystemMessage(event, data, container) {
     text = `${data.displayName || data.username} raided with ${data.viewers || ""} viewers!`;
   }
   else if (data.alertType === "volts") {
-  const amount =
-    data.volts ??
-    data.amount ??
-    data.templateData?.amount ??
-    0;
+    const amount =
+      data.volts ??
+      data.amount ??
+      data.templateData?.amount ??
+      0;
 
-  text = `${data.displayName || data.username} sent ${amount} Volts!`;
-}
-
+    text = `${data.displayName || data.username} sent ${amount} Volts!`;
+  }
   else {
     text = data.message || `${data.displayName || data.username}`;
   }
