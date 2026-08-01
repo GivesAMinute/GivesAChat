@@ -181,10 +181,19 @@ function handleChat(payload, container) {
   }
 
   /* ---------------------------------------------------------
-     ⭐ FIXED: Volts alerts now show amount in chat overlay
+     ⭐ FIXED: Volts alerts now show amount
+     ⭐ FIXED: Beam stickers restored
   --------------------------------------------------------- */
   let textContent = payload.html;
 
+  // ⭐ Beam sticker support (new Beam payload format)
+  if (payload.platform === "beam" && payload.sticker?.src) {
+    const ext = payload.sticker.animated ? "gif" : "png";
+    const url = `https://content.beamstream.gg/stickers/${payload.sticker.src}.${ext}`;
+    textContent = `<img class="beam-sticker" src="${url}">`;
+  }
+
+  // ⭐ Velora volts support
   if (payload.platform === "velora" && payload.volts) {
     const amount =
       payload.volts ??
