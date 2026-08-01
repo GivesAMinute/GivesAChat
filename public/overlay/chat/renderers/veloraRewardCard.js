@@ -1,51 +1,106 @@
 // overlay/chat/renderers/veloraRewardCard.js
 
 export function renderVeloraRewardCard(msg) {
+  /* ---------------------------------------------------------
+     ⭐ MATCH CHAT MESSAGE STRUCTURE EXACTLY
+  --------------------------------------------------------- */
   const wrapper = document.createElement("div");
+  wrapper.className = "chat-message effect-enter velora-reward-card";
 
-  // ⭐ Match chat bubble alignment (NO platform icon, NO nesting)
-  wrapper.className = "chat-message velora-reward-card velora-reward-enter";
+  /* ---------------------------------------------------------
+     ⭐ PLATFORM ICON (same as chat)
+  --------------------------------------------------------- */
+  const platformIcon = document.createElement("img");
+  platformIcon.className = "platform-icon";
+  platformIcon.src = "/icons/velora.png";
+  wrapper.appendChild(platformIcon);
 
-  const bgEl = document.createElement("div");
-  bgEl.className = "velora-reward-bg";
+  /* ---------------------------------------------------------
+     ⭐ BUBBLE (same as chat)
+  --------------------------------------------------------- */
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  wrapper.appendChild(bubble);
 
-  // ⭐ Noise layer
+  /* ---------------------------------------------------------
+     ⭐ CHAT MESSAGE CONTENT WRAPPER
+  --------------------------------------------------------- */
+  const content = document.createElement("div");
+  content.className = "chat-message-content";
+  bubble.appendChild(content);
+
+  /* ---------------------------------------------------------
+     ⭐ VELORA LINE (username + avatar + badges)
+  --------------------------------------------------------- */
+  const veloraLine = document.createElement("span");
+  veloraLine.className = "velora-line";
+
+  // Avatar
+  const avatarUrl = msg.avatarUrl || msg.avatar;
+  if (avatarUrl) {
+    const avatarEl = document.createElement("img");
+    avatarEl.className = "inline-avatar";
+    avatarEl.src = avatarUrl;
+    veloraLine.appendChild(avatarEl);
+  }
+
+  // Username
+  const usernameEl = document.createElement("span");
+  usernameEl.className = "username";
+  usernameEl.textContent = msg.username;
+  veloraLine.appendChild(usernameEl);
+
+  content.appendChild(veloraLine);
+
+  /* ---------------------------------------------------------
+     ⭐ TEXT AREA (reward card visuals go here)
+  --------------------------------------------------------- */
+  const textWrapper = document.createElement("span");
+  textWrapper.className = "text";
+
+  /* ---------------------------------------------------------
+     ⭐ Reward Card Visual Container
+  --------------------------------------------------------- */
+  const card = document.createElement("div");
+  card.className = "velora-reward-bg";
+
+  /* Noise */
   const noiseEl = document.createElement("div");
   noiseEl.className = "velora-reward-noise";
-  bgEl.appendChild(noiseEl);
+  card.appendChild(noiseEl);
 
   const cd = msg.cardDesign || {};
   const bg = cd.background || {};
   const texture = cd.texture || {};
-  const icon = cd.icon || {};
+  const iconCfg = cd.icon || {};
   const text1 = cd.textLine1 || {};
   const text2 = cd.textLine2 || {};
   const border = cd.border || {};
 
-  // ⭐ Background gradient
+  /* Background gradient */
   if (Array.isArray(bg.colors) && bg.colors.length >= 2) {
-    bgEl.style.background = `linear-gradient(${bg.angle || 90}deg, ${bg.colors[0]}, ${bg.colors[1]})`;
+    card.style.background = `linear-gradient(${bg.angle || 90}deg, ${bg.colors[0]}, ${bg.colors[1]})`;
   }
 
-  // ⭐ Border
+  /* Border */
   if (border.color) {
-    bgEl.style.border = `${border.width || 3}px solid ${border.color}`;
+    card.style.border = `${border.width || 3}px solid ${border.color}`;
   }
 
-  // ⭐ Texture overlay
+  /* Texture */
   if (texture.enabled) {
     const texEl = document.createElement("div");
     texEl.className = "velora-reward-texture";
     texEl.style.opacity = (texture.opacity || 10) / 100;
     texEl.style.mixBlendMode = texture.blendMode || "soft-light";
-    bgEl.appendChild(texEl);
+    card.appendChild(texEl);
   }
 
-  // ⭐ Left: avatar
+  /* ---------------------------------------------------------
+     ⭐ Left: Avatar (reward card avatar)
+  --------------------------------------------------------- */
   const leftEl = document.createElement("div");
   leftEl.className = "velora-reward-left";
-
-  const avatarUrl = msg.avatarUrl || msg.avatar;
 
   if (avatarUrl) {
     const avatarEl = document.createElement("img");
@@ -54,37 +109,23 @@ export function renderVeloraRewardCard(msg) {
     leftEl.appendChild(avatarEl);
   }
 
-  // ⭐ Center: text
+  card.appendChild(leftEl);
+
+  /* ---------------------------------------------------------
+     ⭐ Center: Text (NO PULSE)
+  --------------------------------------------------------- */
   const textEl = document.createElement("div");
   textEl.className = "velora-reward-text";
 
-  // ⭐ textLine1 (username)
-  const usernameEl = document.createElement("div");
-  usernameEl.className = "velora-reward-textline1";
-  usernameEl.textContent =
+  const usernameLine = document.createElement("div");
+  usernameLine.className = "velora-reward-textline1";
+  usernameLine.textContent =
     text1.content?.replace("{User}", msg.username) || msg.username;
 
-  if (text1.font) usernameEl.style.fontFamily = `"${text1.font}", sans-serif`;
+  if (text1.font) usernameLine.style.fontFamily = `"${text1.font}", sans-serif`;
+  if (text1.color?.value) usernameLine.style.color = text1.color.value;
 
-  if (text1.size === "lg") usernameEl.style.fontSize = "20px";
-  if (text1.size === "md") usernameEl.style.fontSize = "16px";
-  if (text1.size === "sm") usernameEl.style.fontSize = "14px";
-
-  if (text1.color?.value) {
-    usernameEl.style.color = text1.color.value;
-  } else if (msg.usernameColor) {
-    usernameEl.style.color = msg.usernameColor;
-  }
-
-  if (text1.animation === "glow") {
-    usernameEl.classList.add("velora-text-glow");
-  }
-
-  textEl.appendChild(usernameEl);
-
-  // ⭐ textLine2 (reward name) — NO PULSE ANYMORE
-  const titleEl = document.createElement("div");
-  titleEl.className = "velora-reward-textline2";
+  textEl.appendChild(usernameLine);
 
   const rewardName =
     msg.rewardTitle ||
@@ -92,26 +133,28 @@ export function renderVeloraRewardCard(msg) {
     msg.title ||
     "Reward";
 
-  titleEl.textContent =
+  const rewardLine = document.createElement("div");
+  rewardLine.className = "velora-reward-textline2";
+  rewardLine.textContent =
     text2.content?.replace("{Reward}", rewardName) || rewardName;
 
-  if (text2.font) titleEl.style.fontFamily = `"${text2.font}", sans-serif`;
+  if (text2.font) rewardLine.style.fontFamily = `"${text2.font}", sans-serif`;
+  if (text2.color?.value) rewardLine.style.color = text2.color.value;
 
-  if (text2.size === "lg") titleEl.style.fontSize = "24px";
-  if (text2.size === "md") titleEl.style.fontSize = "20px";
-  if (text2.size === "sm") titleEl.style.fontSize = "16px";
+  // ⭐ NO TEXT PULSE ANYMORE
+  textEl.appendChild(rewardLine);
 
-  if (text2.color?.value) titleEl.style.color = text2.color.value;
+  card.appendChild(textEl);
 
-  textEl.appendChild(titleEl);
-
-  // ⭐ Right: reward icon — wrapper isolates transform
+  /* ---------------------------------------------------------
+     ⭐ Right: Reward Icon (randomized pulse)
+  --------------------------------------------------------- */
   const rightEl = document.createElement("div");
   rightEl.className = "velora-reward-right";
 
   const iconUrl =
-    icon.customIconUrl ||
-    icon.emoteUrl ||
+    iconCfg.customIconUrl ||
+    iconCfg.emoteUrl ||
     msg.rewardIcon ||
     null;
 
@@ -123,13 +166,9 @@ export function renderVeloraRewardCard(msg) {
     iconEl.className = "velora-reward-icon velora-icon-pulse";
     iconEl.src = iconUrl;
 
-    // ⭐ Fully randomized pulse for icon
     const rand = Math.random();
-    const delay = rand * 1.0;
-    const duration = 0.9 + rand * 0.7;
-
-    iconEl.style.animationDelay = `${delay}s`;
-    iconEl.style.animationDuration = `${duration}s`;
+    iconEl.style.animationDelay = `${rand * 1.0}s`;
+    iconEl.style.animationDuration = `${0.9 + rand * 0.7}s`;
 
     iconWrap.appendChild(iconEl);
     rightEl.appendChild(iconWrap);
@@ -137,14 +176,16 @@ export function renderVeloraRewardCard(msg) {
     wrapper.dataset.rewardIcon = iconUrl;
   }
 
-  // ⭐ Assemble
-  bgEl.appendChild(leftEl);
-  bgEl.appendChild(textEl);
-  bgEl.appendChild(rightEl);
-  wrapper.appendChild(bgEl);
+  card.appendChild(rightEl);
 
   /* ---------------------------------------------------------
-     ⭐ Slide-out LEFT — EXACT same as chat messages
+     ⭐ Insert reward card into chat bubble
+  --------------------------------------------------------- */
+  textWrapper.appendChild(card);
+  content.appendChild(textWrapper);
+
+  /* ---------------------------------------------------------
+     ⭐ Slide-out (same as chat)
   --------------------------------------------------------- */
   setTimeout(() => {
     wrapper.classList.add("fade-out");
