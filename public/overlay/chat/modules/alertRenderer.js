@@ -7,14 +7,23 @@
 function normalizeVeloraAlert(raw) {
   const type = raw.eventType || raw.alertType || "unknown";
 
+  // ⭐ Correct amount extraction for ALL Velora alert types
+  const amount =
+    raw.volts ||                      // volts tip
+    raw.amount ||                     // generic amount
+    raw.quantity ||                   // gift subs
+    raw.viewers ||                    // raids
+    raw.templateData?.amount ||       // fallback for template-based alerts
+    null;
+
   return {
     type,
     username: raw.username || raw.user || raw.sender || "Someone",
-    amount: raw.amount || raw.quantity || raw.viewers || null,
+    amount,
     tier: raw.tier || null,
     message: raw.message || null,
     isTest: raw.isTest || false,
-    duration: raw.duration || 4 // fallback seconds
+    duration: raw.duration || 4
   };
 }
 
@@ -43,6 +52,7 @@ function formatVeloraAlert(alert) {
 
     case "volt_tip":
     case "volts":
+      // ⭐ Correct volts formatting
       return `${alert.username} sent ${alert.amount} Volts!`;
 
     default:
