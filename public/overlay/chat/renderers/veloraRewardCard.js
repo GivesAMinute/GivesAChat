@@ -2,22 +2,8 @@
 
 export function renderVeloraRewardCard(msg) {
   const wrapper = document.createElement("div");
+  wrapper.className = "velora-reward-card velora-reward-enter";
 
-  // ⭐ Match chat message geometry + alignment
-  wrapper.className = "chat-message velora-reward-card velora-reward-enter";
-
-  // ⭐ Platform icon (same as chat messages)
-  const icon = document.createElement("img");
-  icon.className = "platform-icon";
-  icon.src = "/icons/velora.png";
-  wrapper.appendChild(icon);
-
-  // ⭐ Bubble wrapper (same structure as chat messages)
-  const bubble = document.createElement("div");
-  bubble.className = "bubble";
-  wrapper.appendChild(bubble);
-
-  // ⭐ Reward card background
   const bgEl = document.createElement("div");
   bgEl.className = "velora-reward-bg";
 
@@ -29,7 +15,7 @@ export function renderVeloraRewardCard(msg) {
   const cd = msg.cardDesign || {};
   const bg = cd.background || {};
   const texture = cd.texture || {};
-  const iconCfg = cd.icon || {};
+  const icon = cd.icon || {};
   const text1 = cd.textLine1 || {};
   const text2 = cd.textLine2 || {};
   const border = cd.border || {};
@@ -115,15 +101,13 @@ export function renderVeloraRewardCard(msg) {
 
   if (text2.color?.value) titleEl.style.color = text2.color.value;
 
-  /* ---------------------------------------------------------
-     ⭐ Softer, randomized pulse for title
-  --------------------------------------------------------- */
+  // ⭐ Softer, randomized pulse for title
   if (text2.animation === "pulse") {
     titleEl.classList.add("velora-text-pulse");
 
     const rand = Math.random();          // 0 → 1
-    const delay = rand * 0.6;            // 0 → 0.6s
-    const duration = 0.8 + rand * 0.5;   // 0.8 → 1.3s (softer)
+    const delay = rand * 0.8;            // 0 → 0.8s
+    const duration = 0.8 + rand * 0.5;   // 0.8 → 1.3s
 
     titleEl.style.animationDelay = `${delay}s`;
     titleEl.style.animationDuration = `${duration}s`;
@@ -136,8 +120,8 @@ export function renderVeloraRewardCard(msg) {
   rightEl.className = "velora-reward-right";
 
   const iconUrl =
-    iconCfg.customIconUrl ||
-    iconCfg.emoteUrl ||
+    icon.customIconUrl ||
+    icon.emoteUrl ||
     msg.rewardIcon ||
     null;
 
@@ -149,9 +133,7 @@ export function renderVeloraRewardCard(msg) {
     iconEl.className = "velora-reward-icon velora-icon-pulse";
     iconEl.src = iconUrl;
 
-    /* ---------------------------------------------------------
-       ⭐ Fully randomized pulse for icon
-    --------------------------------------------------------- */
+    // ⭐ Fully randomized pulse for icon
     const rand = Math.random();          // 0 → 1
     const delay = rand * 1.0;            // 0 → 1.0s
     const duration = 0.9 + rand * 0.7;   // 0.9 → 1.6s
@@ -165,11 +147,11 @@ export function renderVeloraRewardCard(msg) {
     wrapper.dataset.rewardIcon = iconUrl;
   }
 
-  // ⭐ Assemble bubble contents
+  // ⭐ Assemble
   bgEl.appendChild(leftEl);
   bgEl.appendChild(textEl);
   bgEl.appendChild(rightEl);
-  bubble.appendChild(bgEl);
+  wrapper.appendChild(bgEl);
 
   /* ---------------------------------------------------------
      ⭐ Slide-out LEFT (same as chat messages)
