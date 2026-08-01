@@ -1,73 +1,33 @@
 /* ---------------------------------------------------------
-   ⭐ Velora Reward Card — Outer Container
+   ⭐ Velora Reward Card — Correct Layout + Animations
 --------------------------------------------------------- */
+
 .velora-reward-card {
-  position: relative;
-  width: 100%;
-  max-width: 85%;
-  min-width: 0;
-  border-radius: 14px;
-  overflow: visible;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 480px;
+  min-height: 90px;
+
+  margin: 6px 0;
+  padding: 10px 14px;
+
+  border-radius: 12px;
+  overflow: hidden;
+
   pointer-events: none;
+
+  /* Slide-in */
+  opacity: 0;
+  transform: translateX(-40px);
+  animation: veloraRewardEnter 0.25s ease-out forwards;
 }
 
-/* ---------------------------------------------------------
-   ⭐ Velora System Bubble — Final Combined Sheen + Gold Shimmer (FIXED)
---------------------------------------------------------- */
-.velora-system-bubble::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-
-  /* White sheen layer */
-  background: linear-gradient(
-    120deg,
-    rgba(255,255,255,0.0) 0%,
-    rgba(255,255,255,0.18) 45%,
-    rgba(255,255,255,0.0) 100%
-  );
-  background-size: 200% 100%;   /* ⭐ REQUIRED FOR MOVEMENT */
-
-  opacity: 0.55;
-  mix-blend-mode: screen;
-  pointer-events: none;
-  z-index: 2;
-
-  animation: velora-sheen-move 3.8s linear infinite;
-}
-
-.velora-system-bubble::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-
-  /* Gold shimmer layer */
-  background: linear-gradient(
-    120deg,
-    transparent 0%,
-    rgba(255, 215, 64, 0.32) 50%,
-    transparent 100%
-  );
-  background-size: 200% 100%;   /* ⭐ REQUIRED FOR MOVEMENT */
-
-  opacity: 0.45;
-  mix-blend-mode: screen;
-  pointer-events: none;
-  z-index: 3;
-
-  animation: veloraShimmer 3.2s linear infinite;
-}
-
-@keyframes velora-sheen-move {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-@keyframes veloraShimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+@keyframes veloraRewardEnter {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 /* ---------------------------------------------------------
@@ -92,9 +52,8 @@
   pointer-events: none;
   position: absolute;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%3E%3Ccircle%20cx%3D%222%22%20cy%3D%222%22%20r%3D%221%22%20fill%3D%22white%22%2F%3E%3C%2Fsvg%3E");
-  background-repeat: repeat;
-  opacity: 0.08;
+  background-image: url("/overlay/chat/styles/velora/noise.png");
+  opacity: 0.15;
   mix-blend-mode: soft-light;
   z-index: 1;
 }
@@ -105,9 +64,8 @@
 .velora-reward-texture {
   position: absolute;
   inset: 0;
-  background-size: cover;
-  background-position: center;
-  opacity: 0.25;
+  background-image: url("/overlay/chat/styles/velora/texture.png");
+  pointer-events: none;
   z-index: 0;
 }
 
@@ -155,6 +113,16 @@
   margin-bottom: 4px;
 }
 
+/* ---------------------------------------------------------
+   ⭐ TextLine2 (reward name)
+--------------------------------------------------------- */
+.velora-reward-textline2 {
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+/* Glow animation */
 .velora-text-glow {
   animation: velora-glow 2s ease-in-out infinite;
 }
@@ -165,15 +133,7 @@
   100% { text-shadow: 0 0 4px rgba(255,255,255,0.4); }
 }
 
-/* ---------------------------------------------------------
-   ⭐ TextLine2 (reward name)
---------------------------------------------------------- */
-.velora-reward-textline2 {
-  font-weight: 700;
-  line-height: 1.2;
-  margin-top: 2px;
-}
-
+/* Pulse animation (kept for compatibility, JS no longer applies to title) */
 .velora-text-pulse {
   animation: velora-pulse 1.6s ease-in-out infinite;
 }
@@ -182,6 +142,44 @@
   0%   { transform: scaleX(1); }
   50%  { transform: scaleX(1.05); }
   100% { transform: scaleX(1); }
+}
+
+/* ---------------------------------------------------------
+   ⭐ Right: Reward Icon
+--------------------------------------------------------- */
+
+.velora-reward-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 12px;
+}
+
+.velora-reward-icon-wrap {
+  width: 54px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.velora-reward-icon {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+
+/* Pulse animation for icon */
+.velora-icon-pulse {
+  animation-name: veloraIconPulse;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes veloraIconPulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
 }
 
 /* ---------------------------------------------------------
@@ -229,6 +227,63 @@
 }
 
 /* ---------------------------------------------------------
+   ⭐ Velora System Bubble — Sheen + Gold Shimmer
+--------------------------------------------------------- */
+.velora-system-bubble::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+
+  background: linear-gradient(
+    120deg,
+    rgba(255,255,255,0.0) 0%,
+    rgba(255,255,255,0.18) 45%,
+    rgba(255,255,255,0.0) 100%
+  );
+  background-size: 200% 100%;
+
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 2;
+
+  animation: velora-sheen-move 3.8s linear infinite;
+}
+
+.velora-system-bubble::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 215, 64, 0.32) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+
+  opacity: 0.45;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 3;
+
+  animation: veloraShimmer 3.2s linear infinite;
+}
+
+@keyframes velora-sheen-move {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes veloraShimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ---------------------------------------------------------
    ⭐ Glow Effects
 --------------------------------------------------------- */
 .effect-color-glow {
@@ -243,7 +298,6 @@
   );
   background-size: 500% 100%;
 
-  /* ⭐ Added shimmer animation */
   animation:
     color-border-flow 1.8s linear infinite,
     glow-pulse 2.2s ease-in-out infinite,
@@ -282,7 +336,7 @@
 .effect-glow-violet  { --glow-color-1:#8b5cf6; --glow-color-2:#a78bfa; --glow-color-3:#6d28d9; }
 
 /* ---------------------------------------------------------
-   ⭐ Glow Shimmer Animation (NEW)
+   ⭐ Glow Shimmer Animation
 --------------------------------------------------------- */
 @keyframes glow-shimmer {
   0%   { background-position: 0% 50%; }
@@ -290,7 +344,7 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Effect (FULL ORIGINAL WORKING VERSION)
+   ⭐ Galaxy Effect
 --------------------------------------------------------- */
 
 .effect-galaxy {
@@ -311,7 +365,7 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Border (with shimmer added)
+   ⭐ Galaxy Border (with shimmer)
 --------------------------------------------------------- */
 .effect-galaxy::before {
   content: "";
@@ -322,7 +376,6 @@
   background: var(--galaxy-border-gradient);
   background-size: 300% 100%;
 
-  /* ⭐ Add shimmer animation */
   animation:
     galaxy-border-flow 4s linear infinite,
     glow-shimmer 3.4s linear infinite;
@@ -338,19 +391,19 @@
 .effect-galaxy::after {
   content: "";
   position: absolute;
-  inset: -10px;              /* smaller than Glow */
+  inset: -10px;
   border-radius: inherit;
   background: var(--galaxy-glow-color);
-  filter: blur(18px);        /* softer blur */
-  opacity: 0.45;             /* gentle glow */
+  filter: blur(18px);
+  opacity: 0.45;
   z-index: 1;
   animation:
     galaxy-glow-pulse 3s ease-in-out infinite,
-    glow-shimmer 4s linear infinite;   /* optional shimmer */
+    glow-shimmer 4s linear infinite;
 }
 
 /* ---------------------------------------------------------
-   ⭐ FULL STARFIELD (ORIGINAL)
+   ⭐ FULL STARFIELD
 --------------------------------------------------------- */
 
 .effect-galaxy .chat-message-content::before {
@@ -392,15 +445,6 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Foreground
---------------------------------------------------------- */
-/*
-.effect-galaxy .chat-message-content * {
-  position: relative;
-  z-index: 10 !important;
-}
-
-/* ---------------------------------------------------------
    ⭐ Galaxy Animations
 --------------------------------------------------------- */
 @keyframes galaxy-border-flow {
@@ -423,7 +467,7 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Galaxy Variants (ORIGINAL)
+   ⭐ Galaxy Variants
 --------------------------------------------------------- */
 .effect-galaxy-nebula {
   --galaxy-border-gradient: linear-gradient(90deg,#c084fc,#9333ea,#7c3aed,#a855f7,#c084fc);
@@ -522,219 +566,7 @@
 }
 
 /* ---------------------------------------------------------
-   ⭐ Velora Reward Card — Correct Layout + Animations
---------------------------------------------------------- */
-
-.velora-reward-card {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-
-  width: 480px;
-  min-height: 90px;
-
-  margin: 6px 0;
-  padding: 10px 14px;
-
-  border-radius: 12px;
-  overflow: hidden;
-
-  pointer-events: none;
-
-  /* Slide-in */
-  opacity: 0;
-  transform: translateX(-40px);
-  animation: veloraRewardEnter 0.25s ease-out forwards;
-}
-
-@keyframes veloraRewardEnter {
-  from { opacity: 0; transform: translateX(-40px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-/* Slide-out */
-.velora-reward-exit {
-  opacity: 0;
-  transform: translateX(40px);
-  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
-}
-
-/* ---------------------------------------------------------
-   ⭐ Background + Texture
---------------------------------------------------------- */
-
-.velora-reward-bg {
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  padding: 10px;
-  border-radius: inherit;
-}
-
-.velora-reward-noise {
-  position: absolute;
-  inset: 0;
-  background-image: url("/overlay/chat/styles/velora/noise.png");
-  opacity: 0.15;
-  pointer-events: none;
-}
-
-.velora-reward-texture {
-  position: absolute;
-  inset: 0;
-  background-image: url("/overlay/chat/styles/velora/texture.png");
-  pointer-events: none;
-}
-
-/* ---------------------------------------------------------
-   ⭐ Left: Avatar
---------------------------------------------------------- */
-
-.velora-reward-left {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 12px;
-}
-
-.velora-reward-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-/* ---------------------------------------------------------
-   ⭐ Center: Text
---------------------------------------------------------- */
-
-.velora-reward-text {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.velora-reward-textline1 {
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.velora-reward-textline2 {
-  font-size: 16px;
-  font-weight: 600;
-  opacity: 0.9;
-}
-
-/* Pulse animation for title */
-.velora-text-pulse {
-  animation-name: veloraTextPulse;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-}
-
-@keyframes veloraTextPulse {
-  0%   { transform: scale(1); }
-  50%  { transform: scale(1.12); }
-  100% { transform: scale(1); }
-}
-
-/* Randomized delay */
-.velora-text-pulse-random {
-  animation-delay: calc(var(--rand) * 0.6s);
-}
-
-/* Glow animation */
-.velora-text-glow {
-  animation: veloraGlow 1.4s ease-in-out infinite;
-}
-
-@keyframes veloraGlow {
-  0%   { text-shadow: 0 0 4px rgba(255,255,255,0.6); }
-  50%  { text-shadow: 0 0 12px rgba(255,255,255,1); }
-  100% { text-shadow: 0 0 4px rgba(255,255,255,0.6); }
-}
-
-/* ---------------------------------------------------------
-   ⭐ Right: Reward Icon
---------------------------------------------------------- */
-
-.velora-reward-right {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 12px;
-}
-
-.velora-reward-icon-wrap {
-  width: 54px;
-  height: 54px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.velora-reward-icon {
-  width: 54px;
-  height: 54px;
-  object-fit: contain;
-}
-
-/* Pulse animation for icon */
-.velora-icon-pulse {
-  animation-name: veloraIconPulse;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-}
-
-@keyframes veloraIconPulse {
-  0%   { transform: scale(1); }
-  50%  { transform: scale(1.15); }
-  100% { transform: scale(1); }
-}
-
-/* ---------------------------------------------------------
-   ⭐ ALIGN reward card with chat bubble WITHOUT becoming one
---------------------------------------------------------- */
-
-/* Match bubble's lane geometry */
-.velora-reward-card {
-  /* Same max width as bubble */
-  max-width: 615px;
-
-  /* Same alignment inside #messages */
-  align-self: flex-start;
-
-  /* Remove fixed width that caused misalignment */
-  width: auto;
-
-  /* Keep your original gradient look */
-  background: none;
-  backdrop-filter: none;
-
-  /* Keep your original padding */
-  padding: 10px 14px;
-
-  /* Keep your original radius */
-  border-radius: 14px;
-
-  /* DO NOT behave like a flex row container */
-  display: block;
-
-  /* Remove forced height */
-  min-height: unset;
-
-  /* Remove flex spacing that pushed avatar/text/icon apart */
-  justify-content: unset;
-  flex-direction: unset;
-}
-
-/* ---------------------------------------------------------
-   ⭐ Make reward card slide out like chat bubble
+   ⭐ Velora Reward Card — Slide-out LEFT (fixed)
 --------------------------------------------------------- */
 
 .velora-reward-exit {
