@@ -2,7 +2,9 @@
 
 export function renderVeloraRewardCard(msg) {
   const wrapper = document.createElement("div");
-  wrapper.className = "velora-reward-card velora-reward-enter";
+
+  // ⭐ Match chat bubble alignment (NO platform icon, NO nesting)
+  wrapper.className = "chat-message velora-reward-card velora-reward-enter";
 
   const bgEl = document.createElement("div");
   bgEl.className = "velora-reward-bg";
@@ -80,7 +82,7 @@ export function renderVeloraRewardCard(msg) {
 
   textEl.appendChild(usernameEl);
 
-  // ⭐ textLine2 (reward name)
+  // ⭐ textLine2 (reward name) — NO PULSE ANYMORE
   const titleEl = document.createElement("div");
   titleEl.className = "velora-reward-textline2";
 
@@ -100,18 +102,6 @@ export function renderVeloraRewardCard(msg) {
   if (text2.size === "sm") titleEl.style.fontSize = "16px";
 
   if (text2.color?.value) titleEl.style.color = text2.color.value;
-
-  // ⭐ Softer, randomized pulse for title
-  if (text2.animation === "pulse") {
-    titleEl.classList.add("velora-text-pulse");
-
-    const rand = Math.random();          // 0 → 1
-    const delay = rand * 0.8;            // 0 → 0.8s
-    const duration = 0.8 + rand * 0.5;   // 0.8 → 1.3s
-
-    titleEl.style.animationDelay = `${delay}s`;
-    titleEl.style.animationDuration = `${duration}s`;
-  }
 
   textEl.appendChild(titleEl);
 
@@ -134,9 +124,9 @@ export function renderVeloraRewardCard(msg) {
     iconEl.src = iconUrl;
 
     // ⭐ Fully randomized pulse for icon
-    const rand = Math.random();          // 0 → 1
-    const delay = rand * 1.0;            // 0 → 1.0s
-    const duration = 0.9 + rand * 0.7;   // 0.9 → 1.6s
+    const rand = Math.random();
+    const delay = rand * 1.0;
+    const duration = 0.9 + rand * 0.7;
 
     iconEl.style.animationDelay = `${delay}s`;
     iconEl.style.animationDuration = `${duration}s`;
@@ -154,7 +144,7 @@ export function renderVeloraRewardCard(msg) {
   wrapper.appendChild(bgEl);
 
   /* ---------------------------------------------------------
-     ⭐ Slide-out LEFT (same as chat messages)
+     ⭐ Slide-out LEFT — EXACT same as chat messages
   --------------------------------------------------------- */
   setTimeout(() => {
     wrapper.classList.add("fade-out");
