@@ -182,14 +182,14 @@ function handleChat(payload, container) {
 
   /* ---------------------------------------------------------
      ⭐ FIXED: Volts alerts now show amount
-     ⭐ FIXED: Beam stickers restored
+     ⭐ FIXED: Beam stickers restored (new CDN format)
   --------------------------------------------------------- */
   let textContent = payload.html;
 
   // ⭐ Beam sticker support (new Beam payload format)
   if (payload.platform === "beam" && payload.sticker?.src) {
     const ext = payload.sticker.animated ? "gif" : "png";
-    const url = `https://content.beamstream.gg/stickers/${payload.sticker.src}.${ext}`;
+    const url = `https://content.beamstream.gg/stickers/${payload.sticker.src}/image.${ext}`;
     textContent = `<img class="beam-sticker" src="${url}">`;
   }
 
