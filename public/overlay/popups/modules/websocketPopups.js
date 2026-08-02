@@ -10,7 +10,7 @@ const isIOS =
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 /* ---------------------------------------------------------
-   ⭐ Popups Socket Manager — HEARTBEAT DISABLED VERSION
+   ⭐ Popups Socket Manager — Velora Reconnect Enabled
 --------------------------------------------------------- */
 class PopupsSocketManager {
   constructor({ type, url, token = null, onEvent }) {
@@ -36,7 +36,10 @@ class PopupsSocketManager {
         ? {
             auth: { token: this.token },
             transports: ["websocket"],
-            reconnection: false,
+            reconnection: true,          // ⭐ ENABLE RECONNECT
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 500,
+            reconnectionDelayMax: 8000,
             timeout: 5000
           }
         : undefined;
@@ -47,8 +50,8 @@ class PopupsSocketManager {
         : new WebSocket(this.url);
 
     /* ---------------------------------------------------------
-       ⭐ SOCKET.IO (Velora)
-    --------------------------------------------------------- */
+       ⭐ SOCKET.IO (Velora) — RECONNECT ENABLED
+--------------------------------------------------------- */
     if (this.type === "velora") {
       this.socket.on("connect", () => {
         this.ready = true;
@@ -66,6 +69,7 @@ class PopupsSocketManager {
       });
 
       this.socket.on("event", (payload) => {
+        this.ready = true;  // ⭐ Velora woke up
         this.onEvent(payload);
       });
 
