@@ -74,6 +74,9 @@ class PopupsSocketManager {
         // ⭐ WAKE POPUPS OVERLAY
         sharedPopups.wake();
 
+        // ⭐ MARK ACTIVITY (Zombie detector)
+        sharedPopups.markPopupEvent();
+
         this.onEvent(payload);
       });
 
@@ -106,10 +109,14 @@ class PopupsSocketManager {
         // ⭐ WAKE POPUPS OVERLAY
         sharedPopups.wake();
 
+        // ⭐ MARK ACTIVITY
+        sharedPopups.markPopupEvent();
+
         this.onEvent(payload);
       } catch {
         // Non‑JSON messages still wake the overlay
         sharedPopups.wake();
+        sharedPopups.markPopupEvent();
       }
     });
   }
@@ -244,7 +251,8 @@ export async function setupPopupSocket() {
     type: "do",
     url: sharedPopups.wsURL,
     onEvent: (payload) => {
-      sharedPopups.wake();   // ⭐ WAKE POPUPS
+      sharedPopups.wake();           // ⭐ WAKE POPUPS
+      sharedPopups.markPopupEvent(); // ⭐ MARK ACTIVITY
       handlePopupBroadcast(payload);
     }
   });
@@ -261,7 +269,8 @@ export async function setupPopupSocket() {
     url: "wss://api.velora.tv/ws/events",
     token,
     onEvent: (payload) => {
-      sharedPopups.wake();   // ⭐ WAKE POPUPS
+      sharedPopups.wake();           // ⭐ WAKE POPUPS
+      sharedPopups.markPopupEvent(); // ⭐ MARK ACTIVITY
       handleVeloraEvent(payload);
     }
   });

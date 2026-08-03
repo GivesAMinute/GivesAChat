@@ -113,7 +113,7 @@ export async function sendToChatOverlay(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ Heartbeat watchdog — keeps WS alive forever
+   ⭐ Heartbeat watchdog — keeps Chat WS alive forever
 --------------------------------------------------------- */
 setInterval(() => {
   ensureChatWS();
@@ -174,5 +174,43 @@ sharedPopups.wake = function () {
     console.warn("[Popups] Wake failed:", err);
   }
 };
+
+/* ---------------------------------------------------------
+   ⭐ Popups Heartbeat — prevents Cloudflare idle disconnect
+--------------------------------------------------------- */
+setInterval(() => {
+  try {
+    const ws = sharedPopups.ws;
+    if (!ws) return;
+
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "ping" }));
+    }
+  } catch {}
+}, 25000); // 25s heartbeat
+
+/* ---------------------------------------------------------
+   ⭐ Zombie Socket Detector — OBS/CEF fix
+--------------------------------------------------------- */
+let lastPopupEvent = Date.now();
+
+sharedPopups.markPopupEvent = function () {
+  lastPopupEvent = Date.now();
+};
+
+setInterval(() => {
+  const ws = sharedPopups.ws;
+  if (!ws) return;
+
+  const now = Date.now();
+  const idle = now - lastPopupEvent;
+
+  // If idle for > 5 minutes, force reconnect
+  if (idle > 5 * 60 * 1000) {
+    try { ws.close(); } catch {}
+    sharedPopups.ws = new WebSocket(sharedPopups.wsURL);
+    lastPopupEvent = now;
+  }
+}, 60000); // check every minute
 
 export default sharedPopups;
