@@ -13,7 +13,10 @@ const sharedPopups = {
 
   // WebSocket references
   ws: null,        // popups WebSocket
-  chatWS: null     // chat WebSocket
+  chatWS: null,    // chat WebSocket
+
+  // Sleep timer reference
+  _sleepTimer: null
 };
 
 /* ---------------------------------------------------------
@@ -147,5 +150,29 @@ export async function loadVeloraAccessToken() {
     return sharedPopups.veloraAccessToken;
   }
 }
+
+/* ---------------------------------------------------------
+   ⭐ WAKE FUNCTION — restores popups wake behavior
+--------------------------------------------------------- */
+sharedPopups.wake = function () {
+  try {
+    const el = document.querySelector("#overlay-root");
+    if (!el) return;
+
+    // Wake immediately
+    el.style.opacity = "1";
+    el.style.pointerEvents = "auto";
+
+    // Reset sleep timer
+    clearTimeout(sharedPopups._sleepTimer);
+
+    sharedPopups._sleepTimer = setTimeout(() => {
+      el.style.opacity = "0";
+      el.style.pointerEvents = "none";
+    }, 15000); // same sleep timeout as chat overlay
+  } catch (err) {
+    console.warn("[Popups] Wake failed:", err);
+  }
+};
 
 export default sharedPopups;

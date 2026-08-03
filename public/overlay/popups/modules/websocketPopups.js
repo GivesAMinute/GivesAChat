@@ -36,7 +36,7 @@ class PopupsSocketManager {
         ? {
             auth: { token: this.token },
             transports: ["websocket"],
-            reconnection: true,          // ⭐ ENABLE RECONNECT
+            reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 500,
             reconnectionDelayMax: 8000,
@@ -69,7 +69,11 @@ class PopupsSocketManager {
       });
 
       this.socket.on("event", (payload) => {
-        this.ready = true;  // ⭐ Velora woke up
+        this.ready = true;
+
+        // ⭐ WAKE POPUPS OVERLAY
+        sharedPopups.wake();
+
         this.onEvent(payload);
       });
 
@@ -78,7 +82,7 @@ class PopupsSocketManager {
 
     /* ---------------------------------------------------------
        ⭐ RAW WEBSOCKET (Cloudflare Worker)
-       Heartbeat disabled — ANY message is valid.
+       ANY message is a valid wake event.
 --------------------------------------------------------- */
     this.socket.addEventListener("open", () => {
       this.ready = true;
@@ -98,9 +102,14 @@ class PopupsSocketManager {
     this.socket.addEventListener("message", (event) => {
       try {
         const payload = JSON.parse(event.data);
+
+        // ⭐ WAKE POPUPS OVERLAY
+        sharedPopups.wake();
+
         this.onEvent(payload);
       } catch {
-        // Non‑JSON messages still count as valid wake events
+        // Non‑JSON messages still wake the overlay
+        sharedPopups.wake();
       }
     });
   }
@@ -234,7 +243,10 @@ export async function setupPopupSocket() {
   const doManager = new PopupsSocketManager({
     type: "do",
     url: sharedPopups.wsURL,
-    onEvent: (payload) => handlePopupBroadcast(payload)
+    onEvent: (payload) => {
+      sharedPopups.wake();   // ⭐ WAKE POPUPS
+      handlePopupBroadcast(payload);
+    }
   });
 
   sharedPopups.ws = doManager.socket;
@@ -248,6 +260,9 @@ export async function setupPopupSocket() {
     type: "velora",
     url: "wss://api.velora.tv/ws/events",
     token,
-    onEvent: (payload) => handleVeloraEvent(payload)
+    onEvent: (payload) => {
+      sharedPopups.wake();   // ⭐ WAKE POPUPS
+      handleVeloraEvent(payload);
+    }
   });
 }
