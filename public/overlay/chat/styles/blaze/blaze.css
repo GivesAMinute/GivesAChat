@@ -16,16 +16,16 @@
   margin-right: 0;
 }
 
-/* Wrapper for badges + username line */
+/* Wrapper for badges + username line (if used) */
 .blaze-badge-wrapper {
   display: inline-flex;
   align-items: center;
   gap: 4px;                 /* ⭐ consistent spacing if wrapper is used */
 }
 
-/* Remove VIP text spacing (your VIP badge is now an image, so this is safe) */
+/* Remove VIP text spacing (your VIP badge is now an image) */
 .blaze-badge-wrapper span {
-  margin-left: 0;           /* no extra offset */
+  margin-left: 0;
   font-size: 12px;
   line-height: 1;
 }
