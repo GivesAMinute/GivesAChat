@@ -1,22 +1,26 @@
 export function renderBlazeBadges(payload) {
   const roles = payload.badges || [];
+  const html = [];
 
-  let html = "";
-
-  for (const role of roles) {
-    if (role === "moderator") {
-      html += `<img class="blaze-badge" src="/badges/blaze/mod.png">`;
-    }
-    if (role === "vip") {
-      html += `<img class="blaze-badge" src="/badges/blaze/vip.png">`;
-    }
-    if (role === "og") {
-      html += `<img class="blaze-badge" src="/badges/blaze/og.png">`;
-    }
-    if (role === "owner") {
-      html += `<img class="blaze-badge" src="/badges/blaze/broadcaster.png">`;
-    }
+  // Broadcaster / Owner FIRST
+  if (roles.includes("owner") || payload.isOwner) {
+    html.push(`<img class="blaze-badge" src="/badges/blaze/broadcaster.png">`);
   }
 
-  return html;
+  // OG SECOND
+  if (roles.includes("og")) {
+    html.push(`<img class="blaze-badge" src="/badges/blaze/og.png">`);
+  }
+
+  // VIP THIRD
+  if (roles.includes("vip")) {
+    html.push(`<img class="blaze-badge" src="/badges/blaze/vip.png">`);
+  }
+
+  // Moderator LAST
+  if (roles.includes("moderator")) {
+    html.push(`<img class="blaze-badge" src="/badges/blaze/mod.png">`);
+  }
+
+  return html.join("");
 }

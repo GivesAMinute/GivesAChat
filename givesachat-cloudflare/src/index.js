@@ -293,40 +293,43 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       12. Blaze → Worker → DO broadcast (RAW → NORMALIZED HERE)
-    --------------------------------------------------------- */
-    if (url.pathname === "/api/events/blaze" && request.method === "POST") {
-      let blazeEvent;
+   12. Blaze → Worker → DO broadcast (RAW → NORMALIZED HERE)
+--------------------------------------------------------- */
+if (url.pathname === "/api/events/blaze" && request.method === "POST") {
+  let blazeEvent;
 
-      try {
-        blazeEvent = await request.json();
-      } catch {
-        return new Response("Invalid JSON", { status: 400 });
-      }
+  try {
+    blazeEvent = await request.json();
+  } catch {
+    return new Response("Invalid JSON", { status: 400 });
+  }
 
-      const sender = blazeEvent.sender || {};
+  const sender = blazeEvent.sender || {};
 
-      const normalized = {
-        platform: "blaze",
-        username: sender.displayName || sender.username || "",
-        html: blazeEvent.message || "",
-        avatar: sender.avatarUrl || null,
-        badges: sender.roles || [],
-        sticker: null,
-        timestamp: Date.now()
-      };
-
-      const id = env.ChatRoom.idFromName("givesachat-main-v4");
-      const room = env.ChatRoom.get(id);
-
-      return room.fetch(
-        new Request("https://dummy/broadcast", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(normalized)
-        })
-      );
+  const normalized = {
+    type: "chat",
+    platform: "blaze",
+    data: {
+      username: sender.displayName || sender.username || "",
+      html: blazeEvent.message || "",
+      avatar: sender.avatarUrl || null,
+      badges: sender.roles || [],
+      sticker: null,
+      timestamp: Date.now()
     }
+  };
+
+  const id = env.ChatRoom.idFromName("givesachat-main-v4");
+  const room = env.ChatRoom.get(id);
+
+  return room.fetch(
+    new Request("https://dummy/broadcast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(normalized)
+    })
+  );
+}
 
     /* ---------------------------------------------------------
        Default fallback

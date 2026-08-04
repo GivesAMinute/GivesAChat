@@ -1,19 +1,31 @@
-/* Blaze badge styling */
-.blaze-badge-wrapper {
-  display: inline-flex;
-  align-items: center;
-  margin-right: 4px; /* ⭐ uniform spacing */
-}
+/* ---------------------------------------------------------
+   ⭐ Blaze Badge Styling (Corrected + Uniform Spacing)
+--------------------------------------------------------- */
 
+/* Each badge is an inline icon with equal spacing */
 .blaze-badge {
   height: 20px;
   width: auto;
   display: inline-block;
+  margin-right: 4px;        /* ⭐ equal spacing between badges */
+  vertical-align: middle;   /* keeps alignment consistent */
 }
 
-/* VIP badge fix — remove extra spacing caused by inline text */
+/* Remove trailing gap after the last badge */
+.blaze-badge:last-child {
+  margin-right: 0;
+}
+
+/* Wrapper for badges + username line */
+.blaze-badge-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;                 /* ⭐ consistent spacing if wrapper is used */
+}
+
+/* Remove VIP text spacing (your VIP badge is now an image, so this is safe) */
 .blaze-badge-wrapper span {
-  margin-left: 2px; /* tighter spacing */
+  margin-left: 0;           /* no extra offset */
   font-size: 12px;
   line-height: 1;
 }
