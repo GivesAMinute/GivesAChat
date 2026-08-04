@@ -1,12 +1,19 @@
 /* Blaze badge styling */
-.blaze-badge {
-  height: 20px;
-  width: auto;
-  margin-right: 4px;
-  display: inline-block;
-}
-
 .blaze-badge-wrapper {
   display: inline-flex;
   align-items: center;
+  margin-right: 4px; /* ⭐ uniform spacing */
+}
+
+.blaze-badge {
+  height: 20px;
+  width: auto;
+  display: inline-block;
+}
+
+/* VIP badge fix — remove extra spacing caused by inline text */
+.blaze-badge-wrapper span {
+  margin-left: 2px; /* tighter spacing */
+  font-size: 12px;
+  line-height: 1;
 }
