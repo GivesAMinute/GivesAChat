@@ -6,16 +6,18 @@ import {
   appendHtmlTextToBubble
 } from "./_shared.js";
 
-// Corrected import for public/overlay/chat/utils
 import { colorForUsername } from "../utils/usernameColors.js";
 
 export function renderBlazeMessage(msg) {
   if (!msg) return null;
 
-  const username = msg.username || "Unknown";
-  const html = msg.html || "";
-  const avatar = msg.avatar || null;
-  const badges = msg.badges || [];
+  // Blaze messages come in msg.data.*
+  const data = msg.data || {};
+
+  const username = data.username || "Unknown";
+  const html = data.html || "";
+  const avatar = data.avatar || null;
+  const badges = data.badges || [];
 
   // Root element
   const root = createBaseMessageElement("blaze");
