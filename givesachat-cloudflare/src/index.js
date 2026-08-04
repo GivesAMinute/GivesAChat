@@ -17,7 +17,6 @@ export default {
     const url = new URL(request.url);
     console.log("DEBUG Incoming path:", url.pathname);
 
-
     /* ---------------------------------------------------------
        0. Forced Overlay Route Normalization
     --------------------------------------------------------- */
@@ -222,7 +221,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       10. Beam → Worker → DO broadcast (SCRAPER NORMALIZED)
+       10. Beam → Worker → DO broadcast
     --------------------------------------------------------- */
     if (url.pathname === "/api/events/beam" && request.method === "POST") {
       let beamEvent;
@@ -233,23 +232,18 @@ export default {
         return new Response("Invalid JSON", { status: 400 });
       }
 
-      // ⭐ FIX: Ignore Velora messages coming from Beam
       if (beamEvent.platform === "velora") {
         return new Response("Ignored external Velora", { status: 200 });
       }
 
       const normalized = {
-        type: "chat",
         platform: beamEvent.platform || "beam",
-        data: {
-          username: beamEvent.username || "",
-          message: beamEvent.html || beamEvent.message || "",
-          html: beamEvent.html || "",
-          avatar: beamEvent.avatar || null,
-          badges: beamEvent.badges || [],
-          sticker: beamEvent.sticker || null,
-          timestamp: beamEvent.timestamp || Date.now()
-        }
+        username: beamEvent.username || "",
+        html: beamEvent.html || beamEvent.message || "",
+        avatar: beamEvent.avatar || null,
+        badges: beamEvent.badges || [],
+        sticker: beamEvent.sticker || null,
+        timestamp: beamEvent.timestamp || Date.now()
       };
 
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
@@ -265,7 +259,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       11. External → Worker → DO broadcast (SCRAPER NORMALIZED)
+       11. External → Worker → DO broadcast
     --------------------------------------------------------- */
     if (url.pathname === "/api/events/external" && request.method === "POST") {
       let externalEvent;
@@ -277,17 +271,13 @@ export default {
       }
 
       const normalized = {
-        type: "chat",
         platform: externalEvent.platform || "external",
-        data: {
-          username: externalEvent.username || "",
-          message: externalEvent.html || externalEvent.message || "",
-          html: externalEvent.html || "",
-          avatar: externalEvent.avatar || null,
-          badges: externalEvent.badges || [],
-          sticker: externalEvent.sticker || null,
-          timestamp: externalEvent.timestamp || Date.now()
-        }
+        username: externalEvent.username || "",
+        html: externalEvent.html || externalEvent.message || "",
+        avatar: externalEvent.avatar || null,
+        badges: externalEvent.badges || [],
+        sticker: externalEvent.sticker || null,
+        timestamp: externalEvent.timestamp || Date.now()
       };
 
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
@@ -303,8 +293,7 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       12. Blaze → Worker → DO broadcast (SCRAPER NORMALIZED)
-       Blaze is its own module; Beam does NOT pull Blaze.
+       12. Blaze → Worker → DO broadcast (RAW → NORMALIZED HERE)
     --------------------------------------------------------- */
     if (url.pathname === "/api/events/blaze" && request.method === "POST") {
       let blazeEvent;
@@ -315,18 +304,16 @@ export default {
         return new Response("Invalid JSON", { status: 400 });
       }
 
+      const sender = blazeEvent.sender || {};
+
       const normalized = {
-        type: "chat",
         platform: "blaze",
-        data: {
-          username: blazeEvent.username || "",
-          message: blazeEvent.html || blazeEvent.message || "",
-          html: blazeEvent.html || "",
-          avatar: blazeEvent.avatar || null,
-          badges: blazeEvent.badges || [],
-          sticker: blazeEvent.sticker || null,
-          timestamp: blazeEvent.timestamp || Date.now()
-        }
+        username: sender.displayName || sender.username || "",
+        html: blazeEvent.message || "",
+        avatar: sender.avatarUrl || null,
+        badges: sender.roles || [],
+        sticker: null,
+        timestamp: Date.now()
       };
 
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
@@ -341,6 +328,9 @@ export default {
       );
     }
 
+    /* ---------------------------------------------------------
+       Default fallback
+    --------------------------------------------------------- */
     return new Response("Not found", { status: 404 });
   }
 };

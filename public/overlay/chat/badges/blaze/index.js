@@ -1,19 +1,22 @@
-// overlay/chat/badges/blaze/index.js
+export function renderBlazeBadges(payload) {
+  const roles = payload.badges || [];
 
-export function renderBlazeBadges(msg) {
-  let out = "";
+  let html = "";
 
-  // Blaze now sends an array of absolute badge URLs
-  const badges = msg.badges || [];
-
-  for (const url of badges) {
-    out += `
-<span class="tooltip-wrapper">
-  <span class="blaze-badge-wrapper">
-    <img src="${url}" class="blaze-badge" alt="badge" />
-  </span>
-</span>`;
+  for (const role of roles) {
+    if (role === "moderator") {
+      html += `<img class="blaze-badge" src="/badges/blaze/mod.png">`;
+    }
+    if (role === "vip") {
+      html += `<img class="blaze-badge" src="/badges/blaze/vip.png">`;
+    }
+    if (role === "og") {
+      html += `<img class="blaze-badge" src="/badges/blaze/og.png">`;
+    }
+    if (role === "owner") {
+      html += `<img class="blaze-badge" src="/badges/blaze/broadcaster.png">`;
+    }
   }
 
-  return out;
+  return html;
 }
