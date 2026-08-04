@@ -1,0 +1,12 @@
+/* Blaze badge styling */
+.blaze-badge {
+  height: 20px;
+  width: auto;
+  margin-right: 4px;
+  display: inline-block;
+}
+
+.blaze-badge-wrapper {
+  display: inline-flex;
+  align-items: center;
+}
