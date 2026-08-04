@@ -307,17 +307,19 @@ if (url.pathname === "/api/events/blaze" && request.method === "POST") {
   const sender = blazeEvent.sender || {};
 
   const normalized = {
-    type: "chat",
-    platform: "blaze",
-    data: {
-      username: sender.displayName || sender.username || "",
-      html: blazeEvent.message || "",
-      avatar: sender.avatarUrl || null,
-      badges: sender.roles || [],
-      sticker: null,
-      timestamp: Date.now()
-    }
-  };
+  type: "chat",
+  platform: "blaze",
+  data: {
+    username: sender.displayName || sender.username || "",
+    html: blazeEvent.message || "",
+    avatar: sender.avatarUrl || null,
+    badges: sender.roles || [],
+    isOwner: sender.isOwner || false,   // ⭐ THIS IS THE FIX
+    sticker: null,
+    timestamp: Date.now()
+  }
+};
+
 
   const id = env.ChatRoom.idFromName("givesachat-main-v4");
   const room = env.ChatRoom.get(id);
