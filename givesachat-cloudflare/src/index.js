@@ -295,6 +295,15 @@ export default {
     /* ---------------------------------------------------------
    12. Blaze → Worker → DO broadcast (RAW → NORMALIZED HERE)
 --------------------------------------------------------- */
+
+// ⭐ Emote scaling helper
+function scaleBlazeEmotes(html) {
+  return html.replace(
+    /([\u{1F300}-\u{1FAFF}])/gu,
+    '<span class="blaze-emote">$1</span>'
+  );
+}
+
 if (url.pathname === "/api/events/blaze" && request.method === "POST") {
   let blazeEvent;
 
@@ -307,19 +316,18 @@ if (url.pathname === "/api/events/blaze" && request.method === "POST") {
   const sender = blazeEvent.sender || {};
 
   const normalized = {
-  type: "chat",
-  platform: "blaze",
-  data: {
-    username: sender.displayName || sender.username || "",
-    html: blazeEvent.message || "",
-    avatar: sender.avatarUrl || null,
-    badges: sender.roles || [],
-    isOwner: sender.isOwner || false,   // ⭐ THIS IS THE FIX
-    sticker: null,
-    timestamp: Date.now()
-  }
-};
-
+    type: "chat",
+    platform: "blaze",
+    data: {
+      username: sender.displayName || sender.username || "",
+      html: scaleBlazeEmotes(blazeEvent.message || ""),   // ⭐ EMOTE SCALING
+      avatar: sender.avatarUrl || null,
+      badges: sender.roles || [],
+      isOwner: sender.isOwner || false,                   // ⭐ BROADCASTER FIX
+      sticker: null,
+      timestamp: Date.now()
+    }
+  };
 
   const id = env.ChatRoom.idFromName("givesachat-main-v4");
   const room = env.ChatRoom.get(id);

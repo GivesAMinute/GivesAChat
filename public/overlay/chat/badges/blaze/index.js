@@ -17,11 +17,11 @@ export function renderBlazeBadges(payload) {
     badges.push(`<img class="blaze-badge vip" src="/badges/blaze/vip.png">`);
   }
 
-  // Moderator LAST — ⭐ add .mod class for spacing fix
+  // Moderator LAST — includes .mod class for spacing fix
   if (roles.includes("moderator")) {
     badges.push(`<img class="blaze-badge mod" src="/badges/blaze/mod.png">`);
   }
 
-  // ⭐ CRITICAL FIX: no whitespace, single flex wrapper
+  // No whitespace, single flex wrapper
   return `<span class="blaze-badge-group">${badges.join("")}</span>`;
 }

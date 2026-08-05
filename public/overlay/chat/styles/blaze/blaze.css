@@ -17,3 +17,11 @@
 .blaze-badge.mod {
   margin-left: -13px; /* pull MOD closer to VIP */
 }
+
+/* ⭐ Blaze emote scaling */
+.blaze-emote {
+  font-size: 60px !important;   /* 3× Blaze default size */
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
+}
