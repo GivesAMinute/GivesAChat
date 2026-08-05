@@ -3,14 +3,11 @@
   "name": "givesachat-cloudflare",
   "main": "src/index.js",
   "compatibility_date": "2026-07-11",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
   },
   "upload_source_maps": true,
-
   "durable_objects": {
     "bindings": [
       {
@@ -27,8 +24,6 @@
       }
     ]
   },
-
-  // 🔥 Declarative DO lifecycle: no migrations, no tags
   "exports": {
     "ChatRoom": {
       "type": "durable-object",
@@ -43,19 +38,16 @@
       "storage": "sqlite"
     }
   },
-
   "vars": {
     "VELORA_CLIENT_ID": "velora_45271c710e18820f",
     "VELORA_CLIENT_SECRET": "522e9013c276e1992e66fc6b3bdbfc4857620c5090a6df147cee56be41226566",
     "VELORA_REDIRECT_URI": "https://givesachat-cloudflare.benonkoebsch.workers.dev/velora/callback",
-
     "YOUTUBE_LIVE_CHAT_ID": "KicKGFVDQ2RhT3BCUTBRdFM3VFlmZk5MUVppURILY2Y0M0JTYUpMclU"
   },
-
   "assets": {
     "directory": "../public",
     "binding": "ASSETS"
   },
-
-  "workers_dev": true
+  "workers_dev": true,
+  "preview_urls": false
 }

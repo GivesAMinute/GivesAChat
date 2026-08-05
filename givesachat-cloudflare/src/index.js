@@ -1,18 +1,13 @@
 import { VERSION } from "./version.js";
-
 import { ChatRoom } from "./chatRoom.js";
 import { PopupRoom } from "./popupRoom.js";
-
 import {
   generateAuthorizationUrl,
   exchangeAuthCode,
   getVeloraAccessToken
 } from "./veloraAuth.js";
-
 import { transformVeloraEvent } from "./veloraTransform.js";
 import { VeloraTokenStore } from "./veloraTokenStore.js";
-
-import { transformBeamMessage } from "./beamTransform.js";
 
 export { ChatRoom, VeloraTokenStore, PopupRoom };
 
@@ -21,24 +16,18 @@ export default {
     const url = new URL(request.url);
     console.log("DEBUG Incoming path:", url.pathname);
 
-    /* ---------------------------------------------------------
-       0. Forced Overlay Route Normalization
-    --------------------------------------------------------- */
+    if (request.method === "GET" && url.pathname === "/") {
+      url.pathname = "/overlay/chat/";
+      return Response.redirect(url.toString(), 301);
+    }
+
     if (request.method === "GET") {
       if (url.pathname === "/overlay/chat") {
         url.pathname = "/overlay/chat/";
         return Response.redirect(url.toString(), 301);
       }
-
-      if (url.pathname === "/overlay/chat/main.js") {
-        url.pathname = "/overlay/chat/";
-        return Response.redirect(url.toString(), 301);
-      }
     }
 
-    /* ---------------------------------------------------------
-       1. Beamstream viewer proxy
-    --------------------------------------------------------- */
     if (url.pathname === "/api/viewers") {
       try {
         const beamUrl =
@@ -87,56 +76,45 @@ export default {
       }
     }
 
-    /* ---------------------------------------------------------
-       2. Static assets
-    --------------------------------------------------------- */
     if (request.method === "GET") {
       let path = url.pathname;
-
       if (path.endsWith("/")) {
         path += "index.html";
       }
 
       const assetUrl = new URL(path, request.url);
-
-      const assetResponse = await env.ASSETS.fetch(
+      let assetResponse = await env.ASSETS.fetch(
         new Request(assetUrl, request)
       );
 
       if (assetResponse.status !== 404) {
+        const ext = path.split(".").pop();
+        if (ext === "js") {
+          assetResponse = new Response(assetResponse.body, {
+            headers: { "Content-Type": "application/javascript" }
+          });
+        }
         return assetResponse;
       }
     }
 
-    /* ---------------------------------------------------------
-       3. WebSocket for chat overlay
-    --------------------------------------------------------- */
     if (url.pathname === "/ws/chat") {
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
       const room = env.ChatRoom.get(id);
       return room.fetch(request);
     }
 
-    /* ---------------------------------------------------------
-       4. WebSocket for popup overlay
-    --------------------------------------------------------- */
     if (url.pathname === "/ws/popups") {
       const id = env.PopupRoom.idFromName("givesachat-popups-v3");
       const room = env.PopupRoom.get(id);
       return room.fetch(request);
     }
 
-    /* ---------------------------------------------------------
-       5. Velora OAuth login
-    --------------------------------------------------------- */
     if (url.pathname === "/velora/login" && request.method === "GET") {
       const authUrl = generateAuthorizationUrl(env);
       return Response.redirect(authUrl, 302);
     }
 
-    /* ---------------------------------------------------------
-       6. Velora OAuth callback
-    --------------------------------------------------------- */
     if (url.pathname === "/velora/callback" && request.method === "GET") {
       const code = url.searchParams.get("code");
       if (!code) return new Response("Missing code", { status: 400 });
@@ -149,10 +127,10 @@ export default {
       return new Response("Velora authorized. You can close this window.");
     }
 
-    /* ---------------------------------------------------------
-       7. Velora access token endpoint
-    --------------------------------------------------------- */
-    if (url.pathname === "/api/velora/access-token" && request.method === "GET") {
+    if (
+      url.pathname === "/api/velora/access-token" &&
+      request.method === "GET"
+    ) {
       const token = await getVeloraAccessToken(env);
 
       if (!token) {
@@ -168,9 +146,6 @@ export default {
       });
     }
 
-    /* ---------------------------------------------------------
-       8. DO routing block
-    --------------------------------------------------------- */
     if (url.pathname.startsWith("/velora-token")) {
       const id = env.VeloraTokenStore.idFromName("velora-tokens");
       const stub = env.VeloraTokenStore.get(id);
@@ -189,9 +164,6 @@ export default {
       });
     }
 
-    /* ---------------------------------------------------------
-       9. Velora → Worker → DO broadcast
-    --------------------------------------------------------- */
     if (url.pathname === "/api/events/velora" && request.method === "POST") {
       let veloraEvent;
 
@@ -223,9 +195,6 @@ export default {
       );
     }
 
-    /* ---------------------------------------------------------
-       10. Beam → Worker → DO broadcast
-    --------------------------------------------------------- */
     if (url.pathname === "/api/events/beam" && request.method === "POST") {
       let beamEvent;
 
@@ -235,13 +204,19 @@ export default {
         return new Response("Invalid JSON", { status: 400 });
       }
 
-      // Transform Beam raw event → normalized overlay format
-      const normalized = transformBeamMessage(beamEvent);
-
-      // If null → excluded (Velora/Blaze)
-      if (!normalized) {
-        return new Response("Ignored", { status: 200 });
+      if (beamEvent.platform === "velora") {
+        return new Response("Ignored external Velora", { status: 200 });
       }
+
+      const normalized = {
+        platform: beamEvent.platform || "beam",
+        username: beamEvent.username || "",
+        html: beamEvent.html || beamEvent.message || "",
+        avatar: beamEvent.avatar || null,
+        badges: beamEvent.badges || [],
+        sticker: beamEvent.sticker || null,
+        timestamp: beamEvent.timestamp || Date.now()
+      };
 
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
       const room = env.ChatRoom.get(id);
@@ -255,10 +230,10 @@ export default {
       );
     }
 
-    /* ---------------------------------------------------------
-       11. External → Worker → DO broadcast
-    --------------------------------------------------------- */
-    if (url.pathname === "/api/events/external" && request.method === "POST") {
+    if (
+      url.pathname === "/api/events/external" &&
+      request.method === "POST"
+    ) {
       let externalEvent;
 
       try {
@@ -288,10 +263,6 @@ export default {
         })
       );
     }
-
-    /* ---------------------------------------------------------
-       12. Blaze → Worker → DO broadcast (RAW → NORMALIZED HERE)
-    --------------------------------------------------------- */
 
     function scaleBlazeEmotes(html) {
       return html.replace(
@@ -337,9 +308,6 @@ export default {
       );
     }
 
-    /* ---------------------------------------------------------
-       Default fallback
-    --------------------------------------------------------- */
     return new Response("Not found", { status: 404 });
   }
 };
