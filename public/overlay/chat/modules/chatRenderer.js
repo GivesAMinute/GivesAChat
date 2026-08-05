@@ -2,6 +2,7 @@ import { speakText } from "./tts.js";
 import { renderBlazeBadges } from "../badges/blaze/index.js";
 import { renderVeloraBadges } from "../badges/velora/index.js";
 import { renderYouTubeBadges } from "../badges/youtube/index.js";
+import { renderBeamBadges } from "../badges/beam/index.js";   // ⭐ ADDED
 import { colorForUsername } from "../utils/usernameColors.js";
 
 /* ---------------------------------------------------------
@@ -133,6 +134,9 @@ function handleChat(payload, container) {
     ? `<img class="inline-avatar" src="${payload.avatar}">`
     : "";
 
+  /* ---------------------------------------------------------
+     ⭐ PLATFORM BADGES (Beam added)
+  --------------------------------------------------------- */
   let badgesHTML = "";
   if (payload.platform === "blaze") {
     badgesHTML = renderBlazeBadges(payload);
@@ -140,15 +144,16 @@ function handleChat(payload, container) {
     badgesHTML = renderVeloraBadges(payload);
   } else if (payload.platform === "youtube") {
     badgesHTML = renderYouTubeBadges(payload);
+  } else if (payload.platform === "beam") {        // ⭐ ADDED
+    badgesHTML = renderBeamBadges(payload);
   }
 
   const bubble = document.createElement("div");
   bubble.className = "bubble";
 
   /* ---------------------------------------------------------
-     ⭐ EFFECT LOGIC (Gigantify FIXED)
+     ⭐ EFFECT LOGIC (Velora only)
   --------------------------------------------------------- */
-
   if (payload.platform === "velora") {
 
     // Glow
