@@ -15,5 +15,5 @@
 
 /* ⭐ Manual correction for MOD badge spacing */
 .blaze-badge.mod {
-  margin-left: -10px; /* pull MOD closer to VIP */
+  margin-left: -15px; /* pull MOD closer to VIP */
 }
