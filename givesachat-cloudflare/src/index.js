@@ -2,13 +2,17 @@ import { VERSION } from "./version.js";
 
 import { ChatRoom } from "./chatRoom.js";
 import { PopupRoom } from "./popupRoom.js";
+
 import {
   generateAuthorizationUrl,
   exchangeAuthCode,
   getVeloraAccessToken
 } from "./veloraAuth.js";
+
 import { transformVeloraEvent } from "./veloraTransform.js";
 import { VeloraTokenStore } from "./veloraTokenStore.js";
+
+import { transformBeamMessage } from "./beamTransform.js";
 
 export { ChatRoom, VeloraTokenStore, PopupRoom };
 
@@ -47,7 +51,7 @@ export default {
 
         const res = await fetch(beamUrl, {
           method: "GET",
-          headers: { "Accept": "application/json" }
+          headers: { Accept: "application/json" }
         });
 
         const data = await res.json();
@@ -66,7 +70,6 @@ export default {
         await cache.put(cacheKey, response.clone());
 
         return response;
-
       } catch (err) {
         return new Response(
           JSON.stringify({
@@ -232,19 +235,13 @@ export default {
         return new Response("Invalid JSON", { status: 400 });
       }
 
-      if (beamEvent.platform === "velora") {
-        return new Response("Ignored external Velora", { status: 200 });
-      }
+      // Transform Beam raw event → normalized overlay format
+      const normalized = transformBeamMessage(beamEvent);
 
-      const normalized = {
-        platform: beamEvent.platform || "beam",
-        username: beamEvent.username || "",
-        html: beamEvent.html || beamEvent.message || "",
-        avatar: beamEvent.avatar || null,
-        badges: beamEvent.badges || [],
-        sticker: beamEvent.sticker || null,
-        timestamp: beamEvent.timestamp || Date.now()
-      };
+      // If null → excluded (Velora/Blaze)
+      if (!normalized) {
+        return new Response("Ignored", { status: 200 });
+      }
 
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
       const room = env.ChatRoom.get(id);
@@ -293,53 +290,52 @@ export default {
     }
 
     /* ---------------------------------------------------------
-   12. Blaze → Worker → DO broadcast (RAW → NORMALIZED HERE)
---------------------------------------------------------- */
+       12. Blaze → Worker → DO broadcast (RAW → NORMALIZED HERE)
+    --------------------------------------------------------- */
 
-// ⭐ Emote scaling helper
-function scaleBlazeEmotes(html) {
-  return html.replace(
-    /([\u{1F300}-\u{1FAFF}])/gu,
-    '<span class="blaze-emote">$1</span>'
-  );
-}
-
-if (url.pathname === "/api/events/blaze" && request.method === "POST") {
-  let blazeEvent;
-
-  try {
-    blazeEvent = await request.json();
-  } catch {
-    return new Response("Invalid JSON", { status: 400 });
-  }
-
-  const sender = blazeEvent.sender || {};
-
-  const normalized = {
-    type: "chat",
-    platform: "blaze",
-    data: {
-      username: sender.displayName || sender.username || "",
-      html: scaleBlazeEmotes(blazeEvent.message || ""),   // ⭐ EMOTE SCALING
-      avatar: sender.avatarUrl || null,
-      badges: sender.roles || [],
-      isOwner: sender.isOwner || false,                   // ⭐ BROADCASTER FIX
-      sticker: null,
-      timestamp: Date.now()
+    function scaleBlazeEmotes(html) {
+      return html.replace(
+        /([\u{1F300}-\u{1FAFF}])/gu,
+        '<span class="blaze-emote">$1</span>'
+      );
     }
-  };
 
-  const id = env.ChatRoom.idFromName("givesachat-main-v4");
-  const room = env.ChatRoom.get(id);
+    if (url.pathname === "/api/events/blaze" && request.method === "POST") {
+      let blazeEvent;
 
-  return room.fetch(
-    new Request("https://dummy/broadcast", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(normalized)
-    })
-  );
-}
+      try {
+        blazeEvent = await request.json();
+      } catch {
+        return new Response("Invalid JSON", { status: 400 });
+      }
+
+      const sender = blazeEvent.sender || {};
+
+      const normalized = {
+        type: "chat",
+        platform: "blaze",
+        data: {
+          username: sender.displayName || sender.username || "",
+          html: scaleBlazeEmotes(blazeEvent.message || ""),
+          avatar: sender.avatarUrl || null,
+          badges: sender.roles || [],
+          isOwner: sender.isOwner || false,
+          sticker: null,
+          timestamp: Date.now()
+        }
+      };
+
+      const id = env.ChatRoom.idFromName("givesachat-main-v4");
+      const room = env.ChatRoom.get(id);
+
+      return room.fetch(
+        new Request("https://dummy/broadcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(normalized)
+        })
+      );
+    }
 
     /* ---------------------------------------------------------
        Default fallback
