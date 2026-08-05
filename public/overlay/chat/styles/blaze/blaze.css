@@ -2,19 +2,17 @@
    ⭐ Blaze Badge Styling (Corrected + Uniform Spacing)
 --------------------------------------------------------- */
 
-/* Wrapper for ALL Blaze badges — ensures perfect spacing */
 .blaze-badge-group {
   display: inline-flex;
   align-items: center;
-  gap: 4px;                 /* ⭐ equal spacing between badges */
+  gap: 4px;                 /* ⭐ perfect equal spacing */
 }
 
-/* Individual badge icons */
 .blaze-badge {
   height: 20px;
   width: auto;
   display: inline-block;
-  vertical-align: middle;   /* keeps alignment consistent */
+  vertical-align: middle;
 }
 
 /* Remove VIP text spacing (safe even if unused) */
