@@ -74,33 +74,31 @@ function getMessagesContainer() {
 }
 
 /* ---------------------------------------------------------
-   ⭐ BROADCAST HANDLER — FIXED
-   Chat overlay must handle ALL events.
+   ⭐ BROADCAST HANDLER — Velora preserved, Beam fixed
 --------------------------------------------------------- */
 function handleBroadcast(payload) {
   const container = getMessagesContainer();
   if (!container) return;
 
-  // ⭐ Velora system messages (stream alerts, raids, etc.)
   if (payload.type === "velora_system") {
-    renderVeloraSystemMessage(payload.event, payload.data, container);
+    renderVeloraSystemMessage("channel.stream_alert", payload.data, container);
     return;
   }
 
-  // ⭐ Velora rewards
   if (payload.type === "reward" && payload.platform === "velora") {
     handleReward(payload, container);
     showRewardPopup(payload);
     return;
   }
 
-  // ⭐ Chat messages (Velora + Beam + external)
   if (payload.type === "chat") {
+    // Velora (and any flat payloads) stay as-is
     if (!payload.data || payload.platform === "velora") {
       handleChat(payload, container);
       return;
     }
 
+    // Beam / external / anything using { data: { ... } }
     const merged = {
       platform: payload.platform,
       ...payload.data
@@ -110,16 +108,8 @@ function handleBroadcast(payload) {
     return;
   }
 
-  // ⭐ Velora stream alerts (popups + chat overlay)
   if (payload.type === "velora_alert") {
     handleVeloraStreamAlert(payload.data);
-    return;
-  }
-
-  // ⭐ ANY OTHER EVENT (date, viewer count, etc.)
-  if (payload.type === "system") {
-    // system.date, system.viewer_count, etc.
-    renderVeloraSystemMessage(payload.event, payload.data, container);
     return;
   }
 }
@@ -207,3 +197,4 @@ export {
   handleBroadcast,
   getMessagesContainer
 };
+
