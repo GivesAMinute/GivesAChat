@@ -4,8 +4,7 @@ import {
   createBubble,
   appendBadgesToBubble,
   appendHtmlTextToBubble
-} from "./_shared.js";
-
+} from "/overlay/shared/_shared.js";
 import { colorForUsername } from "../utils/usernameColors.js";
 
 export function renderBlazeMessage(msg) {
@@ -13,7 +12,6 @@ export function renderBlazeMessage(msg) {
 
   // Blaze messages come in msg.data.*
   const data = msg.data || {};
-
   const username = data.username || "Unknown";
   const html = data.html || "";
   const avatar = data.avatar || null;
@@ -38,7 +36,7 @@ export function renderBlazeMessage(msg) {
   appendHtmlTextToBubble(bubble, html);
 
   root.appendChild(bubble);
-
   applyExit(root);
+
   return root;
 }

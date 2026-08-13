@@ -1,0 +1,8 @@
+{
+  "name": "givesachat-cloudflare",
+  "version": "1.0.0",
+  "type": "module",
+  "devDependencies": {
+    "wrangler": "4.122.0"
+  }
+}

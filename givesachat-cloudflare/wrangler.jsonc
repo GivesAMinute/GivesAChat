@@ -3,18 +3,25 @@
 
   "name": "givesachat-cloudflare",
 
-  // ⭐ REQUIRED: correct path
+  // Your Worker entrypoint
   "main": "./src/index.js",
 
+  // ⭐ CRITICAL: Disable Wrangler build pipeline
+  "build": {
+    "command": "",
+    "cwd": ".",
+    "watch_dir": "./src"
+  },
+
+  // Cloudflare runtime
   "compatibility_date": "2026-07-11",
   "compatibility_flags": ["nodejs_compat"],
 
-  "observability": {
-    "enabled": true
-  },
-
+  // Logging
+  "observability": { "enabled": true },
   "upload_source_maps": true,
 
+  // ⭐ Durable Object bindings
   "durable_objects": {
     "bindings": [
       { "name": "ChatRoom", "class_name": "ChatRoom" },
@@ -23,23 +30,27 @@
     ]
   },
 
+  // ⭐ DO exports
   "exports": {
     "ChatRoom": { "type": "durable-object", "storage": "sqlite" },
     "VeloraTokenStore": { "type": "durable-object", "storage": "sqlite" },
     "PopupRoom": { "type": "durable-object", "storage": "sqlite" }
   },
 
+  // Environment variables
   "vars": {
     "VELORA_CLIENT_ID": "velora_45271c710e18820f",
     "VELORA_CLIENT_SECRET": "522e9013c276e1992e66fc6b3bdbfc4857620c5090a6df147cee56be41226566",
     "VELORA_REDIRECT_URI": "https://givesachat-cloudflare.benonkoebsch.workers.dev/velora/callback"
   },
 
+  // Static assets
   "assets": {
     "directory": "../public",
     "binding": "ASSETS"
   },
 
+  // Deployment mode
   "workers_dev": true,
   "preview_urls": false
 }
