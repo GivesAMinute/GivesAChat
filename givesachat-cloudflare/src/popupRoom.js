@@ -8,23 +8,25 @@ export class PopupRoom {
   }
 
   async fetch(request) {
-    const url = new URL(request.url);
+    try {
+      const url = new URL(request.url);
 
-    if (request.headers.get("Upgrade") === "websocket") {
-      return this.handleWebSocket(request);
+      if (request.headers.get("Upgrade") === "websocket") {
+        return this.handleWebSocket(request);
+      }
+
+      if (request.method === "POST" && url.pathname === "/broadcast") {
+        const event = await request.json();
+        this.broadcast(event);
+        return new Response("OK");
+      }
+
+      return new Response("Not found", { status: 404 });
+    } catch (err) {
+      return new Response("PopupRoom error: " + err.message, {
+        status: 500
+      });
     }
-
-    if (request.method === "POST" && url.pathname === "/broadcast") {
-      const event = await request.json();
-      this.broadcast(event);
-      return new Response("OK");
-    }
-
-    return new Response("Not found", { status: 404 });
-  }
-
-  async alarm() {
-    // No idle shutdown
   }
 
   handleWebSocket(request) {
@@ -36,7 +38,7 @@ export class PopupRoom {
     this.clients.push(server);
 
     const cleanup = () => {
-      this.clients = this.clients.filter((ws) => ws !== server);
+      this.clients = this.clients.filter(ws => ws !== server);
     };
 
     server.addEventListener("close", cleanup);
@@ -58,7 +60,9 @@ export class PopupRoom {
       try {
         ws.send(payload);
         alive.push(ws);
-      } catch {}
+      } catch {
+        // dead socket
+      }
     }
 
     this.clients = alive;

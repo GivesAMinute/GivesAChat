@@ -7,8 +7,12 @@ export class VeloraTokenStore {
   }
 
   async getTokens() {
-    const stored = await this.storage.get("tokens");
-    return stored || null;
+    try {
+      const stored = await this.storage.get("tokens");
+      return stored || null;
+    } catch {
+      return null;
+    }
   }
 
   async saveTokens(json) {
@@ -25,27 +29,33 @@ export class VeloraTokenStore {
   }
 
   async fetch(request) {
-    const url = new URL(request.url);
+    try {
+      const url = new URL(request.url);
 
-    if (url.pathname.endsWith("/get")) {
-      const tokens = await this.getTokens();
-      return new Response(JSON.stringify(tokens || {}), {
-        status: 200,
-        headers: { "Content-Type": "application/json" }
+      if (url.pathname.endsWith("/get")) {
+        const tokens = await this.getTokens();
+        return new Response(JSON.stringify(tokens || {}), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      if (url.pathname.endsWith("/set")) {
+        const body = await request.json();
+        await this.saveTokens(body);
+
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      return new Response("VeloraTokenStore DO", { status: 200 });
+    } catch (err) {
+      return new Response("VeloraTokenStore error: " + err.message, {
+        status: 500
       });
     }
-
-    if (url.pathname.endsWith("/set")) {
-      const body = await request.json();
-      await this.saveTokens(body);
-
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-
-    return new Response("VeloraTokenStore DO", { status: 200 });
   }
 }
 

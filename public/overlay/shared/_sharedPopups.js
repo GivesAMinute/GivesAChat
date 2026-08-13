@@ -1,12 +1,12 @@
 /* ---------------------------------------------------------
-   ⭐ Shared Popups State
+   ⭐ Shared Popups State (ABSOLUTE WS URLs — Cloudflare‑SAFE)
 --------------------------------------------------------- */
 const sharedPopups = {
-  // Cloudflare popup WebSocket endpoint
-  wsURL: `${location.origin.replace("http", "ws")}/ws/popups`,
+  // Cloudflare popup WebSocket endpoint (MUST be absolute)
+  wsURL: "wss://givesachat-cloudflare.benonkoebsch.workers.dev/ws/popups",
 
-  // Chat overlay WebSocket endpoint
-  chatWSURL: `${location.origin.replace("http", "ws")}/ws/chat`,
+  // Chat overlay WebSocket endpoint (MUST be absolute)
+  chatWSURL: "wss://givesachat-cloudflare.benonkoebsch.workers.dev/ws/chat",
 
   // Velora access token (loaded at runtime)
   veloraAccessToken: null,
