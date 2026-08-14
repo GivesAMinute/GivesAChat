@@ -350,6 +350,38 @@ export default {
         return new Response("Invalid JSON", { status: 400 });
       }
 
+      /* -----------------------------------------------------
+         Diagnostic for the "1st GIVER" claim events.
+
+         Logs any event the transformer doesn't recognise, plus
+         any chat message still containing {placeholders} — the
+         claim template arrives unsubstituted, so that pattern
+         identifies it without dumping every ordinary message
+         into the log.
+      ----------------------------------------------------- */
+      const knownEvents = [
+        "chat.message",
+        "channel.channel_points_redemption",
+        "pointsCelebration",
+        "channel.follow",
+        "channel.subscribe",
+        "channel.subscription.gift",
+        "channel.volts",
+        "channel.raid",
+        "channel.stream_alert"
+      ];
+
+      const rawText = JSON.stringify(veloraEvent?.data ?? {});
+      const looksTemplated = /\{(username|times|place|count|amount)\}/i.test(rawText);
+
+      if (!knownEvents.includes(veloraEvent.event) || looksTemplated) {
+        console.log(
+          "[VELORA UNMAPPED]",
+          veloraEvent.event,
+          JSON.stringify(veloraEvent).slice(0, 1200)
+        );
+      }
+
       const mapped = await transformVeloraEvent(
         veloraEvent.event,
         veloraEvent,
