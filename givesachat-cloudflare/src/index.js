@@ -175,25 +175,14 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       8. DO routing block
+       8. REMOVED: public /velora-token proxy
+
+       This route exposed the stored access_token AND refresh_token
+       to anyone on the internet, and /velora-token/set allowed
+       overwriting them. Nothing needed it: the worker talks to the
+       token store through the env.VeloraTokenStore binding (see
+       getVeloraTokens/saveVeloraTokens), and no browser code calls it.
     --------------------------------------------------------- */
-    if (url.pathname.startsWith("/velora-token")) {
-      const id = env.VeloraTokenStore.idFromName("velora-tokens");
-      const stub = env.VeloraTokenStore.get(id);
-
-      const body =
-        request.method !== "GET" && request.method !== "HEAD"
-          ? await request.text()
-          : null;
-
-      const headers = new Headers(request.headers);
-
-      return stub.fetch("https://do" + url.pathname, {
-        method: request.method,
-        headers,
-        body
-      });
-    }
 
     /* ---------------------------------------------------------
        9. Velora → Worker → DO broadcast
