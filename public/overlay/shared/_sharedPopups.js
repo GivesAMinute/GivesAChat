@@ -1,12 +1,28 @@
 /* ---------------------------------------------------------
    ⭐ Shared Popups State (ABSOLUTE WS URLs — Cloudflare‑SAFE)
 --------------------------------------------------------- */
+/* ---------------------------------------------------------
+   ⭐ Overlay key — taken from this page's query string and
+   appended to the socket URLs. Load the popups overlay as
+   /overlay/popups/?key=YOUR_OVERLAY_KEY once OVERLAY_KEY is
+   set on the worker. Without a key the URLs are unchanged.
+--------------------------------------------------------- */
+function withKey(url) {
+  let key = "";
+  try {
+    key = new URLSearchParams(location.search).get("key") || "";
+  } catch {}
+
+  if (!key) return url;
+  return url + (url.includes("?") ? "&" : "?") + "key=" + encodeURIComponent(key);
+}
+
 const sharedPopups = {
   // Cloudflare popup WebSocket endpoint (MUST be absolute)
-  wsURL: "wss://givesachat-cloudflare.benonkoebsch.workers.dev/ws/popups",
+  wsURL: withKey("wss://givesachat-cloudflare.benonkoebsch.workers.dev/ws/popups"),
 
   // Chat overlay WebSocket endpoint (MUST be absolute)
-  chatWSURL: "wss://givesachat-cloudflare.benonkoebsch.workers.dev/ws/chat",
+  chatWSURL: withKey("wss://givesachat-cloudflare.benonkoebsch.workers.dev/ws/chat"),
 
   // Velora access token (loaded at runtime)
   veloraAccessToken: null,

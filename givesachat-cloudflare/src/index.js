@@ -8,9 +8,63 @@ import {
   getVeloraAccessToken
 } from "./veloraAuth.js";
 import { transformVeloraEvent } from "./veloraTransform.js";
-import { VeloraTokenStore } from "./veloraTokenStore.js";
+import {
+  VeloraTokenStore,
+  putOAuthState,
+  takeOAuthState
+} from "./veloraTokenStore.js";
+import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 
 export { ChatRoom, VeloraTokenStore, PopupRoom };
+
+/* ---------------------------------------------------------
+   Access control
+
+   Two independent keys, both Cloudflare secrets:
+
+     INGEST_KEY   guards POST /api/events/*   (who may put
+                  messages ON the overlay)
+     OVERLAY_KEY  guards the WebSocket routes (who may read
+                  the feed, and who may relay through it)
+
+   They are separate on purpose: OVERLAY_KEY travels in the
+   OBS browser-source URL and can leak on camera, so it must
+   not also grant write access to your chat.
+
+   If a key is unset the matching check is skipped and a
+   warning is logged, so deploying this cannot take the
+   overlay off-air mid-stream. Set both to actually be
+   protected:
+
+     npx wrangler secret put INGEST_KEY
+     npx wrangler secret put OVERLAY_KEY
+--------------------------------------------------------- */
+
+function timingSafeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  if (a.length !== b.length) return false;
+
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+function checkKey(request, url, expected) {
+  if (!expected) return { ok: true, unconfigured: true };
+
+  const provided =
+    request.headers.get("x-gac-key") ||
+    url.searchParams.get("key") ||
+    "";
+
+  return { ok: timingSafeEqual(provided, expected), unconfigured: false };
+}
+
+function unauthorized() {
+  return new Response("Unauthorized", { status: 401 });
+}
 
 export default {
   async fetch(request, env) {
@@ -45,6 +99,10 @@ export default {
        ⭐ 1. WebSocket for chat overlay (MUST STAY ABOVE ASSETS)
     --------------------------------------------------------- */
     if (url.pathname === "/ws/chat") {
+      const auth = checkKey(request, url, env.OVERLAY_KEY);
+      if (!auth.ok) return unauthorized();
+      if (auth.unconfigured) console.warn("OVERLAY_KEY unset — /ws/chat is open");
+
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
       const room = env.ChatRoom.get(id);
       return room.fetch(request);
@@ -54,6 +112,10 @@ export default {
        ⭐ 2. WebSocket for popup overlay (MUST STAY ABOVE ASSETS)
     --------------------------------------------------------- */
     if (url.pathname === "/ws/popups") {
+      const auth = checkKey(request, url, env.OVERLAY_KEY);
+      if (!auth.ok) return unauthorized();
+      if (auth.unconfigured) console.warn("OVERLAY_KEY unset — /ws/popups is open");
+
       const id = env.PopupRoom.idFromName("givesachat-popups-v3");
       const room = env.PopupRoom.get(id);
       return room.fetch(request);
@@ -136,7 +198,10 @@ export default {
        5. Velora OAuth login
     --------------------------------------------------------- */
     if (url.pathname === "/velora/login" && request.method === "GET") {
-      const authUrl = generateAuthorizationUrl(env);
+      const state = crypto.randomUUID();
+      await putOAuthState(env, state);
+
+      const authUrl = generateAuthorizationUrl(env, state);
       return Response.redirect(authUrl, 302);
     }
 
@@ -146,6 +211,14 @@ export default {
     if (url.pathname === "/velora/callback" && request.method === "GET") {
       const code = url.searchParams.get("code");
       if (!code) return new Response("Missing code", { status: 400 });
+
+      // The state must match the one issued by /velora/login.
+      // Without this check anyone could complete the flow with
+      // their own Velora account and overwrite the token store.
+      const stateOk = await takeOAuthState(env, url.searchParams.get("state"));
+      if (!stateOk) {
+        return new Response("Invalid or expired OAuth state", { status: 400 });
+      }
 
       const accessToken = await exchangeAuthCode(code, env);
       if (!accessToken) {
@@ -183,6 +256,23 @@ export default {
        token store through the env.VeloraTokenStore binding (see
        getVeloraTokens/saveVeloraTokens), and no browser code calls it.
     --------------------------------------------------------- */
+
+    /* ---------------------------------------------------------
+       8b. Ingest guard
+
+       Every /api/events/* route below can put content directly
+       on the live overlay, so they all sit behind INGEST_KEY.
+       Send it as an "x-gac-key" header, or append "?key=..." to
+       the URL where a caller cannot set headers (the Velora
+       webhook endpoint being the obvious case).
+    --------------------------------------------------------- */
+    if (url.pathname.startsWith("/api/events/")) {
+      const auth = checkKey(request, url, env.INGEST_KEY);
+      if (!auth.ok) return unauthorized();
+      if (auth.unconfigured) {
+        console.warn("INGEST_KEY unset — event endpoints are open to anyone");
+      }
+    }
 
     /* ---------------------------------------------------------
        9. Velora → Worker → DO broadcast
@@ -237,7 +327,7 @@ export default {
       const normalized = {
         platform: beamEvent.platform || "beam",
         username: beamEvent.username || "",
-        html: beamEvent.html || beamEvent.message || "",
+        html: sanitizeHtml(beamEvent.html || beamEvent.message || ""),
         avatar: beamEvent.avatar || null,
         badges: beamEvent.badges || [],
         sticker: beamEvent.sticker || null,
@@ -271,7 +361,7 @@ export default {
       const normalized = {
         platform: externalEvent.platform || "external",
         username: externalEvent.username || "",
-        html: externalEvent.html || externalEvent.message || "",
+        html: sanitizeHtml(externalEvent.html || externalEvent.message || ""),
         avatar: externalEvent.avatar || null,
         badges: externalEvent.badges || [],
         sticker: externalEvent.sticker || null,
@@ -316,7 +406,7 @@ export default {
         platform: "blaze",
         data: {
           username: sender.displayName || sender.username || "",
-          html: scaleBlazeEmotes(blazeEvent.message || ""),
+          html: scaleBlazeEmotes(sanitizeHtml(blazeEvent.message || "")),
           avatar: sender.avatarUrl || null,
           badges: sender.roles || [],
           isOwner: sender.isOwner || false,

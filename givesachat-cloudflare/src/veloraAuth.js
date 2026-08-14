@@ -5,7 +5,7 @@ import { getVeloraTokens, saveVeloraTokens } from "./veloraTokenStore.js";
 /**
  * Generate Velora OAuth authorization URL (Broadcaster OAuth)
  */
-export function generateAuthorizationUrl(env) {
+export function generateAuthorizationUrl(env, state = crypto.randomUUID()) {
   const params = new URLSearchParams({
     client_id: env.VELORA_CLIENT_ID,
     redirect_uri: env.VELORA_REDIRECT_URI,
@@ -18,7 +18,7 @@ export function generateAuthorizationUrl(env) {
       "channel:read channel:points:read channel:points:redeem " +
       "emotes:read followers:read subscriptions:read " +
       "webhooks:manage",
-    state: crypto.randomUUID()
+    state
   });
 
   return `https://velora.tv/oauth/authorize?${params.toString()}`;

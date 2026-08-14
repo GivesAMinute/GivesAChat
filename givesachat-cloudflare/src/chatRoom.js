@@ -1,5 +1,43 @@
 // givesachat-cloudflare/src/chatRoom.js
 
+import { sanitizeHtml } from "./sanitizeNodeHTML.js";
+
+/* ---------------------------------------------------------
+   What a connected client is allowed to relay.
+
+   The popups overlay legitimately pushes reward cards and
+   stream alerts into chat via sendToChatOverlay(). Nothing
+   else should ever originate from a browser — in particular
+   "chat", which would let a connected client fabricate chat
+   messages on the live overlay.
+--------------------------------------------------------- */
+const RELAYABLE_TYPES = ["reward", "velora_system"];
+
+// String fields that end up rendered as HTML downstream.
+const TEXT_FIELDS = [
+  "html", "message", "username", "displayName", "alertType"
+];
+
+function scrub(value, depth = 0) {
+  if (depth > 6) return null;
+
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(v => scrub(v, depth + 1));
+
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] =
+        typeof v === "string" && TEXT_FIELDS.includes(k)
+          ? sanitizeHtml(v)
+          : scrub(v, depth + 1);
+    }
+    return out;
+  }
+
+  return value;
+}
+
 export class ChatRoom {
   constructor(state, env) {
     this.state = state;
@@ -55,12 +93,25 @@ export class ChatRoom {
        DO NOT echo back to sender
     --------------------------------------------------------- */
     server.addEventListener("message", (msg) => {
+      let parsed;
+
       try {
-        const parsed = JSON.parse(msg.data);
-        this.broadcast(parsed, server);
+        parsed = JSON.parse(msg.data);
       } catch {
-        this.broadcast({ type: "client", data: msg.data }, server);
+        // Non-JSON from a client is never meaningful — drop it.
+        // (Previously this was rebroadcast verbatim.)
+        return;
       }
+
+      // Heartbeats stay between the client and this object.
+      if (parsed?.type === "ping") return;
+
+      if (!RELAYABLE_TYPES.includes(parsed?.type)) {
+        console.warn("Dropped non-relayable client message:", parsed?.type);
+        return;
+      }
+
+      this.broadcast(scrub(parsed), server);
     });
 
     /* ---------------------------------------------------------

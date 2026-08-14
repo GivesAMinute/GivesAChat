@@ -1,6 +1,6 @@
 // public/overlay/chat/modules/websocket.js
 
-import _shared from "/overlay/shared/_shared.js";
+import _shared, { withKey } from "/overlay/shared/_shared.js";
 import { handleReward } from "./rewardRenderer.js";
 import { handleChat, renderVeloraSystemMessage } from "./chatRenderer.js";
 import { handleVeloraStreamAlert } from "./alertRenderer.js";
@@ -127,7 +127,9 @@ const isIOS =
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 function setupSocket() {
-  const wsURL = "wss://givesachat-cloudflare.benonkoebsch.workers.dev/ws/chat";
+  const wsURL = withKey(
+    "wss://givesachat-cloudflare.benonkoebsch.workers.dev/ws/chat"
+  );
 
   if (socket && socket.readyState === WebSocket.OPEN) {
     try { socket.close(); } catch {}

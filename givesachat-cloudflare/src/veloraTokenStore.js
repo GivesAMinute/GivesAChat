@@ -50,6 +50,43 @@ export class VeloraTokenStore {
         });
       }
 
+      /* -----------------------------------------------------
+         OAuth state — issued with the authorize redirect and
+         consumed once on callback, so a third party cannot
+         complete the flow with their own account and take over
+         the token store.
+      ----------------------------------------------------- */
+      if (url.pathname.endsWith("/state/put")) {
+        const { state } = await request.json();
+        await this.storage.put("oauth_state", {
+          state,
+          created_at: Date.now()
+        });
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      if (url.pathname.endsWith("/state/take")) {
+        const { state } = await request.json();
+        const stored = await this.storage.get("oauth_state");
+
+        // Single use, whatever the outcome.
+        await this.storage.delete("oauth_state");
+
+        const valid =
+          !!stored &&
+          typeof state === "string" &&
+          stored.state === state &&
+          Date.now() - stored.created_at < 10 * 60 * 1000;
+
+        return new Response(JSON.stringify({ valid }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
       return new Response("VeloraTokenStore DO", { status: 200 });
     } catch (err) {
       return new Response("VeloraTokenStore error: " + err.message, {
@@ -68,6 +105,31 @@ export async function getVeloraTokens(env) {
 
   const json = await res.json();
   return json?.access_token ? json : null;
+}
+
+export async function putOAuthState(env, state) {
+  const id = env.VeloraTokenStore.idFromName("velora-tokens");
+  const stub = env.VeloraTokenStore.get(id);
+
+  await stub.fetch("https://do/state/put", {
+    method: "POST",
+    body: JSON.stringify({ state })
+  });
+}
+
+export async function takeOAuthState(env, state) {
+  const id = env.VeloraTokenStore.idFromName("velora-tokens");
+  const stub = env.VeloraTokenStore.get(id);
+
+  const res = await stub.fetch("https://do/state/take", {
+    method: "POST",
+    body: JSON.stringify({ state })
+  });
+
+  if (!res.ok) return false;
+
+  const json = await res.json();
+  return json?.valid === true;
 }
 
 export async function saveVeloraTokens(env, json) {
