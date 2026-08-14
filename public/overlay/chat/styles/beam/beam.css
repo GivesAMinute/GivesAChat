@@ -55,10 +55,11 @@
   display: inline-block;
 }
 
-/* Stickers are sent alone — give them their own line */
+/* Stickers are sent alone — give them their own line.
+   1.5x the original 128px cap. */
 .beam-sticker {
-  max-height: 128px;
-  max-width: 128px;
+  max-height: 192px;
+  max-width: 192px;
   width: auto;
   height: auto;
   display: block;
