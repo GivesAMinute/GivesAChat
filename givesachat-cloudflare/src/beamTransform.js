@@ -127,7 +127,33 @@ export function deltaToHtml(ops) {
         return `<img class="beam-gif" src="${escapeAttr(url)}" alt="${alt}">`;
       }
 
-      return "";
+      /* -----------------------------------------------------
+         Unrecognised embed.
+
+         Relayed platforms (Kick, Twitch, YouTube) may describe
+         emotes differently to Beam's own. Rather than return
+         nothing — which silently deletes the entire message
+         when the embed is all it contains — fall back to any
+         absolute image URL on the object, then to its name.
+
+         The warning makes the real shape visible in
+         `wrangler tail` so it can be handled properly.
+      ----------------------------------------------------- */
+      console.warn(
+        "[BEAM] unhandled insert:",
+        JSON.stringify(insert).slice(0, 400)
+      );
+
+      const fallbackUrl =
+        insert.url || insert.src || insert.imageUrl || insert.emoteUrl;
+
+      if (typeof fallbackUrl === "string" && /^https?:\/\//i.test(fallbackUrl)) {
+        const alt = escapeAttr(cleanName(insert.name || insert.title || ""));
+        return `<img class="beam-emote" src="${escapeAttr(fallbackUrl)}" alt="${alt}">`;
+      }
+
+      const label = cleanName(insert.name || insert.title || "");
+      return label ? sanitizeHtml(label) : "";
     })
     .join("");
 }
