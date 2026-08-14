@@ -21,6 +21,18 @@
 
 const KICK_API = "https://kick.com/api/v2/channels/";
 
+/**
+ * The API hands back the "fullsize" variant, which is far more
+ * image than a 32px avatar needs. Kick serves the same asset at
+ * several sizes — swap to "medium", as their own UI does.
+ *
+ * Left untouched if the URL doesn't follow that pattern, so an
+ * unexpected shape still yields a working image.
+ */
+function preferMediumVariant(url) {
+  return url.replace(/-fullsize(\.[a-z0-9]+)$/i, "-medium$1");
+}
+
 const SUCCESS_TTL_MS = 24 * 60 * 60 * 1000;   // 24h
 const FAILURE_TTL_MS = 10 * 60 * 1000;        // 10m — retry sooner
 const LOOKUP_TIMEOUT_MS = 2000;               // don't stall the stream
@@ -69,7 +81,7 @@ export async function resolveKickAvatar(profileUrl, cache) {
       const pic = json?.user?.profile_pic;
 
       if (typeof pic === "string" && /^https?:\/\//i.test(pic)) {
-        url = pic;
+        url = preferMediumVariant(pic);
       }
     } else {
       console.warn(`[KICK] avatar lookup for ${slug} returned ${res.status}`);
