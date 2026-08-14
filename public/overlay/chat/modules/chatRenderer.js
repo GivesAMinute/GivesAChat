@@ -141,8 +141,19 @@ function handleChat(payload, container) {
     icon.src = payload.via === "beam" ? "/icons/beam.png" : "/icons/velora.png";
   });
 
+  /* ---------------------------------------------------------
+     ⭐ Every avatar also carries a per-platform class
+     (avatar-pilled, avatar-kick, avatar-velora...) so any one
+     platform can be resized in CSS alone. Useful where the
+     artwork has padding baked in and needs a larger box to
+     look the same size — Pilled being the case in point.
+  --------------------------------------------------------- */
+  const platformClass = String(payload.platform || "unknown")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+
   const avatar = payload.avatar
-    ? `<img class="inline-avatar" src="${payload.avatar}">`
+    ? `<img class="inline-avatar avatar-${platformClass}" src="${payload.avatar}">`
     : "";
 
   /* ---------------------------------------------------------

@@ -112,6 +112,21 @@ body {
 }
 
 /* ---------------------------------------------------------
+   ⭐ Per-platform avatar overrides
+
+   Every avatar carries an avatar-<platform> class. Add a rule
+   here to resize one platform without touching the others.
+
+   Pilled avatars are 2x because their artwork is a circular
+   logo with transparent padding baked in, so at 32px the
+   visible mark looks smaller than everyone else's.
+--------------------------------------------------------- */
+.avatar-pilled {
+  width: 64px;
+  height: 64px;
+}
+
+/* ---------------------------------------------------------
    ⭐ BUBBLE (GLOBAL BASE)
 --------------------------------------------------------- */
 .bubble {
