@@ -142,13 +142,13 @@ function handleChat(payload, container) {
   });
 
   /* ---------------------------------------------------------
-     ⭐ Avatars render at 2x for every platform except Velora,
+     ⭐ Avatars render at 1.5x for every platform except Velora,
      which keeps its original 32px.
   --------------------------------------------------------- */
   const avatarClass =
     payload.platform === "velora"
       ? "inline-avatar"
-      : "inline-avatar inline-avatar-2x";
+      : "inline-avatar inline-avatar-lg";
 
   const avatar = payload.avatar
     ? `<img class="${avatarClass}" src="${payload.avatar}">`

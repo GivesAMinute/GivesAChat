@@ -111,12 +111,12 @@ body {
   object-fit: cover;
 }
 
-/* ⭐ 2x avatars — applied to every platform except Velora,
+/* ⭐ 1.5x avatars — applied to every platform except Velora,
    which keeps the original 32px above. */
-.inline-avatar-2x {
-  width: 64px;
-  height: 64px;
-  margin-right: 8px;
+.inline-avatar-lg {
+  width: 48px;
+  height: 48px;
+  margin-right: 7px;
 }
 
 /* ---------------------------------------------------------
