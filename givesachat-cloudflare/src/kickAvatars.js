@@ -38,6 +38,60 @@ const FAILURE_TTL_MS = 10 * 60 * 1000;        // 10m — retry sooner
 const LOOKUP_TIMEOUT_MS = 2000;               // don't stall the stream
 const MAX_ENTRIES = 500;
 
+/* ---------------------------------------------------------
+   Diagnostic — reports every stage of a lookup so a failure
+   can be located without reading logs. Exposed at
+   /beam/kick-avatar?slug=<slug>
+--------------------------------------------------------- */
+export async function debugKickAvatar(slug) {
+  const out = {
+    slug,
+    apiUrl: KICK_API + encodeURIComponent(slug),
+    apiStatus: null,
+    apiContentType: null,
+    profilePicFromApi: null,
+    resolvedUrl: null,
+    imageStatus: null,
+    imageContentType: null,
+    error: null
+  };
+
+  try {
+    const res = await fetch(out.apiUrl, {
+      headers: { "Accept": "application/json" }
+    });
+
+    out.apiStatus = res.status;
+    out.apiContentType = res.headers.get("content-type");
+
+    if (!res.ok) {
+      out.error = "Kick API refused the request";
+      return out;
+    }
+
+    const json = await res.json();
+    out.profilePicFromApi = json?.user?.profile_pic ?? null;
+
+    if (!out.profilePicFromApi) {
+      out.error = "API responded but carried no user.profile_pic";
+      return out;
+    }
+
+    out.resolvedUrl = preferMediumVariant(out.profilePicFromApi);
+
+    // Can the image itself actually be fetched?
+    const img = await fetch(out.resolvedUrl, { method: "GET" });
+    out.imageStatus = img.status;
+    out.imageContentType = img.headers.get("content-type");
+
+    if (!img.ok) out.error = "Avatar URL resolved but the image did not load";
+  } catch (err) {
+    out.error = String(err?.message || err);
+  }
+
+  return out;
+}
+
 export function slugFromKickProfileUrl(profileUrl) {
   if (typeof profileUrl !== "string") return null;
 

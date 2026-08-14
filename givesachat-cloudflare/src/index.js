@@ -15,6 +15,7 @@ import {
   takeOAuthState
 } from "./veloraTokenStore.js";
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
+import { debugKickAvatar } from "./kickAvatars.js";
 
 export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom };
 
@@ -297,6 +298,19 @@ export default {
       if (!auth.ok) return unauthorized();
 
       const action = url.pathname.split("/")[2];
+
+      // Diagnostic: trace a Kick avatar lookup end to end.
+      if (action === "kick-avatar") {
+        const slug = url.searchParams.get("slug");
+        if (!slug) return new Response("Missing ?slug=", { status: 400 });
+
+        const report = await debugKickAvatar(slug);
+        return new Response(JSON.stringify(report, null, 2), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
       if (!["start", "stop", "status"].includes(action)) {
         return new Response("Not found", { status: 404 });
       }
