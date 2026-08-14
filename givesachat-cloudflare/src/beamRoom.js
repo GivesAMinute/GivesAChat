@@ -1,6 +1,7 @@
 // givesachat-cloudflare/src/beamRoom.js
 
 import { transformBeamMessage } from "./beamTransform.js";
+import { resolveKickAvatar } from "./kickAvatars.js";
 
 /* ---------------------------------------------------------
    BeamRoom
@@ -46,6 +47,10 @@ export class BeamRoom {
     this.running = false;
     this.backoff = MIN_BACKOFF_MS;
     this.sseUrl = env?.BEAM_SSE_URL || DEFAULT_BEAM_SSE_URL;
+
+    // slug -> { url, expiresAt }. Lives as long as this object;
+    // repopulates by itself after an eviction.
+    this.kickAvatarCache = new Map();
 
     // Diagnostics, surfaced by /beam/status
     this.connectedAt = null;
@@ -216,6 +221,15 @@ export class BeamRoom {
       if (!payload) {
         this.droppedCount++;
         continue;
+      }
+
+      // Kick doesn't come with an avatar — fill it in from
+      // Kick's public API, cached per user.
+      if (payload.platform === "kick" && !payload.avatar && payload.profileUrl) {
+        payload.avatar = await resolveKickAvatar(
+          payload.profileUrl,
+          this.kickAvatarCache
+        );
       }
 
       this.messageCount++;

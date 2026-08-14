@@ -194,6 +194,10 @@ export function transformBeamMessage(raw) {
     avatar: resolveAvatar(meta.avatarUrl),
     badges: Array.isArray(meta.badges) ? meta.badges : [],
 
+    // Kept so BeamRoom can look up avatars for platforms whose
+    // pictures Beam doesn't relay (Kick sends avatarUrl: null).
+    profileUrl: typeof meta.profileUrl === "string" ? meta.profileUrl : null,
+
     html,
 
     timestamp: raw.createdAtMs || Date.now()
