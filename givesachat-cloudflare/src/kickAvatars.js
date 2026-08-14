@@ -21,6 +21,29 @@
 
 const KICK_API = "https://kick.com/api/v2/channels/";
 
+/* ---------------------------------------------------------
+   Kick sits behind bot protection that rejects requests with
+   no browser fingerprint — a bare worker fetch gets a 403.
+   These headers are what a real browser sends.
+
+   This may not be enough: Kick also filters on datacenter IP
+   ranges, and a Cloudflare Worker calling a Cloudflare-fronted
+   site is squarely in that bucket. If 403s persist, the answer
+   is to ask Beam to relay Kick avatars rather than to keep
+   escalating here.
+--------------------------------------------------------- */
+const BROWSER_HEADERS = {
+  "Accept": "application/json, text/plain, */*",
+  "Accept-Language": "en-US,en;q=0.9",
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+  "Referer": "https://kick.com/",
+  "Sec-Fetch-Dest": "empty",
+  "Sec-Fetch-Mode": "cors",
+  "Sec-Fetch-Site": "same-origin"
+};
+
 /**
  * The API hands back the "fullsize" variant, which is far more
  * image than a 32px avatar needs. Kick serves the same asset at
@@ -57,9 +80,7 @@ export async function debugKickAvatar(slug) {
   };
 
   try {
-    const res = await fetch(out.apiUrl, {
-      headers: { "Accept": "application/json" }
-    });
+    const res = await fetch(out.apiUrl, { headers: BROWSER_HEADERS });
 
     out.apiStatus = res.status;
     out.apiContentType = res.headers.get("content-type");
@@ -126,7 +147,7 @@ export async function resolveKickAvatar(profileUrl, cache) {
 
   try {
     const res = await fetch(KICK_API + encodeURIComponent(slug), {
-      headers: { "Accept": "application/json" },
+      headers: BROWSER_HEADERS,
       signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS)
     });
 
