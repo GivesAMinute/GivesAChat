@@ -111,14 +111,6 @@ body {
   object-fit: cover;
 }
 
-/* ⭐ 1.5x avatars — applied to every platform except Velora,
-   which keeps the original 32px above. */
-.inline-avatar-lg {
-  width: 48px;
-  height: 48px;
-  margin-right: 7px;
-}
-
 /* ---------------------------------------------------------
    ⭐ BUBBLE (GLOBAL BASE)
 --------------------------------------------------------- */

@@ -10,25 +10,9 @@
    keep even a 494px-wide Klipy GIF inside it.
 --------------------------------------------------------- */
 
-/* ---------------------------------------------------------
-   ⭐ Beam badges
-
-   These had no CSS rule at all, so they rendered at their
-   native PNG size — 32x30, 32x26 and 28x28. Halved here via a
-   fixed height with automatic width, which keeps each badge's
-   own aspect ratio rather than squashing the wider ones.
-
-   For reference, Velora badges sit at 20px.
---------------------------------------------------------- */
-.beam-badge {
-  height: 15px;
-  width: auto;
-  object-fit: contain;
-  vertical-align: middle;
-  display: inline-block;
-  margin-right: 3px;
-  flex-shrink: 0;
-}
+/* Beam badges intentionally have no rule here — they render at
+   their native PNG size (32x30, 32x26, 28x28), which is how
+   they looked before any of this was touched. */
 
 /* Inline with text. 3x the original 28px.
    Source assets are 64px, so at 84px they upscale slightly —
