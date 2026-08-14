@@ -1,80 +1,66 @@
+// givesachat-cloudflare/src/popupRoom.js
+
 export class PopupRoom {
-  constructor(state, env) {
+  constructor(state) {
     this.state = state;
-    this.env = env;
-    this.ws = null;
+    this.storage = state.storage;
+    this.clients = [];
   }
 
   async fetch(request) {
     const url = new URL(request.url);
-    const upgrade = request.headers.get("Upgrade");
 
-    console.log("DO_POPUP_FETCH", {
-      path: url.pathname,
-      upgrade
+    if (request.headers.get("Upgrade") === "websocket") {
+      return this.handleWebSocket(request);
+    }
+
+    if (request.method === "POST" && url.pathname === "/broadcast") {
+      const event = await request.json();
+      this.broadcast(event);
+      return new Response("OK");
+    }
+
+    return new Response("Not found", { status: 404 });
+  }
+
+  async alarm() {
+    // No idle shutdown
+  }
+
+  handleWebSocket(request) {
+    const pair = new WebSocketPair();
+    const client = pair[0];
+    const server = pair[1];
+
+    server.accept();
+    this.clients.push(server);
+
+    const cleanup = () => {
+      this.clients = this.clients.filter((ws) => ws !== server);
+    };
+
+    server.addEventListener("close", cleanup);
+    server.addEventListener("error", cleanup);
+
+    return new Response(null, {
+      status: 101,
+      webSocket: client
     });
+  }
 
-    /* ---------------------------------------------------------
-       ⭐ WebSocket Upgrade
-       FIXED: the DO now creates the WebSocketPair itself,
-       instead of expecting request.webSocket to already be
-       populated by the Worker (it never was — that's why
-       DO_POPUP_WS_NO_SERVER was firing every time).
-    --------------------------------------------------------- */
-    if (upgrade === "websocket") {
-      console.log("DO_POPUP_WS_UPGRADE");
+  broadcast(event) {
+    if (!this.clients.length) return;
 
-      const pair = new WebSocketPair();
-      const [client, server] = Object.values(pair);
+    const payload = JSON.stringify(event);
+    const alive = [];
 
+    for (const ws of this.clients) {
       try {
-        server.accept();
-        console.log("DO_POPUP_WS_ACCEPTED");
-      } catch (err) {
-        console.log("DO_POPUP_WS_ACCEPT_ERROR", err);
-        return new Response("WS accept failed", { status: 500 });
-      }
-
-      this.ws = server;
-
-      server.addEventListener("message", evt => {
-        console.log("DO_POPUP_WS_MESSAGE", evt.data);
-      });
-
-      server.addEventListener("close", evt => {
-        console.log("DO_POPUP_WS_CLOSED", evt.code, evt.reason);
-        if (this.ws === server) this.ws = null;
-      });
-
-      server.addEventListener("error", err => {
-        console.log("DO_POPUP_WS_ERROR", err);
-        if (this.ws === server) this.ws = null;
-      });
-
-      // ⭐ The DO returns the 101 response with the client socket.
-      return new Response(null, {
-        status: 101,
-        webSocket: client
-      });
+        ws.send(payload);
+        alive.push(ws);
+      } catch {}
     }
 
-    /* ---------------------------------------------------------
-       ⭐ Non-WS Broadcast
-    --------------------------------------------------------- */
-    console.log("DO_POPUP_NON_WS");
-    const body = await request.text();
-
-    if (this.ws) {
-      try {
-        this.ws.send(body);
-        console.log("DO_POPUP_SENT", body);
-      } catch (err) {
-        console.log("DO_POPUP_SEND_ERROR", err);
-      }
-    } else {
-      console.log("DO_POPUP_NO_WS_CONNECTED");
-    }
-
-    return new Response("OK");
+    this.clients = alive;
   }
 }

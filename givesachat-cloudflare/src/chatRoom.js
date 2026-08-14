@@ -1,80 +1,106 @@
+// givesachat-cloudflare/src/chatRoom.js
+
 export class ChatRoom {
   constructor(state, env) {
     this.state = state;
     this.env = env;
-    this.ws = null;
+
+    // ⭐ Always track active WebSocket clients
+    this.clients = [];
   }
 
   async fetch(request) {
     const url = new URL(request.url);
-    const upgrade = request.headers.get("Upgrade");
 
-    console.log("DO_CHAT_FETCH", {
-      path: url.pathname,
-      upgrade
+    /* ---------------------------------------------------------
+       ⭐ WebSocket upgrade → attach overlay client
+    --------------------------------------------------------- */
+    if (request.headers.get("Upgrade") === "websocket") {
+      return this.handleWebSocket(request);
+    }
+
+    /* ---------------------------------------------------------
+       ⭐ HTTP broadcast → Velora → DO → overlay
+       (Beam removed permanently)
+    --------------------------------------------------------- */
+    if (request.method === "POST" && url.pathname === "/broadcast") {
+      const event = await request.json();
+      this.broadcast(event, null);   // sender=null → broadcast to all
+      return new Response("OK");
+    }
+
+    return new Response("Not found", { status: 404 });
+  }
+
+  async alarm() {
+    // No scheduled tasks
+    return;
+  }
+
+  /* ---------------------------------------------------------
+     ⭐ WebSocket connection handler
+  --------------------------------------------------------- */
+  handleWebSocket(request) {
+    const pair = new WebSocketPair();
+    const client = pair[0];
+    const server = pair[1];
+
+    server.accept();
+
+    // ⭐ Add new client
+    this.clients.push(server);
+
+    /* ---------------------------------------------------------
+       ⭐ Incoming message from overlay
+       DO NOT echo back to sender
+    --------------------------------------------------------- */
+    server.addEventListener("message", (msg) => {
+      try {
+        const parsed = JSON.parse(msg.data);
+        this.broadcast(parsed, server);
+      } catch {
+        this.broadcast({ type: "client", data: msg.data }, server);
+      }
     });
 
     /* ---------------------------------------------------------
-       ⭐ WebSocket Upgrade
-       FIXED: the DO now creates the WebSocketPair itself,
-       instead of expecting request.webSocket to already be
-       populated by the Worker (it never was — that's why
-       DO_CHAT_WS_NO_SERVER was firing every time).
+       ⭐ Cleanup on disconnect
     --------------------------------------------------------- */
-    if (upgrade === "websocket") {
-      console.log("DO_CHAT_WS_UPGRADE");
+    const cleanup = () => {
+      this.clients = this.clients.filter((ws) => ws !== server);
+    };
 
-      const pair = new WebSocketPair();
-      const [client, server] = Object.values(pair);
+    server.addEventListener("close", cleanup);
+    server.addEventListener("error", cleanup);
+
+    return new Response(null, {
+      status: 101,
+      webSocket: client
+    });
+  }
+
+  /* ---------------------------------------------------------
+     ⭐ Broadcast to all connected overlay clients
+     (except sender)
+  --------------------------------------------------------- */
+  broadcast(event, sender) {
+    if (!this.clients.length) return;
+
+    const payload = JSON.stringify(event);
+    const alive = [];
+
+    for (const ws of this.clients) {
+      if (ws === sender) continue;   // ⭐ Never echo back to sender
 
       try {
-        server.accept();
-        console.log("DO_CHAT_WS_ACCEPTED");
-      } catch (err) {
-        console.log("DO_CHAT_WS_ACCEPT_ERROR", err);
-        return new Response("WS accept failed", { status: 500 });
+        ws.send(payload);
+        alive.push(ws);
+      } catch {
+        // Dead socket → drop it
       }
-
-      this.ws = server;
-
-      server.addEventListener("message", evt => {
-        console.log("DO_CHAT_WS_MESSAGE", evt.data);
-      });
-
-      server.addEventListener("close", evt => {
-        console.log("DO_CHAT_WS_CLOSED", evt.code, evt.reason);
-        if (this.ws === server) this.ws = null;
-      });
-
-      server.addEventListener("error", err => {
-        console.log("DO_CHAT_WS_ERROR", err);
-        if (this.ws === server) this.ws = null;
-      });
-
-      // ⭐ The DO returns the 101 response with the client socket.
-      return new Response(null, {
-        status: 101,
-        webSocket: client
-      });
     }
 
-    /* ---------------------------------------------------------
-       ⭐ Non-WS Broadcast
-    --------------------------------------------------------- */
-    console.log("DO_CHAT_NON_WS");
-    const body = await request.text();
-
-    if (this.ws) {
-      try {
-        this.ws.send(body);
-        console.log("DO_CHAT_SENT", body);
-      } catch (err) {
-        console.log("DO_CHAT_SEND_ERROR", err);
-      }
-    } else {
-      console.log("DO_CHAT_NO_WS_CONNECTED");
-    }
-
-    return new Response("OK");
+    // ⭐ Keep only alive sockets
+    this.clients = alive;
   }
 }
