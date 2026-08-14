@@ -10,12 +10,15 @@
    keep even a 494px-wide Klipy GIF inside it.
 --------------------------------------------------------- */
 
-/* Inline with text, matching the 20px bubble font */
+/* Inline with text. 3x the original 28px.
+   Source assets are 64px, so at 84px they upscale slightly —
+   if they look soft on stream, see the note in beamTransform.js
+   about requesting a larger CDN variant. */
 .beam-emote {
-  height: 28px;
+  height: 84px;
   width: auto;
   vertical-align: middle;
-  margin: 0 1px;
+  margin: 0 2px;
   display: inline-block;
 }
 

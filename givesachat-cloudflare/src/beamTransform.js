@@ -17,10 +17,12 @@ import { sanitizeHtml } from "./sanitizeNodeHTML.js";
      emotes/12ed830a-...-64.png
      avatars/b6e5786f-...-tiny.jpeg
 
-   The sticker form is inferred: the message payload carries
-   sizes:[128] and formats:["apng"], which matches that naming
-   convention. Flagged as unconfirmed until checked against a
-   real sticker URL.
+     stickers/fcb82977-...-128.png
+
+   Note the extension is always .png, including for animated
+   stickers. The payload's formats:["apng"] describes the
+   encoding, not the file extension — animated PNGs are still
+   served as .png. Using "apng" there 404s every sticker.
 
    If Beam moves its CDN, these three functions are the only
    thing that needs changing.
@@ -33,17 +35,12 @@ export const beamEmoteUrl = (src) =>
 export const beamAvatarUrl = (src) =>
   `${ASSET_BASE}/avatars/${src}-tiny.jpeg`;
 
-// UNCONFIRMED — see note above.
 export const beamStickerUrl = (src, asset = {}) => {
   const size = Array.isArray(asset.sizes) && asset.sizes.length
     ? asset.sizes[0]
     : 128;
 
-  const format = Array.isArray(asset.formats) && asset.formats.length
-    ? asset.formats[0]
-    : "apng";
-
-  return `${ASSET_BASE}/stickers/${src}-${size}.${format}`;
+  return `${ASSET_BASE}/stickers/${src}-${size}.png`;
 };
 
 /* ---------------------------------------------------------
