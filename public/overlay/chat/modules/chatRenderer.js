@@ -130,6 +130,17 @@ function handleChat(payload, container) {
   icon.className = "platform-icon";
   icon.src = `/icons/${payload.platform}.png`;
 
+  /* ---------------------------------------------------------
+     ⭐ Beam relays platforms we may not have an icon for.
+     Fall back to the Beam icon rather than showing a broken
+     image on stream.
+  --------------------------------------------------------- */
+  icon.addEventListener("error", () => {
+    if (icon.dataset.fallbackApplied) return;
+    icon.dataset.fallbackApplied = "1";
+    icon.src = payload.via === "beam" ? "/icons/beam.png" : "/icons/velora.png";
+  });
+
   const avatar = payload.avatar
     ? `<img class="inline-avatar" src="${payload.avatar}">`
     : "";
@@ -138,13 +149,18 @@ function handleChat(payload, container) {
      ⭐ PLATFORM BADGES (Beam added)
   --------------------------------------------------------- */
   let badgesHTML = "";
-  if (payload.platform === "blaze") {
+  if (payload.via === "beam") {
+    // ⭐ Relayed through Beam — Beam supplies the badge data for
+    // every platform it carries, so use Beam's badge artwork
+    // regardless of which platform the message came from.
+    badgesHTML = renderBeamBadges(payload);
+  } else if (payload.platform === "blaze") {
     badgesHTML = renderBlazeBadges(payload);
   } else if (payload.platform === "velora") {
     badgesHTML = renderVeloraBadges(payload);
   } else if (payload.platform === "youtube") {
     badgesHTML = renderYouTubeBadges(payload);
-  } else if (payload.platform === "beam") {        // ⭐ ADDED
+  } else if (payload.platform === "beam") {
     badgesHTML = renderBeamBadges(payload);
   }
 

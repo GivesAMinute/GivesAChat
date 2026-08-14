@@ -2,6 +2,7 @@ import { VERSION } from "./version.js";
 
 import { ChatRoom } from "./chatRoom.js";
 import { PopupRoom } from "./popupRoom.js";
+import { BeamRoom } from "./beamRoom.js";
 import {
   generateAuthorizationUrl,
   exchangeAuthCode,
@@ -15,7 +16,23 @@ import {
 } from "./veloraTokenStore.js";
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 
-export { ChatRoom, VeloraTokenStore, PopupRoom };
+export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom };
+
+/* ---------------------------------------------------------
+   Beam's SSE reader lives in a durable object. Nudge it awake
+   whenever an overlay connects, so the stream is running by
+   the time the first message arrives. Cheap and idempotent —
+   the object ignores the call if it is already reading.
+--------------------------------------------------------- */
+function wakeBeam(env) {
+  try {
+    const id = env.BeamRoom.idFromName("beam-unified-chat");
+    const stub = env.BeamRoom.get(id);
+    return stub.fetch("https://do/start");
+  } catch (err) {
+    console.error("Beam wake failed:", err);
+  }
+}
 
 /* ---------------------------------------------------------
    Access control
@@ -102,6 +119,9 @@ export default {
       const auth = checkKey(request, url, env.OVERLAY_KEY);
       if (!auth.ok) return unauthorized();
       if (auth.unconfigured) console.warn("OVERLAY_KEY unset — /ws/chat is open");
+
+      // Start the Beam reader if it isn't already going.
+      wakeBeam(env);
 
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
       const room = env.ChatRoom.get(id);
@@ -256,6 +276,31 @@ export default {
        token store through the env.VeloraTokenStore binding (see
        getVeloraTokens/saveVeloraTokens), and no browser code calls it.
     --------------------------------------------------------- */
+
+    /* ---------------------------------------------------------
+       8a. Beam stream control
+
+         /beam/status  what the reader is doing
+         /beam/start   force a connect
+         /beam/stop    stop until the next overlay connects
+
+       Behind INGEST_KEY — status leaks nothing sensitive, but
+       start/stop are controls, so the whole prefix is gated.
+    --------------------------------------------------------- */
+    if (url.pathname.startsWith("/beam/")) {
+      const auth = checkKey(request, url, env.INGEST_KEY);
+      if (!auth.ok) return unauthorized();
+
+      const action = url.pathname.split("/")[2];
+      if (!["start", "stop", "status"].includes(action)) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const id = env.BeamRoom.idFromName("beam-unified-chat");
+      const stub = env.BeamRoom.get(id);
+
+      return stub.fetch(`https://do/${action}`);
+    }
 
     /* ---------------------------------------------------------
        8b. Ingest guard

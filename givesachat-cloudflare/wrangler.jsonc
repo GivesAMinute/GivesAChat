@@ -24,6 +24,10 @@
       {
         "name": "PopupRoom",
         "class_name": "PopupRoom"
+      },
+      {
+        "name": "BeamRoom",
+        "class_name": "BeamRoom"
       }
     ]
   },
@@ -38,6 +42,10 @@
       "storage": "sqlite"
     },
     "PopupRoom": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    },
+    "BeamRoom": {
       "type": "durable-object",
       "storage": "sqlite"
     }

@@ -1,0 +1,40 @@
+/* ---------------------------------------------------------
+   ⭐ Beam message assets
+
+   Only sizes content that Beam introduces — emotes, stickers
+   and GIFs. Nothing here touches the bubble, avatar, username
+   or platform icon, so Beam messages render identically to
+   Velora ones.
+
+   Bubble is max-width 615px at font-size 20px, so these caps
+   keep even a 494px-wide Klipy GIF inside it.
+--------------------------------------------------------- */
+
+/* Inline with text, matching the 20px bubble font */
+.beam-emote {
+  height: 28px;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 1px;
+  display: inline-block;
+}
+
+/* Stickers are sent alone — give them their own line */
+.beam-sticker {
+  max-height: 128px;
+  max-width: 128px;
+  width: auto;
+  height: auto;
+  display: block;
+  margin: 4px 0 2px;
+}
+
+.beam-gif {
+  max-width: 320px;
+  max-height: 240px;
+  width: auto;
+  height: auto;
+  display: block;
+  margin: 4px 0 2px;
+  border-radius: 8px;
+}
