@@ -24,11 +24,12 @@ export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom };
    the time the first message arrives. Cheap and idempotent —
    the object ignores the call if it is already reading.
 --------------------------------------------------------- */
-function wakeBeam(env) {
+async function wakeBeam(env) {
   try {
     const id = env.BeamRoom.idFromName("beam-unified-chat");
     const stub = env.BeamRoom.get(id);
-    return stub.fetch("https://do/start");
+    const res = await stub.fetch("https://do/start");
+    console.log("Beam wake:", res.status);
   } catch (err) {
     console.error("Beam wake failed:", err);
   }
@@ -84,7 +85,7 @@ function unauthorized() {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     console.log("DEBUG Incoming path:", url.pathname);
 
@@ -121,7 +122,11 @@ export default {
       if (auth.unconfigured) console.warn("OVERLAY_KEY unset — /ws/chat is open");
 
       // Start the Beam reader if it isn't already going.
-      wakeBeam(env);
+      // Must go through waitUntil: this response returns
+      // immediately, and an un-awaited subrequest would be
+      // cancelled before it ever reached the durable object.
+      if (ctx?.waitUntil) ctx.waitUntil(wakeBeam(env));
+      else await wakeBeam(env);
 
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
       const room = env.ChatRoom.get(id);
