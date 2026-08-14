@@ -10,9 +10,38 @@
    keep even a 494px-wide Klipy GIF inside it.
 --------------------------------------------------------- */
 
-/* Beam badges intentionally have no rule here — they render at
-   their native PNG size (32x30, 32x26, 28x28), which is how
-   they looked before any of this was touched. */
+/* ---------------------------------------------------------
+   ⭐ Beam badges — 85% of native size
+
+   The three PNGs have different dimensions, so a single shared
+   rule would distort them. Each is scaled individually to keep
+   its own aspect ratio:
+
+     owner      32 x 26  ->  27 x 22
+     moderator  32 x 30  ->  27 x 26
+     verified   28 x 28  ->  24 x 24
+--------------------------------------------------------- */
+.beam-badge {
+  object-fit: contain;
+  vertical-align: middle;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.beam-badge-owner {
+  width: 27px;
+  height: 22px;
+}
+
+.beam-badge-moderator {
+  width: 27px;
+  height: 26px;
+}
+
+.beam-badge-verified {
+  width: 24px;
+  height: 24px;
+}
 
 /* Inline with text. 3x the original 28px.
    Source assets are 64px, so at 84px they upscale slightly —
