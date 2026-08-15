@@ -1,0 +1,12 @@
+# Cloudflare Workers static-asset headers.
+#
+# OBS's embedded browser caches aggressively and refreshing a browser
+# source does not bypass its cache, so an overlay CSS or JS change can
+# sit invisible behind a stale copy indefinitely. Forcing revalidation
+# means a source refresh always picks up the current file.
+#
+# Images, sounds and fonts are deliberately left cacheable — they are
+# large and rarely change.
+
+/overlay/*
+  Cache-Control: no-cache, must-revalidate
