@@ -62,7 +62,18 @@ body {
 #messages {
   position: absolute;
   bottom: 0px;            /* where messages begin */
-  top: 180px;              /* header height + padding */
+
+  /* ⭐ Ceiling for the message stack — keeps chat clear of the
+     GIVERS Watching Now box.
+
+       #viewer-box top          127px
+       + border/padding/content  44px
+       = box bottom edge        171px
+       + neon glow spread        40px
+       = ~211px before anything visually touches it
+
+     220px leaves a little breathing room under the glow. */
+  top: 220px;
   left: 0;
   width: 100%;
   padding: 0 20px 24px 10px;
