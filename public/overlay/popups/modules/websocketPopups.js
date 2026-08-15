@@ -3,6 +3,7 @@
 import sharedPopups, { loadVeloraAccessToken, sendToChatOverlay } from "/overlay/shared/_sharedPopups.js";
 import { handleRewardPopup } from "./rewardRendererPopups.js";
 import { renderVeloraAlertCard, loadVeloraFonts } from "./veloraRendererPopups.js";
+import { isClaimRedemption, renderClaimAlert } from "./claimAlerts.js";
 import { io } from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
 
 const isIOS =
@@ -199,6 +200,16 @@ function handleVeloraEvent({ event, data, timestamp }) {
   }
 
   if (event === "channel_point_redeem") {
+    /* -----------------------------------------------------
+       ⭐ 1st / 2nd GIVER claims get their own treatment here
+       and are deliberately NOT relayed to the chat overlay —
+       they belong in popups only.
+    ----------------------------------------------------- */
+    if (isClaimRedemption(data)) {
+      renderClaimAlert(data);
+      return;
+    }
+
     handleRewardPopup(data);
 
     sendToChatOverlay({

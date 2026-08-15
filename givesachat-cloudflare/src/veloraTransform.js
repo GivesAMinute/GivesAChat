@@ -1,6 +1,25 @@
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 import { applyVeloraEmotes } from "./veloraEmotes.js";
 
+/* ---------------------------------------------------------
+   1st / 2nd GIVER claim rewards.
+
+   Kept in sync with CLAIM_REWARDS in
+   public/overlay/popups/modules/claimAlerts.js — if the
+   rewards are ever recreated in Velora their IDs change, and
+   both lists need the new values. The title match is the
+   safety net for exactly that case.
+--------------------------------------------------------- */
+const CLAIM_REWARD_IDS = [
+  "58dd6d31-8df9-43a5-8f45-7015be44eaa2",   // First (1st)
+  "f49bd3f1-ae87-4359-b15b-7c28857d036f"    // Second (2nd)
+];
+
+function isClaimReward(data = {}) {
+  if (CLAIM_REWARD_IDS.includes(data.rewardId)) return true;
+  return /\b(first|1st|second|2nd)\b/i.test(String(data.rewardTitle || ""));
+}
+
 /**
  * Velora WebSocket Chat Transformer
  */
@@ -120,6 +139,15 @@ export async function transformVeloraEvent(event, payload, env) {
 
     // ⭐ REWARD: channel points
     if (event === "channel.channel_points_redemption") {
+      /* -----------------------------------------------------
+         1st / 2nd GIVER claims are handled entirely by the
+         popups overlay (see popups/modules/claimAlerts.js).
+         Returning null keeps them out of the chat lane —
+         without this they render there with Velora's
+         {username}/{times}/{place} placeholders unsubstituted.
+      ----------------------------------------------------- */
+      if (isClaimReward(data)) return null;
+
       return {
         type: "reward",
         platform: "velora",
