@@ -147,10 +147,10 @@ body {
   padding: 10px 14px;
   border-radius: 14px;
 
-  /* ⭐ 20px -> 24px. Username and message text both inherit
+  /* ⭐ 20px -> 26px. Username and message text both inherit
      from here, so this is the single control for chat-lane
      message size across every platform. */
-  font-size: 24px;
+  font-size: 26px;
 
   max-width: 575px;   /* 615 - 40 */
   min-width: 0;

@@ -107,6 +107,72 @@ export function buildClaimText(data, place) {
 }
 
 /* ---------------------------------------------------------
+   Sound
+
+   The webhook payload calls it alertSoundUrl, but the popups
+   overlay receives these over Velora's socket, which may name
+   it differently — so check every plausible field.
+
+   Played here rather than by the alert renderer, which does
+   `audio.play().catch(() => {})` and swallows the reason. When
+   a sound fails to fire mid-stream, silence is the one thing
+   that isn't useful.
+--------------------------------------------------------- */
+function resolveClaimSound(data) {
+  const candidates = [
+    data.alertSoundUrl,
+    data.customSoundUrl,
+    data.soundUrl,
+    data.itemSoundUrl,
+    data.alertSound,
+    data.cardDesign?.sound?.url,
+    data.cardDesign?.soundUrl
+  ];
+
+  for (const url of candidates) {
+    if (typeof url === "string" && /^https?:\/\//i.test(url)) return url;
+  }
+
+  return null;
+}
+
+function playClaimSound(data) {
+  const url = resolveClaimSound(data);
+
+  if (!url) {
+    console.warn(
+      "[Claim] no sound URL on payload. Fields present:",
+      Object.keys(data || {}).join(", ")
+    );
+    return;
+  }
+
+  console.log("[Claim] playing", url);
+
+  try {
+    const audio = new Audio(url);
+    audio.volume = Number(data.itemSoundVolume) || 1.0;
+
+    audio.addEventListener("error", () => {
+      // .ogg plays in OBS (Chromium) but not Safari/iOS
+      console.warn("[Claim] audio failed to load:", url, audio.error?.code);
+    });
+
+    audio.play()
+      .then(() => console.log("[Claim] sound started"))
+      .catch((err) => {
+        console.warn(
+          "[Claim] play() refused:",
+          err?.name || err,
+          "— likely autoplay policy; OBS normally allows it"
+        );
+      });
+  } catch (err) {
+    console.warn("[Claim] audio threw:", err);
+  }
+}
+
+/* ---------------------------------------------------------
    Velora's cardDesign stores colours as objects:
 
      "color": { "type": "solid", "value": "#ffffff" }
@@ -181,12 +247,15 @@ export function renderClaimAlert(data) {
     // to img.src, and null becomes a broken image.
     customImageUrl: data.avatarUrl || "/icons/velora.png",
 
-    // Velora ships the sound with the redemption; the alert
-    // renderer plays customSoundUrl itself.
-    customSoundUrl: data.alertSoundUrl || data.customSoundUrl || null,
+    // Deliberately null — the sound is played by playClaimSound()
+    // below so failures are reported rather than swallowed.
+    // Setting this too would play it twice.
+    customSoundUrl: null,
 
     duration: Number(data.alertDuration) || CARD_FALLBACK_MS / 1000
   });
+
+  playClaimSound(data);
 
   if (claim.effect === "confetti") runConfetti(EFFECT_DURATION_MS);
   else runBalloons(EFFECT_DURATION_MS);
