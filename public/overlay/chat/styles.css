@@ -142,7 +142,7 @@ body {
    ⭐ BUBBLE (GLOBAL BASE)
 --------------------------------------------------------- */
 .bubble {
-  background: rgba(0,0,0,0.85);
+  background: rgba(0,0,0,0.90);
   color: white;
   padding: 10px 14px;
   border-radius: 14px;
@@ -152,7 +152,7 @@ body {
      message size across every platform. */
   font-size: 24px;
 
-  max-width: 615px;
+  max-width: 575px;   /* 615 - 40 */
   min-width: 0;
   flex-grow: 0;
   flex-shrink: 1;
