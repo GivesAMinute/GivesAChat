@@ -1,6 +1,7 @@
 // public/overlay/popups/modules/claimAlerts.js
 
 import sharedPopups from "/overlay/shared/_sharedPopups.js";
+import { renderVeloraAlertCard } from "./veloraRendererPopups.js";
 import { runConfetti, runBalloons } from "./celebrations.js";
 
 /* ---------------------------------------------------------
@@ -106,83 +107,89 @@ export function buildClaimText(data, place) {
 }
 
 /* ---------------------------------------------------------
-   Sound
+   Velora's cardDesign stores colours as objects:
 
-   Velora supplies alertSoundUrl on the redemption. Autoplay
-   can be refused in a plain browser tab; OBS allows it.
+     "color": { "type": "solid", "value": "#ffffff" }
+
+   but renderVeloraAlertCardNow assigns card.textLine1.color
+   straight to style.color, which silently does nothing with an
+   object. Flattening it here means the card actually picks up
+   Velora's intended colour.
 --------------------------------------------------------- */
-function playClaimSound(data) {
-  const url = data.alertSoundUrl || data.customSoundUrl;
-  if (!url) return;
+function flattenColor(color) {
+  if (!color) return null;
+  if (typeof color === "string") return color;
+  return color.value || color.color || null;
+}
 
-  try {
-    const audio = new Audio(url);
-    audio.volume = Number(data.itemSoundVolume) || 0.8;
-    audio.play().catch((err) => {
-      console.warn("[Claim] sound blocked:", err?.message || err);
-    });
-  } catch (err) {
-    console.warn("[Claim] sound failed:", err);
-  }
+function normaliseCardDesign(data, line1, line2) {
+  const design = data.cardDesign || {};
+
+  return {
+    ...design,
+    textLine1: {
+      ...(design.textLine1 || {}),
+      content: line1,
+      color: flattenColor(design.textLine1?.color)
+    },
+    textLine2: line2
+      ? {
+          ...(design.textLine2 || {}),
+          content: line2,
+          color: flattenColor(design.textLine2?.color)
+        }
+      : undefined
+  };
 }
 
 /* ---------------------------------------------------------
-   Render — mirrors the stripped-down chat-lane system alert
-   (Velora icon beside a dark bubble), shown in the popups
-   overlay instead of the chat lane.
+   Render — uses the standard Velora stream alert card, the
+   same treatment follows, raids and subs get in popups.
+
+   The text is passed as `message` because resolvePopupText()
+   returns that verbatim when present, which lets us hand over
+   the substituted string instead of Velora's raw template.
+
+   Sound and card lifetime are handled by the alert renderer;
+   all we add is the celebration.
 --------------------------------------------------------- */
 export function renderClaimAlert(data) {
   const claim = identifyClaim(data);
   if (!claim) return false;
 
-  const container =
-    document.getElementById("alert-container") ||
-    document.getElementById("overlay-root") ||
-    document.body;
-
   const { line1, line2 } = buildClaimText(data, claim.place);
-
-  const wrapper = document.createElement("div");
-  wrapper.className = `claim-alert claim-alert-${claim.place}`;
-
-  const icon = document.createElement("img");
-  icon.className = "claim-alert-icon";
-  icon.src = "/icons/velora.png";
-  icon.alt = "Velora";
-
-  const bubble = document.createElement("div");
-  bubble.className = "claim-alert-bubble";
-
-  const l1 = document.createElement("div");
-  l1.className = "claim-alert-line1";
-  l1.textContent = line1;
-  bubble.appendChild(l1);
-
-  if (line2) {
-    const l2 = document.createElement("div");
-    l2.className = "claim-alert-line2";
-    l2.textContent = line2;
-    bubble.appendChild(l2);
-  }
-
-  wrapper.appendChild(icon);
-  wrapper.appendChild(bubble);
-  container.appendChild(wrapper);
+  const message = [line1, line2].filter(Boolean).join("  ");
 
   sharedPopups.wake();
   sharedPopups.markPopupEvent();
 
-  playClaimSound(data);
+  renderVeloraAlertCard({
+    event: "channel.stream_alert",
+    alertType: "claim",
+    timestamp: Date.now(),
+
+    // resolvePopupText() returns this as-is
+    message,
+
+    displayName: data.displayName || data.username || null,
+    username: data.username || null,
+
+    cardDesign: normaliseCardDesign(data, line1, line2),
+
+    // The claimer's own avatar, falling back to the Velora mark.
+    // Never null: the renderer assigns whatever it gets straight
+    // to img.src, and null becomes a broken image.
+    customImageUrl: data.avatarUrl || "/icons/velora.png",
+
+    // Velora ships the sound with the redemption; the alert
+    // renderer plays customSoundUrl itself.
+    customSoundUrl: data.alertSoundUrl || data.customSoundUrl || null,
+
+    duration: Number(data.alertDuration) || CARD_FALLBACK_MS / 1000
+  });
 
   if (claim.effect === "confetti") runConfetti(EFFECT_DURATION_MS);
   else runBalloons(EFFECT_DURATION_MS);
-
-  const holdMs = (Number(data.alertDuration) * 1000) || CARD_FALLBACK_MS;
-
-  setTimeout(() => {
-    wrapper.classList.add("claim-alert-out");
-    setTimeout(() => wrapper.remove(), 600);
-  }, holdMs);
 
   return true;
 }

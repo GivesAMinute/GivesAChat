@@ -1,9 +1,10 @@
 /* ---------------------------------------------------------
-   ⭐ 1st / 2nd GIVER claim alerts
+   ⭐ Celebration canvas (1st / 2nd GIVER claims)
 
-   Mirrors the stripped-down chat-lane system alert — Velora
-   icon beside a dark bubble — but shown here in popups.
-   The celebration canvas sits behind the card.
+   The claim card itself is rendered by the standard Velora
+   alert renderer, so it needs no styles of its own. This is
+   just the full-stage canvas the confetti and balloons draw
+   on, sitting behind the card.
 --------------------------------------------------------- */
 #celebration-canvas {
   position: absolute;
@@ -13,60 +14,6 @@
   height: 1080px;
   pointer-events: none;
   z-index: 5;
-}
-
-.claim-alert {
-  position: relative;
-  z-index: 10;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin: 8px 0;
-  animation: claimAlertIn 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
-}
-
-.claim-alert-icon {
-  width: 43px;
-  height: 43px;
-  border-radius: 6px;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.claim-alert-bubble {
-  background: rgba(0, 0, 0, 0.85);
-  color: #fff;
-  padding: 10px 14px;
-  border-radius: 14px;
-  max-width: 615px;
-  border: 2px solid #fff;
-}
-
-.claim-alert-line1 {
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.25;
-}
-
-.claim-alert-line2 {
-  font-size: 17px;
-  font-weight: 600;
-  opacity: 0.85;
-  margin-top: 2px;
-}
-
-.claim-alert-out {
-  animation: claimAlertOut 0.6s ease-out forwards;
-}
-
-@keyframes claimAlertIn {
-  from { opacity: 0; transform: translateX(-60px) scale(0.9); }
-  to   { opacity: 1; transform: translateX(0) scale(1); }
-}
-
-@keyframes claimAlertOut {
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(-180px); }
 }
 
 /* ---------------------------------------------------------
