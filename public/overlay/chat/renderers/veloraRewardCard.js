@@ -1,3 +1,4 @@
+import { scheduleExit } from "../modules/chatMode.js";
 // overlay/chat/renderers/veloraRewardCard.js
 
 export function renderVeloraRewardCard(msg) {
@@ -150,10 +151,7 @@ export function renderVeloraRewardCard(msg) {
   wrapper.appendChild(bgEl);
 
   // ⭐ Slide-out
-  setTimeout(() => {
-    wrapper.classList.add("velora-reward-exit");
-    setTimeout(() => wrapper.remove(), 800);
-  }, 45000);
+  scheduleExit(wrapper, { exitClass: "velora-reward-exit" });
 
   return wrapper;
 }

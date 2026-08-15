@@ -2,6 +2,7 @@
 
 import { renderVeloraRewardCard } from "../renderers/veloraRewardCard.js";
 import { playRewardSound } from "./rewardSounds.js";
+import { scheduleExit } from "./chatMode.js";
 
 /**
  * Detect OBS / GoLightstream browser source.
@@ -78,8 +79,5 @@ export function handleReward(payload, container) {
   playRewardSound(payload.rewardId);
 
   // Fade out chat lane card
-  setTimeout(() => {
-    wrapper.classList.add("fade-out");
-    setTimeout(() => wrapper.remove(), 800);
-  }, 45000);
+  scheduleExit(wrapper);
 }

@@ -4,6 +4,7 @@ import { renderVeloraBadges } from "../badges/velora/index.js";
 import { renderYouTubeBadges } from "../badges/youtube/index.js";
 import { renderBeamBadges } from "../badges/beam/index.js";   // ⭐ ADDED
 import { colorForUsername } from "../utils/usernameColors.js";
+import { scheduleExit } from "./chatMode.js";
 
 /* ---------------------------------------------------------
    ⭐ YouTube Normalizer
@@ -276,10 +277,7 @@ function handleChat(payload, container) {
     ttsText
   });
 
-  setTimeout(() => {
-    wrapper.classList.add("fade-out");
-    setTimeout(() => wrapper.remove(), 800);
-  }, 45000);
+  scheduleExit(wrapper);
 }
 
 /* ---------------------------------------------------------
@@ -347,10 +345,7 @@ function renderVeloraSystemMessage(event, data, container) {
     ttsText: `Velora Stream Alert. ${text}`
   });
 
-  setTimeout(() => {
-    wrapper.classList.add("fade-out");
-    setTimeout(() => wrapper.remove(), 800);
-  }, 45000);
+  scheduleExit(wrapper);
 }
 
 export {
