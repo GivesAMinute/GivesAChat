@@ -584,7 +584,7 @@
 .velora-reward-card {
   align-self: flex-start;
   width: auto;
-  max-width: 575px;   /* matches .bubble in styles.css */
+  max-width: 555px;   /* matches .bubble in styles.css */
   box-sizing: border-box;
 }
 

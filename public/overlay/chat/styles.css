@@ -152,7 +152,7 @@ body {
      message size across every platform. */
   font-size: 26px;
 
-  max-width: 575px;   /* 615 - 40 */
+  max-width: 555px;   /* 615 - 40 - 20 */
   min-width: 0;
   flex-grow: 0;
   flex-shrink: 1;
