@@ -72,8 +72,8 @@ body {
        + neon glow spread        40px
        = ~211px before anything visually touches it
 
-     220px leaves a little breathing room under the glow. */
-  top: 220px;
+     Started at 220px, nudged up 10px to 210px. */
+  top: 210px;
   left: 0;
   width: 100%;
   padding: 0 20px 24px 10px;
