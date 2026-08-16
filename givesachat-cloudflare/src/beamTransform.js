@@ -46,11 +46,16 @@ export const beamStickerUrl = (src, asset = {}) => {
 /* ---------------------------------------------------------
    Platforms to drop from the Beam feed.
 
-   Velora is excluded because the overlay already has its own
-   direct Velora pipeline — without this, every Velora message
-   would appear twice. Add more entries here to filter others.
+   Velora is excluded because the overlay has its own direct
+   Velora pipeline — without this every Velora message would
+   appear twice.
+
+   Blaze is excluded pre-emptively. Beam doesn't relay Blaze
+   today but has said it will, and by then we'll have our own
+   direct Blaze connection. Filtering now means their rollout
+   can't silently start double-posting mid-stream.
 --------------------------------------------------------- */
-export const IGNORED_SENDER_TYPES = ["velora"];
+export const IGNORED_SENDER_TYPES = ["velora", "blaze"];
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
