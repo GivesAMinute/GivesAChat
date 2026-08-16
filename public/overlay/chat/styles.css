@@ -366,10 +366,14 @@ body.header-off #chat-header {
 }
 
 body.header-off #messages {
-  top: 0;
+  /* 24px, matching the bottom padding in the base rule.
 
-  /* Match the 24px bottom padding from the base rule. With the
-     header on, the 195px ceiling kept messages clear of the top
-     edge; without it they would sit flush against it. */
-  padding-top: 24px;
+     Set as `top` rather than `padding-top`. This is a flex
+     container with justify-content: flex-end and
+     overflow: hidden, so once there are more messages than fit
+     they overflow the TOP edge — and overflowing flex content
+     is clipped at the border box, with padding-top underneath
+     it doing nothing. Moving the box down instead guarantees
+     the gap whether the lane is full or empty. */
+  top: 24px;
 }
