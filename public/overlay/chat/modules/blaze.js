@@ -47,17 +47,25 @@ function escapeHtml(text) {
 }
 
 /* ---------------------------------------------------------
-   Custom emotes
+   Custom emotes — PARTIALLY RESOLVED
 
-   Blaze embeds the emote's CDN id directly in the message text:
+   Messages carry an emote token inline:
 
-     "emote test[emote:685d034d-3a0b-4b4e-8dd3-f0b27ea21cdc]"
+     "emote test[emote:2f733d36-16bb-4a05-bb3f-1d7e73634a6e]"
 
-   which maps to
-   cdn.blaze.stream/uploads/emote/<uuid>.png — so no lookup
-   table or emotes endpoint is needed. (The ":CODE:" form seen
-   in Blaze's own client is the img alt text, not the wire
-   format.)
+   That uuid is the EMOTE ID, not the image filename. The same
+   emote (:ANGRYPYRO2:) renders in Blaze's own client as
+
+     cdn.blaze.stream/uploads/emote/8e447717-...-e9a6d5b02071.png
+
+   — a different uuid entirely. So the CDN URL cannot be built
+   from the token alone, and Blaze publishes no emotes endpoint
+   to resolve one to the other. Question outstanding with Blaze.
+
+   Until that lands, the img is emitted anyway but hides itself
+   if it fails to load, so a broken image never reaches the
+   stream. When the real mapping is known, only buildEmoteUrl()
+   below needs to change.
 
    The uuid is matched strictly rather than with a loose
    wildcard: this string goes straight into a src attribute,
@@ -68,10 +76,21 @@ const EMOTE_TOKEN =
 
 const BLAZE_EMOTE_CDN = "https://cdn.blaze.stream/uploads/emote/";
 
+function buildEmoteUrl(emoteId) {
+  // Known to be wrong for now — see the note above.
+  return `${BLAZE_EMOTE_CDN}${emoteId.toLowerCase()}.png`;
+}
+
 function renderBlazeEmotes(html) {
-  return html.replace(EMOTE_TOKEN, (_match, uuid) =>
-    `<img class="blaze-emote-img" src="${BLAZE_EMOTE_CDN}${uuid.toLowerCase()}.png" alt="emote">`
-  );
+  return html.replace(EMOTE_TOKEN, (_match, uuid) => {
+    const src = buildEmoteUrl(uuid);
+
+    /* onerror is safe here: this markup is ours, not user
+       input, and the uuid has already been pattern-matched.
+       Removing the node beats showing a broken image icon
+       mid-stream. */
+    return `<img class="blaze-emote-img" src="${src}" alt="" onerror="this.remove()">`;
+  });
 }
 
 /* Unicode emoji get scaled to match, via the existing
