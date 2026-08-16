@@ -127,6 +127,26 @@ function handleEventSub(message) {
 
   if (metadata.subscriptionType !== "channel.chat.message") return;
 
+  /* -----------------------------------------------------
+     Emote diagnosis.
+
+     The docs show `message` as a plain string with no emote
+     metadata, which would mean custom emotes like
+     :ANGRYPYRO2: cannot be resolved to their CDN UUID
+     (cdn.blaze.stream/uploads/emote/<uuid>.png).
+
+     Docs examples are often abridged though, so log the whole
+     payload once for any message containing a :code: — if
+     Blaze does send emote data, it will be visible here and
+     this becomes a small change rather than a dead end.
+  ----------------------------------------------------- */
+  if (/:[A-Za-z0-9_]+:/.test(payload?.message || "")) {
+    console.log(
+      "[Blaze] message with emote codes — full payload:",
+      JSON.stringify(payload, null, 2)
+    );
+  }
+
   const chatPayload = toChatPayload(payload);
   if (!chatPayload.html.trim()) return;
 
