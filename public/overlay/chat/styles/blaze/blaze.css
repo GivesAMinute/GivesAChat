@@ -18,6 +18,19 @@
   margin-left: -13px; /* pull MOD closer to VIP */
 }
 
+/* ⭐ Blaze custom emotes (images)
+
+   Sent inline as [emote:<uuid>] and resolved to
+   cdn.blaze.stream/uploads/emote/<uuid>.png. Sized to sit
+   alongside the scaled unicode emoji below. */
+.blaze-emote-img {
+  height: 60px;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 2px;
+  display: inline-block;
+}
+
 /* ⭐ Blaze emote scaling */
 .blaze-emote {
   font-size: 60px !important;   /* 3× Blaze default size */

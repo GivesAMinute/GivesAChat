@@ -46,10 +46,37 @@ function escapeHtml(text) {
     .replace(/'/g, "&#39;");
 }
 
-/* Blaze emotes appear to be unicode emoji. Wrapping them
-   matches the existing .blaze-emote rule, which scales them 3x.
-   If custom emotes turn out to arrive as text codes instead,
-   this is where they'd be swapped for images. */
+/* ---------------------------------------------------------
+   Custom emotes
+
+   Blaze embeds the emote's CDN id directly in the message text:
+
+     "emote test[emote:685d034d-3a0b-4b4e-8dd3-f0b27ea21cdc]"
+
+   which maps to
+   cdn.blaze.stream/uploads/emote/<uuid>.png — so no lookup
+   table or emotes endpoint is needed. (The ":CODE:" form seen
+   in Blaze's own client is the img alt text, not the wire
+   format.)
+
+   The uuid is matched strictly rather than with a loose
+   wildcard: this string goes straight into a src attribute,
+   and message text is attacker-controlled.
+--------------------------------------------------------- */
+const EMOTE_TOKEN =
+  /\[emote:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]/gi;
+
+const BLAZE_EMOTE_CDN = "https://cdn.blaze.stream/uploads/emote/";
+
+function renderBlazeEmotes(html) {
+  return html.replace(EMOTE_TOKEN, (_match, uuid) =>
+    `<img class="blaze-emote-img" src="${BLAZE_EMOTE_CDN}${uuid.toLowerCase()}.png" alt="emote">`
+  );
+}
+
+/* Unicode emoji get scaled to match, via the existing
+   .blaze-emote rule. Runs after emote substitution — the img
+   tag it produces contains no emoji, so it is unaffected. */
 function scaleBlazeEmotes(html) {
   return html.replace(
     /([\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}])/gu,
@@ -73,7 +100,7 @@ function toChatPayload(payload) {
     isOwner: sender.isOwner === true,
     isSubscriber: sender.isSubscriber === true,
 
-    html: scaleBlazeEmotes(escapeHtml(payload?.message)),
+    html: scaleBlazeEmotes(renderBlazeEmotes(escapeHtml(payload?.message))),
 
     timestamp: payload?.createdAt ? Date.parse(payload.createdAt) : Date.now()
   };
@@ -127,24 +154,14 @@ function handleEventSub(message) {
 
   if (metadata.subscriptionType !== "channel.chat.message") return;
 
-  /* -----------------------------------------------------
-     Emote diagnosis.
+  /* Any other bracketed token is an embed type we don't handle
+     yet — log it rather than letting it render as raw text. */
+  const unknown = String(payload?.message || "")
+    .replace(EMOTE_TOKEN, "")
+    .match(/\[[a-z]+:[^\]]+\]/gi);
 
-     The docs show `message` as a plain string with no emote
-     metadata, which would mean custom emotes like
-     :ANGRYPYRO2: cannot be resolved to their CDN UUID
-     (cdn.blaze.stream/uploads/emote/<uuid>.png).
-
-     Docs examples are often abridged though, so log the whole
-     payload once for any message containing a :code: — if
-     Blaze does send emote data, it will be visible here and
-     this becomes a small change rather than a dead end.
-  ----------------------------------------------------- */
-  if (/:[A-Za-z0-9_]+:/.test(payload?.message || "")) {
-    console.log(
-      "[Blaze] message with emote codes — full payload:",
-      JSON.stringify(payload, null, 2)
-    );
+  if (unknown) {
+    console.warn("[Blaze] unhandled message token(s):", unknown.join(", "));
   }
 
   const chatPayload = toChatPayload(payload);
