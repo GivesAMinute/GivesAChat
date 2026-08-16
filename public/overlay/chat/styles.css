@@ -63,17 +63,19 @@ body {
   position: absolute;
   bottom: 0px;            /* where messages begin */
 
-  /* ⭐ Ceiling for the message stack — keeps chat clear of the
-     GIVERS Watching Now box.
+  /* ⭐ Ceiling for the message stack.
 
+     For reference:
        #viewer-box top          127px
        + border/padding/content  44px
        = box bottom edge        171px
-       + neon glow spread        40px
-       = ~211px before anything visually touches it
+       + neon glow spread        40px  (soft, fades out)
 
-     Started at 220px, nudged to 210px, then 205px. */
-  top: 205px;
+     Started at 220px to clear the glow entirely, then tuned by
+     eye on stream: 210 -> 205 -> 195. At 195px the stack reaches
+     into the outer, faintest part of the glow but still stops
+     24px short of the box itself. */
+  top: 195px;
   left: 0;
   width: 100%;
   padding: 0 20px 24px 10px;
