@@ -14,10 +14,19 @@ const isIOS =
    ⭐ Popups Socket Manager — Velora Reconnect Enabled
 --------------------------------------------------------- */
 class PopupsSocketManager {
-  constructor({ type, url, token = null, onEvent }) {
+  /**
+   * @param {object}   opts
+   * @param {function} [opts.getToken]  async, called before EVERY
+   *   connect. Velora access tokens expire after an hour, so a token
+   *   captured once and reused on reconnect is dead by the second
+   *   attempt — which is why the overlay needed a manual refresh
+   *   before alerts would render again.
+   */
+  constructor({ type, url, getToken = null, onEvent }) {
     this.type = type;
     this.url = url;
-    this.token = token;
+    this.getToken = getToken;
+    this.token = null;
     this.onEvent = onEvent;
 
     this.socket = null;
@@ -29,8 +38,24 @@ class PopupsSocketManager {
     setTimeout(() => this.connect(), 100);
   }
 
-  connect() {
+  async connect() {
     clearTimeout(this.reconnectTimer);
+
+    // Always fetch a fresh token — the previous one may have expired
+    // while we were disconnected.
+    if (this.type === "velora" && this.getToken) {
+      try {
+        this.token = await this.getToken();
+      } catch (err) {
+        console.warn("[Popups] token fetch failed:", err);
+      }
+
+      if (!this.token) {
+        console.warn("[Popups] no Velora token; retrying");
+        this.scheduleReconnect();
+        return;
+      }
+    }
 
     const opts =
       this.type === "velora"
@@ -272,13 +297,14 @@ export async function setupPopupSocket() {
 
   sharedPopups.chatWS = new WebSocket(sharedPopups.chatWSURL);
 
-  const token = await loadVeloraAccessToken();
-  if (!token) return;
-
   const veloraManager = new PopupsSocketManager({
     type: "velora",
     url: "wss://api.velora.tv/ws/events",
-    token,
+
+    // Passed as a function, not a value — a token captured here
+    // would be stale within the hour and every reconnect would
+    // fail silently.
+    getToken: loadVeloraAccessToken,
     onEvent: (payload) => {
       sharedPopups.wake();           // ⭐ WAKE POPUPS
       sharedPopups.markPopupEvent(); // ⭐ MARK ACTIVITY

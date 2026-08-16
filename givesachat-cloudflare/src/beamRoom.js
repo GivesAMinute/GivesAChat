@@ -36,6 +36,16 @@ const DEFAULT_BEAM_SSE_URL =
   `https://beamstream.gg/api/chat-ng/api/v1/rooms/${BEAM_ROOM_ID}/stream`;
 
 const ALARM_INTERVAL_MS = 30_000;   // keepalive / supervisor tick
+
+/* Durable Objects bill wall-clock duration while they are alive, and
+   an open SSE connection keeps this one alive permanently. Left
+   running it would bill ~10,800 GB-sec a day whether or not anyone is
+   streaming — roughly 324,000 GB-sec a month against a 400,000 free
+   allowance, before ChatRoom and PopupRoom are counted at all.
+
+   So: stop reading when no overlay is connected. The next overlay to
+   connect calls /start via wakeBeam() and it picks straight back up. */
+const IDLE_SHUTDOWN_MS = 120_000;   // no overlays for 2 min -> stop
 const MIN_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 60_000;
 
@@ -58,12 +68,36 @@ export class BeamRoom {
     this.lastError = null;
     this.messageCount = 0;
     this.droppedCount = 0;
+    this.lastClientSeenAt = Date.now();
+    this.stoppedReason = null;
+  }
+
+  /* ---------------------------------------------------------
+     Is anyone actually watching? ChatRoom is the authority —
+     it holds the overlay WebSockets.
+  --------------------------------------------------------- */
+  async overlayCount() {
+    try {
+      const id = this.env.ChatRoom.idFromName("givesachat-main-v4");
+      const room = this.env.ChatRoom.get(id);
+
+      const res = await room.fetch("https://dummy/clients");
+      if (!res.ok) return null;
+
+      const json = await res.json();
+      return Number(json?.count ?? 0);
+    } catch (err) {
+      console.error("[BEAM] client count failed:", err);
+      return null;   // unknown — err on the side of staying up
+    }
   }
 
   async fetch(request) {
     const url = new URL(request.url);
 
     if (url.pathname.endsWith("/start")) {
+      this.lastClientSeenAt = Date.now();
+      this.stoppedReason = null;
       this.ensureRunning();
       return this.json({ ok: true, running: this.running });
     }
@@ -84,6 +118,9 @@ export class BeamRoom {
         messageCount: this.messageCount,
         droppedCount: this.droppedCount,
         lastError: this.lastError,
+        stoppedReason: this.stoppedReason,
+        secondsSinceOverlaySeen:
+          Math.round((Date.now() - this.lastClientSeenAt) / 1000),
         sourceUrl: this.sseUrl
       });
     }
@@ -97,6 +134,27 @@ export class BeamRoom {
      if the loop ever fell over.
   --------------------------------------------------------- */
   async alarm() {
+    const count = await this.overlayCount();
+
+    if (count !== null && count > 0) this.lastClientSeenAt = Date.now();
+
+    const idleFor = Date.now() - this.lastClientSeenAt;
+
+    if (count === 0 && idleFor > IDLE_SHUTDOWN_MS) {
+      if (this.running) {
+        console.log(
+          `[BEAM] no overlays for ${Math.round(idleFor / 1000)}s — stopping`
+        );
+      }
+
+      this.running = false;
+      this.stoppedReason = "idle";
+
+      // No alarm rescheduled: nothing left to supervise, so the
+      // object can be evicted and stops billing entirely.
+      return;
+    }
+
     this.ensureRunning();
     await this.scheduleAlarm();
   }

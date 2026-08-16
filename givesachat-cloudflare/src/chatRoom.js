@@ -3,6 +3,24 @@
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 
 /* ---------------------------------------------------------
+   ChatRoom
+
+   Uses the WebSocket Hibernation API: state.acceptWebSocket()
+   plus webSocketMessage/Close/Error handlers, rather than
+   server.accept() with event listeners.
+
+   The difference is billing. A durable object holding a
+   WebSocket the old way stays resident and bills wall-clock
+   duration for as long as the socket is open — an entire
+   stream, times every OBS source and device connected. With
+   hibernation the object is evicted from memory while the
+   sockets stay open, and is only revived when a message
+   actually arrives.
+
+   Behaviour is unchanged: same broadcast, same relay rules.
+--------------------------------------------------------- */
+
+/* ---------------------------------------------------------
    What a connected client is allowed to relay.
 
    The popups overlay legitimately pushes reward cards and
@@ -42,9 +60,6 @@ export class ChatRoom {
   constructor(state, env) {
     this.state = state;
     this.env = env;
-
-    // ⭐ Always track active WebSocket clients
-    this.clients = [];
   }
 
   async fetch(request) {
@@ -54,12 +69,19 @@ export class ChatRoom {
        ⭐ WebSocket upgrade → attach overlay client
     --------------------------------------------------------- */
     if (request.headers.get("Upgrade") === "websocket") {
-      return this.handleWebSocket(request);
+      const pair = new WebSocketPair();
+
+      // Hibernatable: the runtime holds the socket, not us.
+      this.state.acceptWebSocket(pair[1]);
+
+      return new Response(null, {
+        status: 101,
+        webSocket: pair[0]
+      });
     }
 
     /* ---------------------------------------------------------
-       ⭐ HTTP broadcast → Velora → DO → overlay
-       (Beam removed permanently)
+       ⭐ HTTP broadcast → Velora / Beam → DO → overlay
     --------------------------------------------------------- */
     if (request.method === "POST" && url.pathname === "/broadcast") {
       const event = await request.json();
@@ -67,67 +89,57 @@ export class ChatRoom {
       return new Response("OK");
     }
 
+    /* ---------------------------------------------------------
+       ⭐ How many overlays are connected?
+
+       BeamRoom polls this to decide whether its SSE connection
+       is worth holding open — see IDLE_SHUTDOWN_MS there.
+    --------------------------------------------------------- */
+    if (url.pathname === "/clients") {
+      return new Response(
+        JSON.stringify({ count: this.state.getWebSockets().length }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response("Not found", { status: 404 });
   }
 
-  async alarm() {
-    // No scheduled tasks
-    return;
+  /* ---------------------------------------------------------
+     ⭐ Incoming message from an overlay.
+
+     Hibernation delivers these here instead of to an event
+     listener. DO NOT echo back to the sender.
+  --------------------------------------------------------- */
+  async webSocketMessage(ws, message) {
+    let parsed;
+
+    try {
+      parsed = JSON.parse(
+        typeof message === "string" ? message : new TextDecoder().decode(message)
+      );
+    } catch {
+      // Non-JSON from a client is never meaningful — drop it.
+      return;
+    }
+
+    // Heartbeats stay between the client and this object.
+    if (parsed?.type === "ping") return;
+
+    if (!RELAYABLE_TYPES.includes(parsed?.type)) {
+      console.warn("Dropped non-relayable client message:", parsed?.type);
+      return;
+    }
+
+    this.broadcast(scrub(parsed), ws);
   }
 
-  /* ---------------------------------------------------------
-     ⭐ WebSocket connection handler
-  --------------------------------------------------------- */
-  handleWebSocket(request) {
-    const pair = new WebSocketPair();
-    const client = pair[0];
-    const server = pair[1];
+  async webSocketClose(ws, code, reason, wasClean) {
+    try { ws.close(code, reason); } catch {}
+  }
 
-    server.accept();
-
-    // ⭐ Add new client
-    this.clients.push(server);
-
-    /* ---------------------------------------------------------
-       ⭐ Incoming message from overlay
-       DO NOT echo back to sender
-    --------------------------------------------------------- */
-    server.addEventListener("message", (msg) => {
-      let parsed;
-
-      try {
-        parsed = JSON.parse(msg.data);
-      } catch {
-        // Non-JSON from a client is never meaningful — drop it.
-        // (Previously this was rebroadcast verbatim.)
-        return;
-      }
-
-      // Heartbeats stay between the client and this object.
-      if (parsed?.type === "ping") return;
-
-      if (!RELAYABLE_TYPES.includes(parsed?.type)) {
-        console.warn("Dropped non-relayable client message:", parsed?.type);
-        return;
-      }
-
-      this.broadcast(scrub(parsed), server);
-    });
-
-    /* ---------------------------------------------------------
-       ⭐ Cleanup on disconnect
-    --------------------------------------------------------- */
-    const cleanup = () => {
-      this.clients = this.clients.filter((ws) => ws !== server);
-    };
-
-    server.addEventListener("close", cleanup);
-    server.addEventListener("error", cleanup);
-
-    return new Response(null, {
-      status: 101,
-      webSocket: client
-    });
+  async webSocketError(ws, error) {
+    console.warn("[ChatRoom] socket error:", error?.message || error);
   }
 
   /* ---------------------------------------------------------
@@ -135,23 +147,19 @@ export class ChatRoom {
      (except sender)
   --------------------------------------------------------- */
   broadcast(event, sender) {
-    if (!this.clients.length) return;
+    const sockets = this.state.getWebSockets();
+    if (!sockets.length) return;
 
     const payload = JSON.stringify(event);
-    const alive = [];
 
-    for (const ws of this.clients) {
+    for (const ws of sockets) {
       if (ws === sender) continue;   // ⭐ Never echo back to sender
 
       try {
         ws.send(payload);
-        alive.push(ws);
       } catch {
-        // Dead socket → drop it
+        // Dead socket — the runtime will clean it up.
       }
     }
-
-    // ⭐ Keep only alive sockets
-    this.clients = alive;
   }
 }
