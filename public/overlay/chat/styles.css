@@ -367,4 +367,9 @@ body.header-off #chat-header {
 
 body.header-off #messages {
   top: 0;
+
+  /* Match the 24px bottom padding from the base rule. With the
+     header on, the 195px ceiling kept messages clear of the top
+     edge; without it they would sit flush against it. */
+  padding-top: 24px;
 }
