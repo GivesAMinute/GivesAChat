@@ -121,3 +121,66 @@ export async function subscribeBlazeSession(env, sessionId) {
 
   return results;
 }
+
+/* ---------------------------------------------------------
+   Endpoint discovery
+
+   Blaze documents no emotes endpoint, and unauthenticated
+   probing is useless: /v1/anything returns "missing
+   credentials" because auth runs before routing. With a real
+   app token the API can distinguish "no such route" from "here
+   is your data", so we ask it directly.
+
+   Exposed at /blaze/probe — a diagnostic, not part of the chat
+   path. Safe to delete once emotes are resolved.
+--------------------------------------------------------- */
+const PROBE_PATHS = [
+  "/v1/emotes",
+  "/v1/emotes/global",
+  "/v1/channels/emotes",
+  "/v1/chats/emotes",
+  "/v1/channels/roles/emotes",
+
+  // control: this definitely does not exist. If it returns the
+  // same status as the others, the probe proves nothing.
+  "/v1/zzz-control-does-not-exist"
+];
+
+export async function probeBlazeEndpoints(env, extraPath = null) {
+  const token = await getBlazeAppToken(env);
+  const channelId = env.BLAZE_CHANNEL_ID;
+
+  const paths = extraPath ? [extraPath, ...PROBE_PATHS] : PROBE_PATHS;
+  const results = [];
+
+  for (const path of paths) {
+    // Try bare, and with channelId where the API commonly wants it.
+    const variants = path.includes("control")
+      ? [path]
+      : [path, `${path}?channelId=${channelId}`];
+
+    for (const variant of variants) {
+      try {
+        const res = await fetch(`https://api.blaze.stream${variant}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "client-id": env.BLAZE_CLIENT_ID,
+            "Accept": "application/json"
+          }
+        });
+
+        const body = await res.text();
+
+        results.push({
+          path: variant,
+          status: res.status,
+          body: body.slice(0, 400)
+        });
+      } catch (err) {
+        results.push({ path: variant, error: String(err?.message || err) });
+      }
+    }
+  }
+
+  return results;
+}

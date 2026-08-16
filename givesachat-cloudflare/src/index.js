@@ -16,7 +16,7 @@ import {
 } from "./veloraTokenStore.js";
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 import { debugKickAvatar } from "./kickAvatars.js";
-import { subscribeBlazeSession } from "./blazeAuth.js";
+import { subscribeBlazeSession, probeBlazeEndpoints } from "./blazeAuth.js";
 
 export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom };
 
@@ -327,6 +327,34 @@ export default {
         console.error("[BLAZE] subscribe error:", err);
         return new Response(
           JSON.stringify({ ok: false, error: String(err?.message || err) }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    /* ---------------------------------------------------------
+       7c. Blaze endpoint probe (diagnostic)
+
+       Authenticated discovery for an emotes endpoint Blaze has
+       not documented. Delete once emotes are resolved.
+    --------------------------------------------------------- */
+    if (url.pathname === "/blaze/probe") {
+      const auth = checkKey(request, url, env.INGEST_KEY);
+      if (!auth.ok) return unauthorized();
+
+      try {
+        const results = await probeBlazeEndpoints(
+          env,
+          url.searchParams.get("path")
+        );
+
+        return new Response(JSON.stringify(results, null, 2), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (err) {
+        return new Response(
+          JSON.stringify({ error: String(err?.message || err) }, null, 2),
           { status: 500, headers: { "Content-Type": "application/json" } }
         );
       }
