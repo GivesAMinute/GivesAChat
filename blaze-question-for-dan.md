@@ -34,6 +34,25 @@ Same emote, two different identifiers. So the image URL can't be built
 from the event payload, and I can't find an emotes endpoint under
 Channels, Users, Chat, Categories or Moderation to map between them.
 
+## What I've already ruled out
+
+Probing with a valid App Access Token (so real 404s, not auth errors):
+
+```
+/v1/emotes                            404
+/v1/emotes/global                     404
+/v1/channels/emotes                   404
+/v1/chats/emotes                      404
+/v1/channels/roles/emotes             403  <- but so does .../roles/bananas,
+                                             so that path is just the
+                                             :role wildcard, not an endpoint
+/v1/channels/roles/vips               200  <- confirms the app token itself
+                                             has access to role endpoints
+```
+
+So it isn't a permissions problem on my end — I don't think the endpoint
+exists.
+
 ## What would unblock me
 
 1. **Is there an endpoint that resolves an emote id to its image?**
