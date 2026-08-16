@@ -57,7 +57,12 @@
   // Never add it here — this file is committed to a public repo.
   "vars": {
     "VELORA_CLIENT_ID": "velora_45271c710e18820f",
-    "VELORA_REDIRECT_URI": "https://givesachat-cloudflare.benonkoebsch.workers.dev/velora/callback"
+    "VELORA_REDIRECT_URI": "https://givesachat-cloudflare.benonkoebsch.workers.dev/velora/callback",
+
+    // Blaze — Client ID is public; the secret is a Cloudflare
+    // secret (npx wrangler secret put BLAZE_CLIENT_SECRET)
+    "BLAZE_CLIENT_ID": "SIQ6qp4IcEVM6D6TBWLousZQY0VrCLQC",
+    "BLAZE_CHANNEL_ID": "f6b81529-8fcd-4bbe-b2b7-8f6d9c99b15f"
   },
 
   "assets": {

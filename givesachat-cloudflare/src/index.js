@@ -16,6 +16,7 @@ import {
 } from "./veloraTokenStore.js";
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 import { debugKickAvatar } from "./kickAvatars.js";
+import { subscribeBlazeSession } from "./blazeAuth.js";
 
 export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom };
 
@@ -282,6 +283,54 @@ export default {
        token store through the env.VeloraTokenStore binding (see
        getVeloraTokens/saveVeloraTokens), and no browser code calls it.
     --------------------------------------------------------- */
+
+    /* ---------------------------------------------------------
+       7b. Blaze — subscribe an overlay's Socket.IO session
+
+       Socket.IO does not run in workerd, so the overlay opens
+       the connection itself and posts its sessionId here. The
+       authenticated subscribe happens on this side, which keeps
+       the Blaze client secret out of the browser entirely.
+
+       Guarded by OVERLAY_KEY rather than INGEST_KEY: overlays
+       call this, and the overlay key is the one they carry.
+    --------------------------------------------------------- */
+    if (url.pathname === "/api/blaze/subscribe" && request.method === "POST") {
+      const auth = checkKey(request, url, env.OVERLAY_KEY);
+      if (!auth.ok) return unauthorized();
+
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return new Response("Invalid JSON", { status: 400 });
+      }
+
+      const sessionId = String(body?.sessionId || "").trim();
+
+      if (!sessionId || sessionId.length > 200) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "sessionId required" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      try {
+        const results = await subscribeBlazeSession(env, sessionId);
+        const ok = Object.values(results).every((r) => r.ok);
+
+        return new Response(JSON.stringify({ ok, results }), {
+          status: ok ? 200 : 502,
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (err) {
+        console.error("[BLAZE] subscribe error:", err);
+        return new Response(
+          JSON.stringify({ ok: false, error: String(err?.message || err) }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     /* ---------------------------------------------------------
        8a. Beam stream control
