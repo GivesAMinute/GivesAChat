@@ -3,6 +3,7 @@ import { VERSION } from "./version.js";
 import { ChatRoom } from "./chatRoom.js";
 import { PopupRoom } from "./popupRoom.js";
 import { BeamRoom } from "./beamRoom.js";
+import { ArenaRoom } from "./arenaRoom.js";
 import {
   generateAuthorizationUrl,
   exchangeAuthCode,
@@ -18,7 +19,7 @@ import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 import { debugKickAvatar } from "./kickAvatars.js";
 import { subscribeBlazeSession, probeBlazeEndpoints } from "./blazeAuth.js";
 
-export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom };
+export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom, ArenaRoom };
 
 /* ---------------------------------------------------------
    Beam's SSE reader lives in a durable object. Nudge it awake
@@ -26,6 +27,16 @@ export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom };
    the time the first message arrives. Cheap and idempotent —
    the object ignores the call if it is already reading.
 --------------------------------------------------------- */
+async function wakeArena(env) {
+  try {
+    const id = env.ArenaRoom.idFromName("arena-live-chat");
+    const stub = env.ArenaRoom.get(id);
+    await stub.fetch("https://do/start");
+  } catch (err) {
+    console.error("Arena wake failed:", err);
+  }
+}
+
 async function wakeBeam(env) {
   try {
     const id = env.BeamRoom.idFromName("beam-unified-chat");
@@ -127,8 +138,13 @@ export default {
       // Must go through waitUntil: this response returns
       // immediately, and an un-awaited subrequest would be
       // cancelled before it ever reached the durable object.
-      if (ctx?.waitUntil) ctx.waitUntil(wakeBeam(env));
-      else await wakeBeam(env);
+      if (ctx?.waitUntil) {
+        ctx.waitUntil(wakeBeam(env));
+        ctx.waitUntil(wakeArena(env));
+      } else {
+        await wakeBeam(env);
+        await wakeArena(env);
+      }
 
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
       const room = env.ChatRoom.get(id);
@@ -358,6 +374,23 @@ export default {
           { status: 500, headers: { "Content-Type": "application/json" } }
         );
       }
+    }
+
+    /* ---------------------------------------------------------
+       7d. Arena poller control  (/arena/status|start|stop)
+    --------------------------------------------------------- */
+    if (url.pathname.startsWith("/arena/")) {
+      const auth = checkKey(request, url, env.INGEST_KEY);
+      if (!auth.ok) return unauthorized();
+
+      const action = url.pathname.split("/")[2];
+      if (!["start", "stop", "status"].includes(action)) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const id = env.ArenaRoom.idFromName("arena-live-chat");
+      const stub = env.ArenaRoom.get(id);
+      return stub.fetch(`https://do/${action}`);
     }
 
     /* ---------------------------------------------------------

@@ -316,3 +316,17 @@ body {
   }
 }
 
+
+/* ---------------------------------------------------------
+   ⭐ Arena token icons
+
+   Tips arrive as "tipped <icon> 1.0486 ARENA". Only the icon
+   needs sizing — the rest is ordinary bubble text.
+--------------------------------------------------------- */
+.arena-token-icon {
+  height: 22px;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 4px 0 2px;
+  display: inline-block;
+}

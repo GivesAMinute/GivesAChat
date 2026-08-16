@@ -28,6 +28,10 @@
       {
         "name": "BeamRoom",
         "class_name": "BeamRoom"
+      },
+      {
+        "name": "ArenaRoom",
+        "class_name": "ArenaRoom"
       }
     ]
   },
@@ -48,6 +52,10 @@
     "BeamRoom": {
       "type": "durable-object",
       "storage": "sqlite"
+    },
+    "ArenaRoom": {
+      "type": "durable-object",
+      "storage": "sqlite"
     }
   },
 
@@ -62,7 +70,10 @@
     // Blaze — Client ID is public; the secret is a Cloudflare
     // secret (npx wrangler secret put BLAZE_CLIENT_SECRET)
     "BLAZE_CLIENT_ID": "SIQ6qp4IcEVM6D6TBWLousZQY0VrCLQC",
-    "BLAZE_CHANNEL_ID": "f6b81529-8fcd-4bbe-b2b7-8f6d9c99b15f"
+    "BLAZE_CHANNEL_ID": "f6b81529-8fcd-4bbe-b2b7-8f6d9c99b15f",
+
+    // Arena (arena.social) — public endpoints, no credential
+    "ARENA_HANDLE": "GivesAMinute"
   },
 
   "assets": {
