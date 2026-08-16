@@ -15,7 +15,17 @@ import { loadCurrentDate } from "./modules/currentDate.js";
 // ⭐ Viewer count + header initializer
 import { setupHeader } from "./modules/header.js";
 
+// ⭐ Header on/off via ?header=no
+import { showHeader } from "./modules/chatMode.js";
+
 async function initOverlay() {
+  /* ---------------------------------------------------------
+     ⭐ Header toggle — applied before anything paints so the
+     lane never renders at the wrong height and then jumps.
+  --------------------------------------------------------- */
+  const headerOn = showHeader();
+  if (!headerOn) document.body.classList.add("header-off");
+
   // ⭐ Audio unlock
   if (isIOSDevice()) {
     createAudioUnlockButtons(showVoiceSelector);
@@ -41,16 +51,17 @@ async function initOverlay() {
     setupBlazeChat();
 
     /* ---------------------------------------------------------
-       ⭐ Brave/iOS Fix #3 — Delay header date load
-       Prevents layout thrash during initial paint.
-    --------------------------------------------------------- */
-    loadCurrentDate();
+       ⭐ Header systems — date, viewer count.
 
-    /* ---------------------------------------------------------
-       ⭐ Initialize viewer count + header systems
-       Safe to run after date + socket initialization.
+       Skipped entirely when the header is off. setupHeader()
+       polls /api/viewers on a timer, so this isn't just
+       cosmetic: a headerless source would otherwise keep
+       requesting a viewer count nothing displays.
     --------------------------------------------------------- */
-    setupHeader();
+    if (headerOn) {
+      loadCurrentDate();
+      setupHeader();
+    }
 
     /* ---------------------------------------------------------
        ❌ Beamstream removed

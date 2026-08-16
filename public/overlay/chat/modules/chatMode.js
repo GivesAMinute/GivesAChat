@@ -65,6 +65,41 @@ export function isPersistent() {
   return chatMode() === "persistent";
 }
 
+/* ---------------------------------------------------------
+   Header toggle
+
+   The header (logo, GIVERS Watching Now, date) is useful on
+   most scenes but awkward to crop around on others. Turn it
+   off per browser source:
+
+     /overlay/chat/?key=YOUR_KEY&header=no
+
+   Accepts no / off / 0 / false / hide. Anything else, or the
+   parameter being absent, leaves the header on — so existing
+   URLs are unaffected.
+--------------------------------------------------------- */
+let cachedHeader = null;
+
+export function showHeader() {
+  if (cachedHeader !== null) return cachedHeader;
+
+  let show = true;
+
+  try {
+    const raw = (new URLSearchParams(location.search).get("header") || "")
+      .toLowerCase()
+      .trim();
+
+    if (["no", "off", "0", "false", "hide", "none"].includes(raw)) show = false;
+  } catch {
+    // Malformed query string — keep the header.
+  }
+
+  cachedHeader = show;
+  console.log(`[Overlay] header: ${show ? "on" : "off"}`);
+  return show;
+}
+
 function trimBacklog() {
   const container = document.getElementById("messages");
   if (!container) return;

@@ -353,3 +353,18 @@ body {
 .chat-link:hover {
   color: #9bdaff;
 }
+
+/* ---------------------------------------------------------
+   ⭐ Header off  (?header=no)
+
+   Hides the logo, GIVERS Watching Now box and date, and lets
+   the message stack reclaim the space they occupied — the
+   195px ceiling exists only to clear that box.
+--------------------------------------------------------- */
+body.header-off #chat-header {
+  display: none !important;
+}
+
+body.header-off #messages {
+  top: 0;
+}
