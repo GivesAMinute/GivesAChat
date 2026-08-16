@@ -26,21 +26,28 @@ async function loadVeloraEmotes(env) {
       "Connection": "keep-alive"
     };
 
-    // Fetch global + channel emotes
-    const globalRes = await fetch(
-      "https://api.velora.tv/api/emotes/global",
-      { method: "GET", headers }
-    );
+    /* Three sources, merged.
 
-    const channelRes = await fetch(
-      `https://api.velora.tv/api/emotes/channel/${VELORA_CHANNEL_USERNAME}`,
-      { method: "GET", headers }
-    );
+       /api/emotes is a distinct route from the two below and
+       returns the collections available to the authenticated
+       viewer (it carries isLocked / accessible / viewerTier).
+       Fetching all three and merging costs one extra request
+       and can only widen coverage — a code we can resolve from
+       any source is better than a code rendered as raw text. */
+    const [allRes, globalRes, channelRes] = await Promise.all([
+      fetch("https://api.velora.tv/api/emotes", { method: "GET", headers }),
+      fetch("https://api.velora.tv/api/emotes/global", { method: "GET", headers }),
+      fetch(
+        `https://api.velora.tv/api/emotes/channel/${VELORA_CHANNEL_USERNAME}`,
+        { method: "GET", headers }
+      )
+    ]);
 
     // SAFE LOGS — these will NOT crash Cloudflare
     console.log("[VELORA] Global fetch status:", globalRes.status);
     console.log("[VELORA] Channel fetch status:", channelRes.status);
 
+    const allJson = allRes.ok ? await allRes.json() : null;
     const globalJson = await globalRes.json();
     const channelJson = await channelRes.json();
 
@@ -56,8 +63,10 @@ async function loadVeloraEmotes(env) {
     const all = [];
 
     function collectFrom(json) {
-      if (!json || !Array.isArray(json.collections)) {
-        console.warn("[VELORA] No collections found:", json);
+      if (!json) return;
+
+      if (!Array.isArray(json.collections)) {
+        console.warn("[VELORA] No collections in response");
         return;
       }
 
@@ -77,6 +86,7 @@ async function loadVeloraEmotes(env) {
       }
     }
 
+    collectFrom(allJson);
     collectFrom(globalJson);
     collectFrom(channelJson);
 
@@ -102,7 +112,18 @@ export async function applyVeloraEmotes(message, env) {
     if (!trimmed) return token;
 
     const url = emoteDict.get(trimmed);
-    if (!url) return token;
+
+    if (!url) {
+      /* Codes look like :Name: or CamelCase words. Only warn on
+         things plausibly meant as emotes, so ordinary chat text
+         doesn't fill the log. Anything appearing here is an
+         emote we could not resolve — most likely from a channel
+         whose collection we don't load. */
+      if (/^:[A-Za-z0-9_]+:$/.test(trimmed)) {
+        console.warn("[VELORA] unresolved emote code:", trimmed);
+      }
+      return token;
+    }
 
     return `<img class="velora-emote" src="${url}" alt="${trimmed}" />`;
   });

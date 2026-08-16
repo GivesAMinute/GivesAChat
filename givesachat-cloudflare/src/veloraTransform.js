@@ -1,5 +1,6 @@
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 import { applyVeloraEmotes } from "./veloraEmotes.js";
+import { resolveVeloraBadges } from "./veloraBadges.js";
 
 /* ---------------------------------------------------------
    1st / 2nd GIVER claim rewards.
@@ -58,6 +59,10 @@ export async function transformVeloraChatMessage(msg, env) {
 
       badges: Array.isArray(msg.badges) ? msg.badges : [],
       subscriptionBadge: msg.subscriptionBadge || null,
+
+      // Catalog badges (events etc.) resolved to asset urls. Role
+      // badges are excluded — the overlay has its own artwork.
+      catalogBadges: await resolveVeloraBadges(msg.badges, env),
 
       html: htmlMessage,
 
@@ -120,6 +125,10 @@ export async function transformVeloraEvent(event, payload, env) {
 
         badges: Array.isArray(data.badges) ? data.badges : [],
         subscriptionBadge: data.subscriptionBadge || null,
+
+        // Catalog badges (events etc.) resolved to asset urls. Role
+        // badges are excluded — the overlay has its own artwork.
+        catalogBadges: await resolveVeloraBadges(data.badges, env),
 
         html: htmlMessage,
 

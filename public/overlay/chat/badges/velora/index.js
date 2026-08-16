@@ -86,22 +86,36 @@ export function renderVeloraBadges(msg) {
       continue;
     }
 
-    // -------------------------------------------------------
-    // ⭐ Pride Month 2026 (NEW)
-    // -------------------------------------------------------
-    if (badgeId === "pride-month-2026") {
-      if (msg.badges?.includes("pride-month-2026")) {
-        out += wrapWithTooltip(`
-          <img class="velora-badge"
-               src="https://assets.velora.tv/badges/catalog/pride-month-2026/static-7750079e-edbe-427f-8e80-298945352e1e.png"
-               alt="Pride Month 2026"
-               title="Pride Month 2026">
-        `, "Pride Month 2026");
-      }
-      continue;
+    /* pride-month-2026 used to be hardcoded here with a literal
+       CDN url. It now resolves through the catalog below, along
+       with every other event badge. */
+
+    /* -------------------------------------------------------
+       ⭐ Catalog badges
+
+       Anything outside the role badges above is resolved by the
+       worker from /api/badges/catalog and arrives as
+       { slug, name, url }. Previously these were dropped, so
+       event badges a viewer had earned never appeared — and
+       pride-month-2026 only worked because its url was pasted
+       in by hand.
+    ------------------------------------------------------- */
+    const fromCatalog = Array.isArray(msg.catalogBadges)
+      ? msg.catalogBadges.find((b) => b && b.slug === badgeId)
+      : null;
+
+    if (fromCatalog?.url) {
+      const label = String(fromCatalog.name || badgeId).replace(/"/g, "&quot;");
+
+      out += wrapWithTooltip(`
+        <img class="velora-badge"
+             src="${String(fromCatalog.url).replace(/"/g, "&quot;")}"
+             alt="${label}"
+             title="${label}">
+      `, label);
     }
 
-    // Unknown badge IDs: ignore (matches Railway behavior)
+    // Anything still unresolved is ignored rather than rendered raw.
   }
 
   out += `</span>`;
