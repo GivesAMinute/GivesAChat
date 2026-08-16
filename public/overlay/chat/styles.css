@@ -72,8 +72,8 @@ body {
        + neon glow spread        40px
        = ~211px before anything visually touches it
 
-     Started at 220px, nudged up 10px to 210px. */
-  top: 210px;
+     Started at 220px, nudged to 210px, then 205px. */
+  top: 205px;
   left: 0;
   width: 100%;
   padding: 0 20px 24px 10px;
@@ -329,4 +329,25 @@ body {
   vertical-align: middle;
   margin: 0 4px 0 2px;
   display: inline-block;
+}
+
+/* ---------------------------------------------------------
+   ⭐ Clickable links in chat
+
+   #messages sets pointer-events: none so the overlay never
+   steals clicks in OBS. Links opt back in individually, so
+   they work in a browser or on the iPad without making the
+   whole lane interactive.
+--------------------------------------------------------- */
+.chat-link {
+  color: #6cc6ff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.chat-link:hover {
+  color: #9bdaff;
 }

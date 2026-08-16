@@ -10,6 +10,7 @@ import {
   getVeloraAccessToken
 } from "./veloraAuth.js";
 import { transformVeloraEvent } from "./veloraTransform.js";
+import { probeVeloraEndpoints } from "./veloraEmotes.js";
 import {
   VeloraTokenStore,
   putOAuthState,
@@ -374,6 +375,27 @@ export default {
           { status: 500, headers: { "Content-Type": "application/json" } }
         );
       }
+    }
+
+    /* ---------------------------------------------------------
+       7c-b. Velora endpoint probe (diagnostic)
+
+       Finding the badge catalog and the full emote set — see
+       the note in veloraEmotes.js.
+    --------------------------------------------------------- */
+    if (url.pathname === "/velora/probe") {
+      const auth = checkKey(request, url, env.INGEST_KEY);
+      if (!auth.ok) return unauthorized();
+
+      const results = await probeVeloraEndpoints(
+        env,
+        url.searchParams.get("path")
+      );
+
+      return new Response(JSON.stringify(results, null, 2), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
     /* ---------------------------------------------------------

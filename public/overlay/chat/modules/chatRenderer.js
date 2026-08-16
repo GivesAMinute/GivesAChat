@@ -5,6 +5,7 @@ import { renderYouTubeBadges } from "../badges/youtube/index.js";
 import { renderBeamBadges } from "../badges/beam/index.js";   // ⭐ ADDED
 import { colorForUsername } from "../utils/usernameColors.js";
 import { scheduleExit } from "./chatMode.js";
+import { linkify } from "../utils/linkify.js";
 
 /* ---------------------------------------------------------
    ⭐ YouTube Normalizer
@@ -255,6 +256,10 @@ function handleChat(payload, container) {
   if (usernameSpan) {
     usernameSpan.style.color = colorForUsername(payload.username, payload.platform);
   }
+
+  // ⭐ Make URLs clickable. Runs on text nodes only, after the
+  // sanitised HTML is in the DOM — see utils/linkify.js.
+  linkify(wrapper.querySelector(".text") || bubble);
 
   container.appendChild(wrapper);
 
