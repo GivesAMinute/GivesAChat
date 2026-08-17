@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+  <title>GivesAChat — Live Chat</title>
+  <meta name="description" content="Live multi-platform chat for GivesAMinute streams.">
+
+  <!-- Shown when the link is pasted into Discord, X, etc. -->
+  <meta property="og:title" content="GivesAChat — Live Chat">
+  <meta property="og:description" content="Live chat from Velora, Beam, Blaze and Arena, all in one place.">
+  <meta property="og:type" content="website">
+
+  <style>
+    /* ---------------------------------------------------------
+       Full-bleed frame.
+
+       The URL bar stays on bjwok.com/chat because the overlay
+       loads inside an iframe rather than by redirecting. There
+       is no way to do this with JavaScript — browsers forbid a
+       page from displaying another origin's URL, since that is
+       precisely how phishing would work.
+    --------------------------------------------------------- */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #131313;
+    }
+
+    iframe {
+      display: block;
+      border: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Shown only if the frame fails to load (blocked, offline). */
+    .fallback {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: #eee;
+      text-align: center;
+      padding: 24px;
+      z-index: -1;   /* behind the iframe unless the iframe is gone */
+    }
+
+    .fallback a {
+      color: #6cc6ff;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="fallback">
+    <p>Chat couldn't load in this window.</p>
+    <a href="https://givesachat-cloudflare.benonkoebsch.workers.dev/chat">
+      Open chat directly
+    </a>
+  </div>
+
+  <iframe
+    src="https://givesachat-cloudflare.benonkoebsch.workers.dev/chat"
+    title="GivesAChat live chat"
+    allow="autoplay"
+    referrerpolicy="no-referrer-when-downgrade"
+  ></iframe>
+
+</body>
+</html>
