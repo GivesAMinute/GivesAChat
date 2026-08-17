@@ -419,18 +419,21 @@ body.header-off #messages {
 /* ---------------------------------------------------------
    ⭐ Odysee badges
 
-   The streamer mark is a wide, shallow arc (roughly 15x9), so
-   it is sized on WIDTH — matching the other badges' height
-   would blow it up far past them.
+   The streamer mark is square (24x24 in Odysee's own viewBox),
+   so it is sized like the Beam verified badge rather than on
+   width, which an earlier partial version of the artwork
+   needed.
 --------------------------------------------------------- */
 .odysee-badge {
+  display: inline-block;
   vertical-align: middle;
   margin-right: 4px;
+  flex-shrink: 0;
 }
 
 .odysee-badge-streamer {
-  width: 26px;
-  height: auto;
+  width: 24px;
+  height: 24px;
 }
 
 .odysee-tip {

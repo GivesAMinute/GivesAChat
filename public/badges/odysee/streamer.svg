@@ -1,26 +1,43 @@
 <!--
   Odysee "streamer" badge.
 
-  Traced from the path Odysee's own client uses, the one whose
-  class ends in "badge-streamer". Their coordinate space is
-  offset a long way from the origin — the shape sits around
-  x=-1170, y=410 — so rather than re-mapping every number by
-  hand and risking a transcription error, the viewBox is set to
-  the shape's real bounds and the path is used verbatim.
+  Taken verbatim from Odysee's own icon, the one whose class
+  ends in "badge-streamer": a person silhouette inside two
+  broadcast arcs.
 
-  It is an arc: a broadcast wave, drawn as the top half of a
-  ring with a 7.8 outer and 6.8 inner radius.
+  Their coordinate space is offset a long way from the origin,
+  so the viewBox is theirs unchanged rather than every number
+  being re-mapped by hand.
+
+  Colours are inlined as fill attributes rather than left in the
+  original stylesheet block, and NOT set to currentColor. An SVG
+  loaded through an img src is an isolated document that
+  inherits nothing from the page, so page CSS cannot reach in to
+  colour it.
+
+    #FF5490  pink   broadcast arcs
+    #81BBB9  teal   shoulders
+    #2E2A2F  dark   head
+    #FFFFFF  white  highlight
 -->
 <svg xmlns="http://www.w3.org/2000/svg"
-     viewBox="-1177.7 406.3 15.7 9.2"
+     viewBox="-1182 401 24 24"
+     width="24" height="24"
      role="img"
      aria-label="Streamer">
-  <!--
-    Filled explicitly, NOT with currentColor. An SVG loaded
-    through <img src> is an isolated document: it inherits no
-    CSS from the page, so currentColor would resolve against
-    the SVG's own default and paint the badge black.
-  -->
-  <path fill="#F67737"
-        d="M-1169.8,406.4c-4.3,0-7.8,3.5-7.8,7.8c0,0.4,0,0.8,0.1,1.1h1c-0.1-0.4-0.1-0.7-0.1-1.1c0-3.7,3-6.8,6.8-6.8 s6.8,3,6.8,6.8c0,0.4,0,0.8-0.1,1.1h1c0.1-0.4,0.1-0.7,0.1-1.1C-1162.1,409.9-1165.5,406.4-1169.8,406.4z"/>
+
+  <!-- inner arc -->
+  <path fill="#FF5490" d="M-1169.8,406.4c-4.3,0-7.8,3.5-7.8,7.8c0,0.4,0,0.8,0.1,1.1h1c-0.1-0.4-0.1-0.7-0.1-1.1c0-3.7,3-6.8,6.8-6.8 s6.8,3,6.8,6.8c0,0.4,0,0.8-0.1,1.1h1c0.1-0.4,0.1-0.7,0.1-1.1C-1162.1,409.9-1165.5,406.4-1169.8,406.4z"/>
+
+  <!-- outer arc -->
+  <path fill="#FF5490" d="M-1180,414.2c0-5.6,4.6-10.2,10.2-10.2c5.6,0,10.2,4.6,10.2,10.2c0,2.2-0.7,4.3-1.9,5.9l0.8,0.6 c1.3-1.8,2.1-4.1,2.1-6.5c0-6.2-5-11.2-11.2-11.2c-6.2,0-11.2,5-11.2,11.2c0,2.1,0.6,4.1,1.6,5.8l1-0.3 C-1179.4,418-1180,416.2-1180,414.2z"/>
+
+  <!-- shoulders -->
+  <path fill="#81BBB9" d="M-1165.6,418.5c0-0.1,0-3.6,0-3.6c0-1.9-1-4.3-4.4-4.3s-4.4,2.4-4.4,4.3c0,0,0,3.6,0,3.6 c-1.4,0.2-1.8,0.7-1.8,0.7s2.2,2.7,6.2,2.7s6.2-2.7,6.2-2.7S-1164.2,418.7-1165.6,418.5z"/>
+
+  <!-- head -->
+  <path fill="#2E2A2F" d="M-1169.2,418.5h-1.5c-1.7,0-3.1-0.6-3.1-2.2v-1.9c0-2.1,1.6-3,3.9-3s3.9,0.9,3.9,3v1.9 C-1166.1,417.8-1167.5,418.5-1169.2,418.5z"/>
+
+  <!-- highlight -->
+  <path fill="#FFFFFF" d="M-1167.8,416.2c-0.2,0-0.4-0.2-0.4-0.4v-1.1c0-0.2,0-1-1.2-1c-0.2,0-0.4-0.2-0.4-0.4s0.2-0.4,0.4-0.4 c1.2,0,2,0.6,2,1.7v1.1C-1167.4,416.1-1167.6,416.2-1167.8,416.2z"/>
 </svg>

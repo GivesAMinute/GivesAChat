@@ -157,10 +157,11 @@ export class OdyseeRoom {
        See EMOTE_CATEGORIES below. Delete once confirmed. */
     if (url.pathname.endsWith("/emote")) {
       const name = url.searchParams.get("name");
-      if (!name || !/^[a-z0-9_+-]{2,40}$/i.test(name)) {
+      if (!name || !/^[A-Za-z0-9_+-]{2,40}$/.test(name)) {
         return this.json({ error: "pass ?name=cowboy_hat_face" });
       }
-      return this.json(await this.probeEmote(name.toLowerCase()));
+      // Case preserved — CDN paths are case-sensitive.
+      return this.json(await this.probeEmote(name));
     }
 
     return new Response("OdyseeRoom", { status: 200 });

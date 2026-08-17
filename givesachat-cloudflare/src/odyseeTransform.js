@@ -93,7 +93,12 @@ export const EMOTE_TOKEN = /(?<!\w):([a-z0-9_+-]{2,40}):(?!\w)/gi;
 
 const EMOTE_CDN = "https://static.odycdn.com/emoticons/twemoji/";
 
-const SAFE_NAME = /^[a-z0-9_+-]{2,40}$/;
+/* Case is PRESERVED, not folded. Odysee custom emotes are
+   uppercase — ":PISS:" is a real one — and a CDN path is
+   case-sensitive, so lowercasing the name would request a file
+   that does not exist. Twemoji names happen to be lowercase
+   already, so nothing is lost by leaving case alone. */
+const SAFE_NAME = /^[A-Za-z0-9_+-]{2,40}$/;
 const SAFE_CATEGORY = /^[a-z]{2,20}$/;
 
 export function odyseeEmoteUrl(name, category) {
@@ -108,8 +113,7 @@ export function findEmoteNames(text) {
   const names = new Set();
 
   for (const [, name] of String(text || "").matchAll(EMOTE_TOKEN)) {
-    const lower = name.toLowerCase();
-    if (SAFE_NAME.test(lower)) names.add(lower);
+    if (SAFE_NAME.test(name)) names.add(name);
   }
 
   return [...names];
@@ -126,7 +130,7 @@ function renderOdyseeEmotes(escapedText, categories) {
     categories instanceof Map ? categories.get(name) : categories[name];
 
   return escapedText.replace(EMOTE_TOKEN, (token, name) => {
-    const file = name.toLowerCase();
+    const file = name;
     const category = lookup(file);
 
     /* No category resolved — the CDN had no such emote in any
