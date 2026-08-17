@@ -136,6 +136,44 @@ export default {
         url.pathname = "/overlay/chat/";
         return Response.redirect(url.toString(), 301);
       }
+
+      /* -----------------------------------------------------
+         ⭐ /chat — public viewer link
+
+         A short, shareable URL for viewers to pop out on a
+         second monitor. Redirects to the overlay with the
+         read-only VIEWER_KEY already attached, so nothing has
+         to be typed or remembered:
+
+           .../chat            -> persistent, no header
+           .../chat?header=yes -> keep the header
+
+         Read-only by construction: this only ever attaches
+         VIEWER_KEY, never OVERLAY_KEY, so the link cannot be
+         used to put anything on the live stream.
+      ----------------------------------------------------- */
+      if (url.pathname === "/chat" || url.pathname === "/chat/") {
+        if (!env.VIEWER_KEY) {
+          return new Response(
+            "Viewer chat is not configured yet.\n\n" +
+            "Set it with: npx wrangler secret put VIEWER_KEY",
+            { status: 503, headers: { "Content-Type": "text/plain" } }
+          );
+        }
+
+        const target = new URL("/overlay/chat/", url.origin);
+        target.searchParams.set("key", env.VIEWER_KEY);
+        target.searchParams.set("mode", "persistent");
+
+        // Header off by default — a pop-out window wants chat,
+        // not the stream furniture. ?header=yes brings it back.
+        const header = (url.searchParams.get("header") || "").toLowerCase();
+        if (!["yes", "on", "1", "true"].includes(header)) {
+          target.searchParams.set("header", "no");
+        }
+
+        return Response.redirect(target.toString(), 302);
+      }
     }
 
     /* ---------------------------------------------------------
