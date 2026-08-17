@@ -6,6 +6,8 @@ import {
   findEmoteNames
 } from "./odyseeTransform.js";
 
+import { odyseeSticker } from "./odyseeStickers.js";
+
 /* ---------------------------------------------------------
    Resolving a :token: to a picture
 
@@ -75,6 +77,22 @@ function caseVariants(word) {
 
 export function emoteCandidates(name) {
   const lower = name.toLowerCase();
+
+  /* ---------------------------------------------------------
+     Stickers are a KNOWN LIST, not a guess.
+
+     Odysee's client carries the full sticker manifest as
+     hardcoded data, so a match here is exact and costs zero
+     requests. Checked first, and returned alone — there is
+     nothing to probe.
+
+     A token that is not in the manifest still falls through to
+     the candidate list below, so a sticker Odysee adds after
+     this snapshot was taken degrades to probing rather than to
+     nothing.
+  --------------------------------------------------------- */
+  const known = odyseeSticker(name);
+  if (known) return [{ ...known, label: "manifest" }];
 
   /* ---------------------------------------------------------
      ALL-CAPS tokens are stickers, lowercase ones are emotes.
@@ -740,6 +758,14 @@ export class OdyseeRoom {
   --------------------------------------------------------- */
   async findEmoteAsset(name) {
     const candidates = emoteCandidates(name);
+
+    /* A manifest hit is authoritative — Odysee's own client
+       uses this exact URL. Nothing to verify, nothing to
+       fetch. */
+    if (candidates.length === 1 && candidates[0].label === "manifest") {
+      return candidates[0];
+    }
+
     const BATCH = 12;
 
     for (let i = 0; i < candidates.length; i += BATCH) {

@@ -125,7 +125,16 @@ export function findEmoteNames(text) {
  * @param {string} escapedText  already through sanitizeHtml
  * @param {Map|object} assets   name -> { url, kind } or name -> null
  */
+/* Odysee wraps a sticker token in its own marker before
+   sending it: "<stkr>:PISS:<stkr>". The sanitiser drops the
+   unknown tag, but an escaped form can survive depending on
+   how it arrives, and either way it must not be left on
+   screen. Stripped in both shapes before matching. */
+const STICKER_MARKER = /<stkr>|&lt;stkr&gt;/gi;
+
 function renderOdyseeEmotes(escapedText, assets) {
+  escapedText = escapedText.replace(STICKER_MARKER, "");
+
   if (!assets) return escapedText;
 
   const lookup = (name) =>
