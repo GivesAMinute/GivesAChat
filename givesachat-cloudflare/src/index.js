@@ -525,7 +525,7 @@ export default {
       if (!auth.ok) return unauthorized();
 
       const action = url.pathname.split("/")[2];
-      if (!["start", "stop", "status", "resolve"].includes(action)) {
+      if (!["start", "stop", "status", "resolve", "emote"].includes(action)) {
         return new Response("Not found", { status: 404 });
       }
 

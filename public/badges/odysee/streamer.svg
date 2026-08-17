@@ -1,0 +1,26 @@
+<!--
+  Odysee "streamer" badge.
+
+  Traced from the path Odysee's own client uses, the one whose
+  class ends in "badge-streamer". Their coordinate space is
+  offset a long way from the origin — the shape sits around
+  x=-1170, y=410 — so rather than re-mapping every number by
+  hand and risking a transcription error, the viewBox is set to
+  the shape's real bounds and the path is used verbatim.
+
+  It is an arc: a broadcast wave, drawn as the top half of a
+  ring with a 7.8 outer and 6.8 inner radius.
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="-1177.7 406.3 15.7 9.2"
+     role="img"
+     aria-label="Streamer">
+  <!--
+    Filled explicitly, NOT with currentColor. An SVG loaded
+    through <img src> is an isolated document: it inherits no
+    CSS from the page, so currentColor would resolve against
+    the SVG's own default and paint the badge black.
+  -->
+  <path fill="#F67737"
+        d="M-1169.8,406.4c-4.3,0-7.8,3.5-7.8,7.8c0,0.4,0,0.8,0.1,1.1h1c-0.1-0.4-0.1-0.7-0.1-1.1c0-3.7,3-6.8,6.8-6.8 s6.8,3,6.8,6.8c0,0.4,0,0.8-0.1,1.1h1c0.1-0.4,0.1-0.7,0.1-1.1C-1162.1,409.9-1165.5,406.4-1169.8,406.4z"/>
+</svg>

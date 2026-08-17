@@ -40,13 +40,64 @@ import { sanitizeHtml } from "./sanitizeNodeHTML.js";
    OdyseeRoom resolves one from channel_url separately.
 --------------------------------------------------------- */
 
-/* Odysee emotes arrive as bare :tokens: in the comment text.
-   There is no emote map on the frame and no published emote
-   endpoint, so they cannot be resolved yet — they are left as
-   readable text and logged, exactly as the Velora unresolved
-   codes were, so a real list can be built from real traffic
-   rather than guessed at. */
-const EMOTE_TOKEN = /:[a-z0-9_+-]{2,40}:/gi;
+/* ---------------------------------------------------------
+   Emotes
+
+   Odysee emotes arrive as bare :tokens: in the comment text —
+   there is no emote map on the frame. Their own client renders
+
+     :cowboy_hat_face:
+       -> static.odycdn.com/emoticons/twemoji/smilies/
+            cowboy_hat_face.png
+
+   so the URL is built from the token directly. No lookup, no
+   catalogue to maintain.
+
+   THE OPEN QUESTION IS "smilies". That segment is very likely a
+   twemoji CATEGORY — the set also has people, animals, food,
+   travel, objects, symbols and flags — in which case a token
+   from another category would 404 here. Only one real emote URL
+   has been seen, so the category scheme is unconfirmed.
+
+   Rather than guess, the failure is made harmless: `alt` holds
+   the original :token:, so a browser that can't load the image
+   draws the text instead. A wrong category degrades to exactly
+   what the overlay did before emotes existed, rather than to a
+   blank gap or a broken-image icon on stream.
+
+   OdyseeRoom's /emote diagnostic resolves this properly — it
+   requests the same name from every candidate category and
+   reports which returns a 200.
+
+   The name is matched strictly. It goes straight into a src.
+
+   THE BOUNDARY GUARD IS NOT OPTIONAL. Without it, "the stream
+   starts at 10:30:00" contains ":30:" and renders a broken
+   emote in the middle of a time. Requiring a non-word
+   character before the opening colon fixes clock times, score
+   lines and ratios in one go, while still allowing emotes to
+   sit flush against each other — ":rocket::fire:" — because a
+   colon is not a word character.
+--------------------------------------------------------- */
+const EMOTE_TOKEN = /(?<!\w):([a-z0-9_+-]{2,40}):(?!\w)/gi;
+
+const EMOTE_CDN = "https://static.odycdn.com/emoticons/twemoji/smilies/";
+
+function renderOdyseeEmotes(escapedText) {
+  return escapedText.replace(EMOTE_TOKEN, (token, name) => {
+    const file = name.toLowerCase();
+
+    /* The pattern already constrains this, but the value is
+       about to be concatenated into a URL and an attribute, so
+       it is checked rather than trusted. */
+    if (!/^[a-z0-9_+-]{2,40}$/.test(file)) return token;
+
+    return (
+      `<img class="odysee-emote" src="${EMOTE_CDN}${file}.png" ` +
+      `alt=":${file}:" title=":${file}:">`
+    );
+  });
+}
 
 /* ---------------------------------------------------------
    Badge flags.
@@ -131,12 +182,14 @@ export function transformOdyseeFrame(frame) {
 
   const text = String(comment.comment || "");
 
-  const unresolved = text.match(EMOTE_TOKEN);
-  if (unresolved) {
-    console.log("[ODYSEE] unresolved emote code(s):", unresolved.join(" "));
-  }
+  /* Logged so the real vocabulary of codes your chat actually
+     uses becomes visible in `wrangler tail`. If any of them
+     fail to load, this is the list to check the category
+     against. */
+  const seen = text.match(EMOTE_TOKEN);
+  if (seen) console.log("[ODYSEE] emote code(s):", seen.join(" "));
 
-  const html = tipPrefix(comment) + sanitizeHtml(text);
+  const html = tipPrefix(comment) + renderOdyseeEmotes(sanitizeHtml(text));
   if (!html.trim()) return null;
 
   /* Seconds -> milliseconds. See the note at the top. */

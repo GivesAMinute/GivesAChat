@@ -3,6 +3,7 @@ import { renderBlazeBadges } from "../badges/blaze/index.js";
 import { renderVeloraBadges } from "../badges/velora/index.js";
 import { renderYouTubeBadges } from "../badges/youtube/index.js";
 import { renderBeamBadges } from "../badges/beam/index.js";   // ⭐ ADDED
+import { renderOdyseeBadges } from "../badges/odysee/index.js";
 import { colorForUsername } from "../utils/usernameColors.js";
 import { scheduleExit } from "./chatMode.js";
 import { linkify } from "../utils/linkify.js";
@@ -175,6 +176,8 @@ function handleChat(payload, container) {
     badgesHTML = renderYouTubeBadges(payload);
   } else if (payload.platform === "beam") {
     badgesHTML = renderBeamBadges(payload);
+  } else if (payload.platform === "odysee") {
+    badgesHTML = renderOdyseeBadges(payload);
   }
 
   const bubble = document.createElement("div");

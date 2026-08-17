@@ -129,7 +129,79 @@ export class OdyseeRoom {
       return this.json(raw);
     }
 
+    /* Diagnostic: which twemoji category does an emote live in?
+       See EMOTE_CATEGORIES below. Delete once confirmed. */
+    if (url.pathname.endsWith("/emote")) {
+      const name = url.searchParams.get("name");
+      if (!name || !/^[a-z0-9_+-]{2,40}$/i.test(name)) {
+        return this.json({ error: "pass ?name=cowboy_hat_face" });
+      }
+      return this.json(await this.probeEmote(name.toLowerCase()));
+    }
+
     return new Response("OdyseeRoom", { status: 200 });
+  }
+
+  /* ---------------------------------------------------------
+     Emote category probe
+
+     One real emote URL has been observed:
+
+       .../emoticons/twemoji/smilies/cowboy_hat_face.png
+
+     "smilies" is probably a category, which would mean tokens
+     from other categories 404 against it. This asks the CDN
+     the same question for every candidate at once.
+
+     Read the result like this: if only `smilies` returns 200
+     for a smiley AND only `travel` returns 200 for :rocket:,
+     the path is per-category and the transform needs a lookup.
+     If `smilies` returns 200 for both, Odysee flattened them
+     and the current single-path build is already correct.
+
+     The no-category control matters as much as the categories:
+     if `_none` returns 200 too, the CDN is serving something
+     for any path and none of the 200s mean anything.
+  --------------------------------------------------------- */
+  async probeEmote(name) {
+    const CATEGORIES = [
+      "smilies", "people", "animals", "nature", "food",
+      "activities", "travel", "objects", "symbols", "flags"
+    ];
+
+    const targets = CATEGORIES.map((cat) => [
+      cat,
+      `https://static.odycdn.com/emoticons/twemoji/${cat}/${name}.png`
+    ]);
+
+    // Controls: no category at all, and a name that cannot exist.
+    targets.push(["_none", `https://static.odycdn.com/emoticons/twemoji/${name}.png`]);
+    targets.push([
+      "_control_should_404",
+      `https://static.odycdn.com/emoticons/twemoji/smilies/gac_not_a_real_emote.png`
+    ]);
+
+    const results = {};
+
+    await Promise.all(
+      targets.map(async ([label, target]) => {
+        try {
+          const res = await fetch(target, {
+            method: "GET",
+            signal: AbortSignal.timeout(5000)
+          });
+          results[label] = {
+            status: res.status,
+            type: res.headers.get("content-type"),
+            bytes: res.headers.get("content-length")
+          };
+        } catch (err) {
+          results[label] = { error: String(err?.message || err) };
+        }
+      })
+    );
+
+    return { name, results };
   }
 
   async alarm() {

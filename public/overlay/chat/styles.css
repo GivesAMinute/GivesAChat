@@ -400,6 +400,39 @@ body.header-off #messages {
    card, so it flows through the ordinary bubble — Odysee's
    orange picks it out without a second layout to maintain.
 --------------------------------------------------------- */
+/* ---------------------------------------------------------
+   ⭐ Odysee emotes
+
+   Built from the :token: in the message rather than an emote
+   map. If the CDN path is wrong for a given emote the image
+   fails and the browser draws the alt text — which is the
+   original :token: — so this rule must not hide failed images.
+--------------------------------------------------------- */
+.odysee-emote {
+  height: 34px;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 2px;
+  display: inline-block;
+}
+
+/* ---------------------------------------------------------
+   ⭐ Odysee badges
+
+   The streamer mark is a wide, shallow arc (roughly 15x9), so
+   it is sized on WIDTH — matching the other badges' height
+   would blow it up far past them.
+--------------------------------------------------------- */
+.odysee-badge {
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.odysee-badge-streamer {
+  width: 26px;
+  height: auto;
+}
+
 .odysee-tip {
   display: inline-block;
   background: #F67737;
