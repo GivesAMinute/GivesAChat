@@ -49,15 +49,50 @@ const TWEMOJI_CATEGORIES = [
   "activities", "travel", "objects", "symbols", "flags"
 ];
 
-function emoteCandidates(name) {
-  const enc = encodeURIComponent;
+const enc = encodeURIComponent;
+
+/* Filenames vary in case independently of the token — ":sleep:"
+   is "Sleep@2x.png" — so each candidate name is tried in every
+   plausible casing. A Set keeps it to one attempt when several
+   forms coincide, which is the common case. */
+function caseVariants(word) {
+  return [
+    ...new Set([
+      word,
+      word.toLowerCase(),
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+      word.toUpperCase()
+    ])
+  ];
+}
+
+export function emoteCandidates(name) {
   const lower = name.toLowerCase();
 
-  const out = [];
+  /* ---------------------------------------------------------
+     ALL-CAPS tokens are stickers, lowercase ones are emotes.
+
+     Across every real sample so far the split is clean:
+
+       stickers  PISS  WHUUT  BRAVO  WOW  MOUNT_RUSHMORE
+       emotes    ouch  sleep  peace  confused_2  cry_2
+
+     This is used only to ORDER the candidates, never to
+     exclude any — both families are always tried. So if the
+     pattern breaks the token still resolves, just after one
+     extra parallel batch rather than the first. What it buys is
+     correctness when a name exists in BOTH families: ":peace:"
+     should be the emote even if a peace sticker also exists,
+     and first match wins.
+  --------------------------------------------------------- */
+  const looksLikeSticker = name === name.toUpperCase() && /[A-Z]/.test(name);
+
+  const emotes = [];
+  const stickers = [];
 
   // Standard emoji, filed under Odysee's own category grouping.
   for (const category of TWEMOJI_CATEGORIES) {
-    out.push({
+    emotes.push({
       kind: "emote",
       label: `twemoji/${category}`,
       url: `${CDN}/emoticons/twemoji/${category}/${enc(name)}.png`
@@ -67,101 +102,92 @@ function emoteCandidates(name) {
   /* ---------------------------------------------------------
      Odysee's own emote set, in the "48 px" directory.
 
-     Two tokens have been seen with a trailing _<digit>:
+     Every custom emote observed is a @2x file:
 
-       :confused_2:  ->  confused@2x.png
-       :cry_1:       ->  ?
+       :ouch:        ouch@2x.png
+       :peace:       peace@2x.png
+       :sleep:       Sleep@2x.png     <- capital S
+       :confused_2:  confused@2x.png
+       :cry_2:       cry@2x.png
 
-     The reading that fits is that the directory holds both a
-     standard and a retina file for each emote — cry.png and
-     cry@2x.png — which collide to the same display name, so
-     Odysee disambiguates the list with _1 and _2. If that is
-     right, _1 is the plain file and _2 is the @2x one.
+     Two things follow. The @2x suffix is UNIVERSAL here, not
+     something only the _<digit> tokens carry — an earlier
+     version only applied it to suffixed names, which is why
+     plain emotes like :ouch: never resolved.
 
-     That is a hypothesis from two samples, not a rule, so it
-     is not encoded as one. The suffix is stripped and BOTH
-     readings are offered as candidates — plain, and @<n>x —
-     letting the CDN confirm which exists. The unstripped name
-     is offered too, in case some emote genuinely ends in _1.
+     And the trailing _1 / _2 is not a size marker. Sleep@2x
+     proves filenames vary in case, so ":cry_1:" and ":cry_2:"
+     are almost certainly Cry@2x.png and cry@2x.png — two files
+     that collide to one display name, which Odysee numbers to
+     keep apart. Hence stripping the suffix and trying every
+     casing, rather than reading the digit as a size.
+
+     "@" is percent-encoded to match the URL Odysee's own client
+     emits byte for byte. Both forms are legal in a path, but
+     the encoded one is what was observed working.
   --------------------------------------------------------- */
-  const suffixed = /^(.+?)_(\d)$/.exec(name);
+  const base = name.replace(/_\d$/, "");
 
-  if (suffixed) {
-    const [, base, n] = suffixed;
-
-    /* "@" is written percent-encoded to match the URL Odysee's
-       own client emits byte for byte. Both forms are legal in a
-       path, but the encoded one is what was observed working. */
-    out.push({
+  for (const variant of caseVariants(base)) {
+    emotes.push({
       kind: "emote",
-      label: `48px-@${n}x`,
-      url: `${CDN}/emoticons/${enc("48 px")}/${enc(base)}%40${n}x.png`
-    });
-
-    out.push({
-      kind: "emote",
-      label: "48px-base",
-      url: `${CDN}/emoticons/${enc("48 px")}/${enc(base)}.png`
+      label: `48px ${variant}@2x`,
+      url: `${CDN}/emoticons/${enc("48 px")}/${enc(variant)}%402x.png`
     });
   }
 
-  out.push({
-    kind: "emote",
-    label: "48px",
-    url: `${CDN}/emoticons/${enc("48 px")}/${enc(name)}.png`
-  });
+  // Same set without the retina suffix, in case any predate it.
+  for (const variant of caseVariants(base)) {
+    emotes.push({
+      kind: "emote",
+      label: `48px ${variant}`,
+      url: `${CDN}/emoticons/${enc("48 px")}/${enc(variant)}.png`
+    });
+  }
 
   /* ---------------------------------------------------------
-     Stickers.
+     Stickers: stickers/<PACK>/PNG/<lowercase name><suffix>.png
 
-     Two real sticker URLs, and they disagree with each other:
+     Five real URLs, and they vary on two axes:
 
-       :PISS:   stickers/PISS/PNG/piss_with_frame.png
-       :WHUUT:  stickers/WHUUT/PNG/whuut_with-frame.png
+       :PISS:            PISS/PNG/piss_with_frame.png
+       :WHUUT:           WHUUT/PNG/whuut_with-frame.png
+       :BRAVO:           MISC/PNG/bravo.png
+       :WOW:             MISC/PNG/wow.png
+       :MOUNT_RUSHMORE:  MISC/PNG/mount_rushmore.png
 
-     Underscore in one, HYPHEN in the other. Same directory
-     shape, same lowercase filename, same "with frame" idea —
-     spelled two different ways. That is not a pattern with a
-     rule behind it, it is inconsistency in Odysee's own asset
-     naming, so both spellings have to be tried and neither can
-     be preferred on principle.
+     THE PACK IS NOT ALWAYS THE TOKEN. Three of the five sit in
+     a shared MISC pack; only PISS and WHUUT get a directory of
+     their own — those are the two with frames, so a framed
+     sticker seems to be its own pack while plain ones are
+     collected in MISC. Other packs certainly exist and will
+     need adding as they turn up.
 
-     Directory case and filename case are varied too, but only
-     against the primary spelling — the two known stickers both
-     use an uppercase directory with a lowercase file, so that
-     combination is tried against every suffix while the others
-     get the common one. This keeps the list bounded instead of
-     multiplying every axis by every other.
+     THE SUFFIX IS SPELLED TWO WAYS. Underscore for PISS, hyphen
+     for WHUUT, absent for the MISC three. That is inconsistency
+     in Odysee's own naming rather than a rule, so all three are
+     tried and none is preferred.
+
+     The filename is lowercase in all five, so filename case is
+     no longer permuted — five samples agreeing is enough to
+     stop guessing at it.
   --------------------------------------------------------- */
-  const FRAME_SUFFIXES = ["_with_frame", "_with-frame", ""];
+  const PACKS = [name, "MISC"];
+  const SUFFIXES = ["", "_with_frame", "_with-frame"];
 
-  // Observed shape: uppercase directory, lowercase filename.
-  for (const suffix of FRAME_SUFFIXES) {
-    out.push({
-      kind: "sticker",
-      label: `sticker ${name}/${lower}${suffix || " (plain)"}`,
-      url: `${CDN}/stickers/${enc(name)}/PNG/${enc(lower)}${suffix}.png`
-    });
+  for (const pack of new Set(PACKS)) {
+    for (const suffix of SUFFIXES) {
+      stickers.push({
+        kind: "sticker",
+        label: `sticker ${pack}/${lower}${suffix}`,
+        url: `${CDN}/stickers/${enc(pack)}/PNG/${enc(lower)}${suffix}.png`
+      });
+    }
   }
 
-  // Fallbacks for stickers that don't follow it.
-  for (const [dir, file] of [[name, name], [lower, lower]]) {
-    if (dir === name && file === lower) continue;
-
-    out.push({
-      kind: "sticker",
-      label: `sticker ${dir}/${file}_with_frame`,
-      url: `${CDN}/stickers/${enc(dir)}/PNG/${enc(file)}_with_frame.png`
-    });
-
-    out.push({
-      kind: "sticker",
-      label: `sticker ${dir}/${file}`,
-      url: `${CDN}/stickers/${enc(dir)}/PNG/${enc(file)}.png`
-    });
-  }
-
-  return out;
+  return looksLikeSticker
+    ? [...stickers, ...emotes]
+    : [...emotes, ...stickers];
 }
 
 const EMOTE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
