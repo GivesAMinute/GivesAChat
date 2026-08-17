@@ -64,21 +64,46 @@ function emoteCandidates(name) {
     });
   }
 
-  /* Odysee's own emote set. ":confused_2:" resolves to
-     "confused@2x.png", so the trailing _2 is stripped and the
-     retina suffix restored. The plain form is tried too, in
-     case the _2 belongs to the name for some other emote. */
-  const retina = name.replace(/_2$/, "");
+  /* ---------------------------------------------------------
+     Odysee's own emote set, in the "48 px" directory.
 
-  out.push({
-    kind: "emote",
-    label: "48px-retina",
+     Two tokens have been seen with a trailing _<digit>:
+
+       :confused_2:  ->  confused@2x.png
+       :cry_1:       ->  ?
+
+     The reading that fits is that the directory holds both a
+     standard and a retina file for each emote — cry.png and
+     cry@2x.png — which collide to the same display name, so
+     Odysee disambiguates the list with _1 and _2. If that is
+     right, _1 is the plain file and _2 is the @2x one.
+
+     That is a hypothesis from two samples, not a rule, so it
+     is not encoded as one. The suffix is stripped and BOTH
+     readings are offered as candidates — plain, and @<n>x —
+     letting the CDN confirm which exists. The unstripped name
+     is offered too, in case some emote genuinely ends in _1.
+  --------------------------------------------------------- */
+  const suffixed = /^(.+?)_(\d)$/.exec(name);
+
+  if (suffixed) {
+    const [, base, n] = suffixed;
+
     /* "@" is written percent-encoded to match the URL Odysee's
        own client emits byte for byte. Both forms are legal in a
-       path and should behave identically, but the encoded one
-       is the form actually observed working. */
-    url: `${CDN}/emoticons/${enc("48 px")}/${enc(retina)}%402x.png`
-  });
+       path, but the encoded one is what was observed working. */
+    out.push({
+      kind: "emote",
+      label: `48px-@${n}x`,
+      url: `${CDN}/emoticons/${enc("48 px")}/${enc(base)}%40${n}x.png`
+    });
+
+    out.push({
+      kind: "emote",
+      label: "48px-base",
+      url: `${CDN}/emoticons/${enc("48 px")}/${enc(base)}.png`
+    });
+  }
 
   out.push({
     kind: "emote",
@@ -86,21 +111,32 @@ function emoteCandidates(name) {
     url: `${CDN}/emoticons/${enc("48 px")}/${enc(name)}.png`
   });
 
-  /* Stickers. The directory carries the token's own case, the
-     file is lowercase. Framed and unframed both exist in their
-     client, so both are offered — framed first, since that is
-     what chat renders. */
-  out.push({
-    kind: "sticker",
-    label: "sticker-framed",
-    url: `${CDN}/stickers/${enc(name)}/PNG/${enc(lower)}_with_frame.png`
-  });
+  /* ---------------------------------------------------------
+     Stickers.
 
-  out.push({
-    kind: "sticker",
-    label: "sticker",
-    url: `${CDN}/stickers/${enc(name)}/PNG/${enc(lower)}.png`
-  });
+     :PISS: resolves to stickers/PISS/PNG/piss_with_frame.png —
+     uppercase directory, lowercase file, "_with_frame" suffix.
+     :WHUUT: does not resolve that way, so at least one part of
+     that shape varies between stickers and it is not yet clear
+     which. Every combination of the two known axes — directory
+     case and filename case — is offered, framed before plain
+     since framed is what chat renders.
+  --------------------------------------------------------- */
+  for (const dir of new Set([name, lower])) {
+    for (const file of new Set([lower, name])) {
+      out.push({
+        kind: "sticker",
+        label: `sticker-framed ${dir}/${file}`,
+        url: `${CDN}/stickers/${enc(dir)}/PNG/${enc(file)}_with_frame.png`
+      });
+
+      out.push({
+        kind: "sticker",
+        label: `sticker ${dir}/${file}`,
+        url: `${CDN}/stickers/${enc(dir)}/PNG/${enc(file)}.png`
+      });
+    }
+  }
 
   return out;
 }
