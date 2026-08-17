@@ -32,6 +32,10 @@
       {
         "name": "ArenaRoom",
         "class_name": "ArenaRoom"
+      },
+      {
+        "name": "VPZoneRoom",
+        "class_name": "VPZoneRoom"
       }
     ]
   },
@@ -56,6 +60,10 @@
     "ArenaRoom": {
       "type": "durable-object",
       "storage": "sqlite"
+    },
+    "VPZoneRoom": {
+      "type": "durable-object",
+      "storage": "sqlite"
     }
   },
 
@@ -73,7 +81,11 @@
     "BLAZE_CHANNEL_ID": "f6b81529-8fcd-4bbe-b2b7-8f6d9c99b15f",
 
     // Arena (arena.social) — public endpoints, no credential
-    "ARENA_HANDLE": "GivesAMinute"
+    "ARENA_HANDLE": "GivesAMinute",
+
+    // VPZONE — anonymous read-only gateway, no credential needed.
+    // VPZONE_API_KEY (optional secret) only enables avatars.
+    "VPZONE_CHANNEL": "givesaminute"
   },
 
   "assets": {

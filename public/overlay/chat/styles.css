@@ -377,3 +377,17 @@ body.header-off #messages {
      the gap whether the lane is full or empty. */
   top: 24px;
 }
+
+/* ---------------------------------------------------------
+   ⭐ VPZONE emotes
+
+   Sent per-message in the frame's emoteMap, so there is no
+   catalogue to maintain. Sized inline with the 26px bubble.
+--------------------------------------------------------- */
+.vpzone-emote {
+  height: 34px;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 2px;
+  display: inline-block;
+}

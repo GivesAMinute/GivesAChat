@@ -4,6 +4,7 @@ import { ChatRoom } from "./chatRoom.js";
 import { PopupRoom } from "./popupRoom.js";
 import { BeamRoom } from "./beamRoom.js";
 import { ArenaRoom } from "./arenaRoom.js";
+import { VPZoneRoom } from "./vpzoneRoom.js";
 import {
   generateAuthorizationUrl,
   exchangeAuthCode,
@@ -20,7 +21,7 @@ import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 import { debugKickAvatar } from "./kickAvatars.js";
 import { subscribeBlazeSession, probeBlazeEndpoints } from "./blazeAuth.js";
 
-export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom, ArenaRoom };
+export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom, ArenaRoom, VPZoneRoom };
 
 /* ---------------------------------------------------------
    Beam's SSE reader lives in a durable object. Nudge it awake
@@ -28,6 +29,16 @@ export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom, ArenaRoom };
    the time the first message arrives. Cheap and idempotent —
    the object ignores the call if it is already reading.
 --------------------------------------------------------- */
+async function wakeVpzone(env) {
+  try {
+    const id = env.VPZoneRoom.idFromName("vpzone-live-chat");
+    const stub = env.VPZoneRoom.get(id);
+    await stub.fetch("https://do/start");
+  } catch (err) {
+    console.error("VPZONE wake failed:", err);
+  }
+}
+
 async function wakeArena(env) {
   try {
     const id = env.ArenaRoom.idFromName("arena-live-chat");
@@ -201,9 +212,11 @@ export default {
       if (ctx?.waitUntil) {
         ctx.waitUntil(wakeBeam(env));
         ctx.waitUntil(wakeArena(env));
+        ctx.waitUntil(wakeVpzone(env));
       } else {
         await wakeBeam(env);
         await wakeArena(env);
+        await wakeVpzone(env);
       }
 
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
@@ -469,6 +482,22 @@ export default {
         status: 200,
         headers: { "Content-Type": "application/json" }
       });
+    }
+
+    /* ---------------------------------------------------------
+       7d-b. VPZONE gateway control (/vpzone/status|start|stop)
+    --------------------------------------------------------- */
+    if (url.pathname.startsWith("/vpzone/")) {
+      const auth = checkKey(request, url, env.INGEST_KEY);
+      if (!auth.ok) return unauthorized();
+
+      const action = url.pathname.split("/")[2];
+      if (!["start", "stop", "status"].includes(action)) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const id = env.VPZoneRoom.idFromName("vpzone-live-chat");
+      return env.VPZoneRoom.get(id).fetch(`https://do/${action}`);
     }
 
     /* ---------------------------------------------------------
