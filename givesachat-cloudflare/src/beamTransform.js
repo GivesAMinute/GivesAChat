@@ -50,12 +50,24 @@ export const beamStickerUrl = (src, asset = {}) => {
    Velora pipeline — without this every Velora message would
    appear twice.
 
-   Blaze is excluded pre-emptively. Beam doesn't relay Blaze
-   today but has said it will, and by then we'll have our own
-   direct Blaze connection. Filtering now means their rollout
-   can't silently start double-posting mid-stream.
+   The rest are excluded pre-emptively, on one rule: ANY
+   platform we ingest directly must be filtered out of Beam.
+   Beam doesn't relay Blaze, VPZONE or Arena today, but it
+   aggregates platforms and adds them over time — and the day
+   it adds one we already carry, every message from it would
+   silently start appearing twice, mid-stream, with no code
+   change on our side to explain it.
+
+   Filtering ahead of time costs nothing and removes that
+   entire failure mode. When adding a new platform to the
+   overlay, add it here at the same time.
 --------------------------------------------------------- */
-export const IGNORED_SENDER_TYPES = ["velora", "blaze"];
+export const IGNORED_SENDER_TYPES = [
+  "velora",   // direct: webhook -> ChatRoom
+  "blaze",    // direct: Socket.IO in the overlay
+  "vpzone",   // direct: WebSocket in VPZoneRoom
+  "arena"     // direct: polled by ArenaRoom
+];
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
