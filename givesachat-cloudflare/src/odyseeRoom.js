@@ -1,6 +1,25 @@
 // givesachat-cloudflare/src/odyseeRoom.js
 
-import { transformOdyseeFrame, safeOdyseeThumbnail } from "./odyseeTransform.js";
+import {
+  transformOdyseeFrame,
+  safeOdyseeThumbnail,
+  findEmoteNames,
+  odyseeEmoteUrl
+} from "./odyseeTransform.js";
+
+/* Odysee files emotes under a category and does not publish the
+   mapping. Probing showed cowboy_hat_face under `smilies` and
+   rocket under `activities` — note that twemoji itself groups
+   rockets under travel, so Odysee's arrangement is its own and
+   cannot be inferred. This is the list to search. */
+const EMOTE_CATEGORIES = [
+  "smilies", "people", "animals", "nature", "food",
+  "activities", "travel", "objects", "symbols", "flags"
+];
+
+const EMOTE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const EMOTE_FAIL_TTL_MS = 60 * 60 * 1000;
+const MAX_EMOTES = 1000;
 
 /* ---------------------------------------------------------
    OdyseeRoom
@@ -72,6 +91,7 @@ export class OdyseeRoom {
     this.lastClaimCheckAt = 0;
 
     this.avatarCache = new Map();
+    this.emoteCache = new Map();     // name -> { category|null, expiresAt }
 
     this.connectedAt = null;
     this.lastFrameAt = null;
@@ -112,6 +132,10 @@ export class OdyseeRoom {
         viewerCount: this.viewerCount,
         messageCount: this.messageCount,
         avatarsCached: this.avatarCache.size,
+        emotesCached: this.emoteCache.size,
+        emoteCategories: Object.fromEntries(
+          [...this.emoteCache].map(([name, v]) => [name, v.category])
+        ),
         stoppedReason: this.stoppedReason,
         lastError: this.lastError
       });
@@ -164,12 +188,7 @@ export class OdyseeRoom {
      for any path and none of the 200s mean anything.
   --------------------------------------------------------- */
   async probeEmote(name) {
-    const CATEGORIES = [
-      "smilies", "people", "animals", "nature", "food",
-      "activities", "travel", "objects", "symbols", "flags"
-    ];
-
-    const targets = CATEGORIES.map((cat) => [
+    const targets = EMOTE_CATEGORIES.map((cat) => [
       cat,
       `https://static.odycdn.com/emoticons/twemoji/${cat}/${name}.png`
     ]);
@@ -418,7 +437,14 @@ export class OdyseeRoom {
       return;
     }
 
-    const payload = transformOdyseeFrame(frame);
+    /* Emote categories have to be known BEFORE the html is
+       built, so they are resolved from the raw comment text
+       first and handed to the transform. */
+    const categories = await this.emoteCategories(
+      findEmoteNames(frame?.data?.comment?.comment)
+    );
+
+    const payload = transformOdyseeFrame(frame, categories);
     if (!payload) return;
 
     /* Guard against a history replay on connect. Commentron
@@ -438,6 +464,80 @@ export class OdyseeRoom {
 
     this.messageCount++;
     await this.broadcast(payload);
+  }
+
+  /* ---------------------------------------------------------
+     Emote categories
+
+     Odysee serves emotes from ten category directories and
+     publishes no index, so the only way to learn which one an
+     emote lives in is to ask the CDN. Each answer is cached for
+     a week, so a given emote costs one lookup ever — chat
+     reuses the same handful constantly, and the cache is warm
+     within the first minute of a stream.
+
+     The ten candidates are tried in PARALLEL, so an unknown
+     emote adds one round trip, not ten. Misses are cached too,
+     for an hour: without that, a typo'd :token: someone spams
+     would re-probe ten URLs on every single message.
+  --------------------------------------------------------- */
+  async emoteCategories(names) {
+    if (!names.length) return null;
+
+    const now = Date.now();
+    const out = new Map();
+    const unknown = [];
+
+    for (const name of names) {
+      const hit = this.emoteCache.get(name);
+      if (hit && now < hit.expiresAt) out.set(name, hit.category);
+      else unknown.push(name);
+    }
+
+    await Promise.all(
+      unknown.map(async (name) => {
+        const category = await this.findEmoteCategory(name);
+
+        if (this.emoteCache.size >= MAX_EMOTES) {
+          this.emoteCache.delete(this.emoteCache.keys().next().value);
+        }
+
+        this.emoteCache.set(name, {
+          category,
+          expiresAt: now + (category ? EMOTE_TTL_MS : EMOTE_FAIL_TTL_MS)
+        });
+
+        out.set(name, category);
+
+        console.log(
+          `[ODYSEE] emote :${name}: -> ${category || "not found in any category"}`
+        );
+      })
+    );
+
+    return out;
+  }
+
+  async findEmoteCategory(name) {
+    const attempts = await Promise.all(
+      EMOTE_CATEGORIES.map(async (category) => {
+        try {
+          const res = await fetch(odyseeEmoteUrl(name, category), {
+            method: "GET",
+            signal: AbortSignal.timeout(4000)
+          });
+
+          /* The CDN answers 403, not 404, for a name that isn't
+             in that category — so status must be checked for
+             200 exactly rather than via res.ok or !== 404. */
+          return res.status === 200 ? category : null;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    return attempts.find(Boolean) || null;
   }
 
   /* ---------------------------------------------------------

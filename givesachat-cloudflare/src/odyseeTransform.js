@@ -53,21 +53,31 @@ import { sanitizeHtml } from "./sanitizeNodeHTML.js";
    so the URL is built from the token directly. No lookup, no
    catalogue to maintain.
 
-   THE OPEN QUESTION IS "smilies". That segment is very likely a
-   twemoji CATEGORY — the set also has people, animals, food,
-   travel, objects, symbols and flags — in which case a token
-   from another category would 404 here. Only one real emote URL
-   has been seen, so the category scheme is unconfirmed.
+   "smilies" IS A CATEGORY, and it cannot be guessed. Probing
+   the CDN for the same name across every candidate settled it:
 
-   Rather than guess, the failure is made harmless: `alt` holds
-   the original :token:, so a browser that can't load the image
-   draws the text instead. A wrong category degrades to exactly
-   what the overlay did before emotes existed, rather than to a
-   blank gap or a broken-image icon on stream.
+     cowboy_hat_face   200 under smilies      (403 elsewhere)
+     rocket            200 under activities   (403 elsewhere)
 
-   OdyseeRoom's /emote diagnostic resolves this properly — it
-   requests the same name from every candidate category and
-   reports which returns a 200.
+   with a deliberately fake name returning 403 everywhere, so
+   those 200s are real.
+
+   Note WHERE rocket landed. Twemoji's own grouping files
+   rockets under "travel & places"; Odysee put it in
+   "activities". So the category cannot be derived from the
+   emote name, from twemoji convention, or from anything else
+   in the message — it is Odysee's own arrangement and the only
+   authority on it is the CDN.
+
+   So OdyseeRoom resolves each name against the CDN once and
+   caches the answer, and passes the map in here. That is
+   deliberately preferred over a hardcoded name -> category
+   table: a table would be wrong the day Odysee adds an emote,
+   and wrong silently.
+
+   Any name with no known category is left as its literal
+   :token: text — readable, and honest about what we don't
+   know. Nothing is ever guessed into a src attribute.
 
    The name is matched strictly. It goes straight into a src.
 
@@ -79,21 +89,58 @@ import { sanitizeHtml } from "./sanitizeNodeHTML.js";
    sit flush against each other — ":rocket::fire:" — because a
    colon is not a word character.
 --------------------------------------------------------- */
-const EMOTE_TOKEN = /(?<!\w):([a-z0-9_+-]{2,40}):(?!\w)/gi;
+export const EMOTE_TOKEN = /(?<!\w):([a-z0-9_+-]{2,40}):(?!\w)/gi;
 
-const EMOTE_CDN = "https://static.odycdn.com/emoticons/twemoji/smilies/";
+const EMOTE_CDN = "https://static.odycdn.com/emoticons/twemoji/";
 
-function renderOdyseeEmotes(escapedText) {
+const SAFE_NAME = /^[a-z0-9_+-]{2,40}$/;
+const SAFE_CATEGORY = /^[a-z]{2,20}$/;
+
+export function odyseeEmoteUrl(name, category) {
+  return `${EMOTE_CDN}${category}/${name}.png`;
+}
+
+/**
+ * Every distinct emote name in a message, lowercased.
+ * OdyseeRoom uses this to resolve categories before rendering.
+ */
+export function findEmoteNames(text) {
+  const names = new Set();
+
+  for (const [, name] of String(text || "").matchAll(EMOTE_TOKEN)) {
+    const lower = name.toLowerCase();
+    if (SAFE_NAME.test(lower)) names.add(lower);
+  }
+
+  return [...names];
+}
+
+/**
+ * @param {string} escapedText   already through sanitizeHtml
+ * @param {Map|object} categories  name -> category, or name -> null
+ */
+function renderOdyseeEmotes(escapedText, categories) {
+  if (!categories) return escapedText;
+
+  const lookup = (name) =>
+    categories instanceof Map ? categories.get(name) : categories[name];
+
   return escapedText.replace(EMOTE_TOKEN, (token, name) => {
     const file = name.toLowerCase();
+    const category = lookup(file);
 
-    /* The pattern already constrains this, but the value is
-       about to be concatenated into a URL and an attribute, so
-       it is checked rather than trusted. */
-    if (!/^[a-z0-9_+-]{2,40}$/.test(file)) return token;
+    /* No category resolved — the CDN had no such emote in any
+       of them. Leave the literal :token: rather than emitting a
+       src we know will 404. */
+    if (!category) return token;
+
+    /* Both halves are re-checked even though they came from a
+       constrained pattern and our own probe list. They are
+       about to be concatenated into a URL and an attribute. */
+    if (!SAFE_NAME.test(file) || !SAFE_CATEGORY.test(category)) return token;
 
     return (
-      `<img class="odysee-emote" src="${EMOTE_CDN}${file}.png" ` +
+      `<img class="odysee-emote" src="${odyseeEmoteUrl(file, category)}" ` +
       `alt=":${file}:" title=":${file}:">`
     );
   });
@@ -159,7 +206,7 @@ function displayName(channelName) {
  * @param {object} frame  a raw sockety frame, already parsed
  * @returns {object|null} overlay chat payload, or null to skip
  */
-export function transformOdyseeFrame(frame) {
+export function transformOdyseeFrame(frame, emoteCategories = null) {
   if (!frame || typeof frame !== "object") return null;
 
   /* Sockety multiplexes more than new comments — edits,
@@ -182,14 +229,9 @@ export function transformOdyseeFrame(frame) {
 
   const text = String(comment.comment || "");
 
-  /* Logged so the real vocabulary of codes your chat actually
-     uses becomes visible in `wrangler tail`. If any of them
-     fail to load, this is the list to check the category
-     against. */
-  const seen = text.match(EMOTE_TOKEN);
-  if (seen) console.log("[ODYSEE] emote code(s):", seen.join(" "));
-
-  const html = tipPrefix(comment) + renderOdyseeEmotes(sanitizeHtml(text));
+  const html =
+    tipPrefix(comment) +
+    renderOdyseeEmotes(sanitizeHtml(text), emoteCategories);
   if (!html.trim()) return null;
 
   /* Seconds -> milliseconds. See the note at the top. */
