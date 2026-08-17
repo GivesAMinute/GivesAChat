@@ -91,19 +91,21 @@ import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 --------------------------------------------------------- */
 export const EMOTE_TOKEN = /(?<!\w):([a-z0-9_+-]{2,40}):(?!\w)/gi;
 
-const EMOTE_CDN = "https://static.odycdn.com/emoticons/twemoji/";
-
 /* Case is PRESERVED, not folded. Odysee custom emotes are
    uppercase — ":PISS:" is a real one — and a CDN path is
    case-sensitive, so lowercasing the name would request a file
    that does not exist. Twemoji names happen to be lowercase
    already, so nothing is lost by leaving case alone. */
 const SAFE_NAME = /^[A-Za-z0-9_+-]{2,40}$/;
-const SAFE_CATEGORY = /^[a-z]{2,20}$/;
 
-export function odyseeEmoteUrl(name, category) {
-  return `${EMOTE_CDN}${category}/${name}.png`;
-}
+/* Whatever OdyseeRoom resolved, it must still be an Odysee CDN
+   URL before it goes in a src. This is defence in depth — the
+   URL is built from our own templates — but the templates
+   interpolate a name that came off the wire. The character
+   class deliberately excludes quote and angle bracket, so a
+   resolved URL can never break out of the attribute. */
+const ODYCDN_ASSET =
+  /^https:\/\/static\.odycdn\.com\/[A-Za-z0-9._~:/?#@!$&'()*+,;=%[\]-]+$/;
 
 /**
  * Every distinct emote name in a message, lowercased.
@@ -120,32 +122,33 @@ export function findEmoteNames(text) {
 }
 
 /**
- * @param {string} escapedText   already through sanitizeHtml
- * @param {Map|object} categories  name -> category, or name -> null
+ * @param {string} escapedText  already through sanitizeHtml
+ * @param {Map|object} assets   name -> { url, kind } or name -> null
  */
-function renderOdyseeEmotes(escapedText, categories) {
-  if (!categories) return escapedText;
+function renderOdyseeEmotes(escapedText, assets) {
+  if (!assets) return escapedText;
 
   const lookup = (name) =>
-    categories instanceof Map ? categories.get(name) : categories[name];
+    assets instanceof Map ? assets.get(name) : assets[name];
 
   return escapedText.replace(EMOTE_TOKEN, (token, name) => {
-    const file = name;
-    const category = lookup(file);
+    if (!SAFE_NAME.test(name)) return token;
 
-    /* No category resolved — the CDN had no such emote in any
-       of them. Leave the literal :token: rather than emitting a
-       src we know will 404. */
-    if (!category) return token;
+    const asset = lookup(name);
 
-    /* Both halves are re-checked even though they came from a
-       constrained pattern and our own probe list. They are
-       about to be concatenated into a URL and an attribute. */
-    if (!SAFE_NAME.test(file) || !SAFE_CATEGORY.test(category)) return token;
+    /* Nothing resolved — the CDN had no such file at any of the
+       candidate paths. Leave the literal :token: rather than
+       emitting a src we know will fail. */
+    if (!asset || !asset.url || !ODYCDN_ASSET.test(asset.url)) return token;
+
+    /* Stickers are large framed artwork, emotes are inline-sized.
+       Which one it is comes from WHICH candidate path matched,
+       not from anything in the message. */
+    const cls = asset.kind === "sticker" ? "odysee-sticker" : "odysee-emote";
 
     return (
-      `<img class="odysee-emote" src="${odyseeEmoteUrl(file, category)}" ` +
-      `alt=":${file}:" title=":${file}:">`
+      `<img class="${cls}" src="${asset.url}" ` +
+      `alt=":${name}:" title=":${name}:">`
     );
   });
 }

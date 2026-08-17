@@ -417,6 +417,21 @@ body.header-off #messages {
 }
 
 /* ---------------------------------------------------------
+   ⭐ Odysee stickers
+
+   A different asset family to emotes, not a bigger emote —
+   framed artwork meant to stand on its own, so it gets its own
+   block rather than sitting inline with text.
+--------------------------------------------------------- */
+.odysee-sticker {
+  display: block;
+  height: auto;
+  width: 160px;
+  max-width: 100%;
+  margin: 4px 0 2px;
+}
+
+/* ---------------------------------------------------------
    ⭐ Odysee badges
 
    The streamer mark is square (24x24 in Odysee's own viewBox),

@@ -3,19 +3,107 @@
 import {
   transformOdyseeFrame,
   safeOdyseeThumbnail,
-  findEmoteNames,
-  odyseeEmoteUrl
+  findEmoteNames
 } from "./odyseeTransform.js";
 
-/* Odysee files emotes under a category and does not publish the
-   mapping. Probing showed cowboy_hat_face under `smilies` and
-   rocket under `activities` — note that twemoji itself groups
-   rockets under travel, so Odysee's arrangement is its own and
-   cannot be inferred. This is the list to search. */
-const EMOTE_CATEGORIES = [
+/* ---------------------------------------------------------
+   Resolving a :token: to a picture
+
+   Odysee has three separate asset families behind chat tokens,
+   with three unrelated URL shapes, and publishes an index for
+   none of them. All three were found by inspecting real
+   rendered messages:
+
+     :cowboy_hat_face:
+       emoticons/twemoji/smilies/cowboy_hat_face.png
+     :rocket:
+       emoticons/twemoji/activities/rocket.png
+     :confused_2:
+       emoticons/48%20px/confused%402x.png
+     :PISS:
+       stickers/PISS/PNG/piss_with_frame.png
+
+   None of these is derivable from the token:
+
+     - the twemoji CATEGORY is Odysee's own grouping (rocket is
+       under activities, though twemoji files it under travel)
+     - :confused_2: is NOT confused_2.png. The trailing "_2"
+       becomes "@2x", and the directory has a space in it
+     - :PISS: is not an emote at all. It is a sticker, in an
+       uppercase directory, with a lowercase filename carrying
+       a "_with_frame" suffix
+
+   Two samples cannot prove a rule, so nothing here is asserted.
+   Every plausible shape is offered as a CANDIDATE and the CDN
+   decides which is real. A name resolves to whichever candidate
+   returns 200, or to nothing — in which case the token renders
+   as text and the log names it.
+
+   Adding a newly discovered shape means adding one line here.
+--------------------------------------------------------- */
+
+const CDN = "https://static.odycdn.com";
+
+const TWEMOJI_CATEGORIES = [
   "smilies", "people", "animals", "nature", "food",
   "activities", "travel", "objects", "symbols", "flags"
 ];
+
+function emoteCandidates(name) {
+  const enc = encodeURIComponent;
+  const lower = name.toLowerCase();
+
+  const out = [];
+
+  // Standard emoji, filed under Odysee's own category grouping.
+  for (const category of TWEMOJI_CATEGORIES) {
+    out.push({
+      kind: "emote",
+      label: `twemoji/${category}`,
+      url: `${CDN}/emoticons/twemoji/${category}/${enc(name)}.png`
+    });
+  }
+
+  /* Odysee's own emote set. ":confused_2:" resolves to
+     "confused@2x.png", so the trailing _2 is stripped and the
+     retina suffix restored. The plain form is tried too, in
+     case the _2 belongs to the name for some other emote. */
+  const retina = name.replace(/_2$/, "");
+
+  out.push({
+    kind: "emote",
+    label: "48px-retina",
+    /* "@" is written percent-encoded to match the URL Odysee's
+       own client emits byte for byte. Both forms are legal in a
+       path and should behave identically, but the encoded one
+       is the form actually observed working. */
+    url: `${CDN}/emoticons/${enc("48 px")}/${enc(retina)}%402x.png`
+  });
+
+  out.push({
+    kind: "emote",
+    label: "48px",
+    url: `${CDN}/emoticons/${enc("48 px")}/${enc(name)}.png`
+  });
+
+  /* Stickers. The directory carries the token's own case, the
+     file is lowercase. Framed and unframed both exist in their
+     client, so both are offered — framed first, since that is
+     what chat renders. */
+  out.push({
+    kind: "sticker",
+    label: "sticker-framed",
+    url: `${CDN}/stickers/${enc(name)}/PNG/${enc(lower)}_with_frame.png`
+  });
+
+  out.push({
+    kind: "sticker",
+    label: "sticker",
+    url: `${CDN}/stickers/${enc(name)}/PNG/${enc(lower)}.png`
+  });
+
+  return out;
+}
 
 const EMOTE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const EMOTE_FAIL_TTL_MS = 60 * 60 * 1000;
@@ -133,8 +221,11 @@ export class OdyseeRoom {
         messageCount: this.messageCount,
         avatarsCached: this.avatarCache.size,
         emotesCached: this.emoteCache.size,
-        emoteCategories: Object.fromEntries(
-          [...this.emoteCache].map(([name, v]) => [name, v.category])
+        emoteAssets: Object.fromEntries(
+          [...this.emoteCache].map(([name, v]) => [
+            name,
+            v.asset ? `${v.asset.kind}: ${v.asset.url}` : null
+          ])
         ),
         stoppedReason: this.stoppedReason,
         lastError: this.lastError
@@ -189,16 +280,17 @@ export class OdyseeRoom {
      for any path and none of the 200s mean anything.
   --------------------------------------------------------- */
   async probeEmote(name) {
-    const targets = EMOTE_CATEGORIES.map((cat) => [
-      cat,
-      `https://static.odycdn.com/emoticons/twemoji/${cat}/${name}.png`
+    const targets = emoteCandidates(name).map((c) => [
+      `${c.label} (${c.kind})`,
+      c.url
     ]);
 
-    // Controls: no category at all, and a name that cannot exist.
-    targets.push(["_none", `https://static.odycdn.com/emoticons/twemoji/${name}.png`]);
+    /* A name that cannot exist. If this returns 200 the CDN is
+       answering every path with something and none of the other
+       200s mean anything. */
     targets.push([
-      "_control_should_404",
-      `https://static.odycdn.com/emoticons/twemoji/smilies/gac_not_a_real_emote.png`
+      "_control_should_fail",
+      `${CDN}/emoticons/twemoji/smilies/gac_not_a_real_emote.png`
     ]);
 
     const results = {};
@@ -210,18 +302,20 @@ export class OdyseeRoom {
             method: "GET",
             signal: AbortSignal.timeout(5000)
           });
+
           results[label] = {
             status: res.status,
             type: res.headers.get("content-type"),
-            bytes: res.headers.get("content-length")
+            bytes: res.headers.get("content-length"),
+            url: target
           };
         } catch (err) {
-          results[label] = { error: String(err?.message || err) };
+          results[label] = { error: String(err?.message || err), url: target };
         }
       })
     );
 
-    return { name, results };
+    return { name, matched: await this.findEmoteAsset(name), results };
   }
 
   async alarm() {
@@ -441,11 +535,11 @@ export class OdyseeRoom {
     /* Emote categories have to be known BEFORE the html is
        built, so they are resolved from the raw comment text
        first and handed to the transform. */
-    const categories = await this.emoteCategories(
+    const assets = await this.emoteAssets(
       findEmoteNames(frame?.data?.comment?.comment)
     );
 
-    const payload = transformOdyseeFrame(frame, categories);
+    const payload = transformOdyseeFrame(frame, assets);
     if (!payload) return;
 
     /* Guard against a history replay on connect. Commentron
@@ -468,21 +562,20 @@ export class OdyseeRoom {
   }
 
   /* ---------------------------------------------------------
-     Emote categories
+     Resolving tokens to assets
 
-     Odysee serves emotes from ten category directories and
-     publishes no index, so the only way to learn which one an
-     emote lives in is to ask the CDN. Each answer is cached for
-     a week, so a given emote costs one lookup ever — chat
-     reuses the same handful constantly, and the cache is warm
-     within the first minute of a stream.
+     Every candidate path is asked at once and the first 200
+     wins, so an unknown token costs one round trip rather than
+     fourteen. Each answer is cached for a week: a given emote
+     is looked up once, ever, and chat reuses the same handful
+     constantly so the cache is warm within a minute of going
+     live.
 
-     The ten candidates are tried in PARALLEL, so an unknown
-     emote adds one round trip, not ten. Misses are cached too,
-     for an hour: without that, a typo'd :token: someone spams
-     would re-probe ten URLs on every single message.
+     Misses are cached too, for an hour. Without that, someone
+     spamming a typo'd :token: would re-probe every candidate on
+     every single message they send.
   --------------------------------------------------------- */
-  async emoteCategories(names) {
+  async emoteAssets(names) {
     if (!names.length) return null;
 
     const now = Date.now();
@@ -491,27 +584,27 @@ export class OdyseeRoom {
 
     for (const name of names) {
       const hit = this.emoteCache.get(name);
-      if (hit && now < hit.expiresAt) out.set(name, hit.category);
+      if (hit && now < hit.expiresAt) out.set(name, hit.asset);
       else unknown.push(name);
     }
 
     await Promise.all(
       unknown.map(async (name) => {
-        const category = await this.findEmoteCategory(name);
+        const asset = await this.findEmoteAsset(name);
 
         if (this.emoteCache.size >= MAX_EMOTES) {
           this.emoteCache.delete(this.emoteCache.keys().next().value);
         }
 
         this.emoteCache.set(name, {
-          category,
-          expiresAt: now + (category ? EMOTE_TTL_MS : EMOTE_FAIL_TTL_MS)
+          asset,
+          expiresAt: now + (asset ? EMOTE_TTL_MS : EMOTE_FAIL_TTL_MS)
         });
 
-        out.set(name, category);
+        out.set(name, asset);
 
         console.log(
-          `[ODYSEE] emote :${name}: -> ${category || "not found in any category"}`
+          `[ODYSEE] :${name}: -> ${asset ? `${asset.kind} (${asset.label})` : "no candidate matched"}`
         );
       })
     );
@@ -519,25 +612,31 @@ export class OdyseeRoom {
     return out;
   }
 
-  async findEmoteCategory(name) {
+  async findEmoteAsset(name) {
+    const candidates = emoteCandidates(name);
+
     const attempts = await Promise.all(
-      EMOTE_CATEGORIES.map(async (category) => {
+      candidates.map(async (candidate) => {
         try {
-          const res = await fetch(odyseeEmoteUrl(name, category), {
+          const res = await fetch(candidate.url, {
             method: "GET",
             signal: AbortSignal.timeout(4000)
           });
 
-          /* The CDN answers 403, not 404, for a name that isn't
-             in that category — so status must be checked for
-             200 exactly rather than via res.ok or !== 404. */
-          return res.status === 200 ? category : null;
+          /* The CDN answers 403, not 404, for a file that isn't
+             there — so this must test for 200 exactly. Using
+             res.ok or !== 404 would treat every miss as a hit
+             and point every token at the first candidate. */
+          return res.status === 200 ? candidate : null;
         } catch {
           return null;
         }
       })
     );
 
+    /* Candidate ORDER is the tie-break, and it is deliberate:
+       twemoji first, then Odysee's own emotes, then stickers
+       framed before unframed. */
     return attempts.find(Boolean) || null;
   }
 
