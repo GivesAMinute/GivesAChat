@@ -74,6 +74,17 @@ export class ChatRoom {
       // Hibernatable: the runtime holds the socket, not us.
       this.state.acceptWebSocket(pair[1]);
 
+      /* ---------------------------------------------------------
+         Read-only sockets (VIEWER_KEY) may receive but never
+         relay. The flag is set by the worker, not the client.
+
+         serializeAttachment survives hibernation — a plain
+         property on `this` would not, since the object is
+         evicted between messages.
+      --------------------------------------------------------- */
+      const readOnly = request.headers.get("x-gac-readonly") === "1";
+      pair[1].serializeAttachment({ readOnly });
+
       return new Response(null, {
         status: 101,
         webSocket: pair[0]
@@ -112,6 +123,17 @@ export class ChatRoom {
      listener. DO NOT echo back to the sender.
   --------------------------------------------------------- */
   async webSocketMessage(ws, message) {
+    /* A viewer pop-out must not be able to put reward cards or
+       stream alerts on the live overlay. */
+    let attachment;
+    try {
+      attachment = ws.deserializeAttachment();
+    } catch {
+      attachment = null;
+    }
+
+    if (attachment?.readOnly) return;
+
     let parsed;
 
     try {

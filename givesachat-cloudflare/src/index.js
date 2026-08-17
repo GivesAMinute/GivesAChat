@@ -58,6 +58,8 @@ async function wakeBeam(env) {
                   messages ON the overlay)
      OVERLAY_KEY  guards the WebSocket routes (who may read
                   the feed, and who may relay through it)
+     VIEWER_KEY   read-only access to /ws/chat, for a public
+                  pop-out chat viewers can put on a monitor
 
    They are separate on purpose: OVERLAY_KEY travels in the
    OBS browser-source URL and can leak on camera, so it must
@@ -70,6 +72,15 @@ async function wakeBeam(env) {
 
      npx wrangler secret put INGEST_KEY
      npx wrangler secret put OVERLAY_KEY
+     npx wrangler secret put VIEWER_KEY
+
+   VIEWER_KEY is deliberately weaker than OVERLAY_KEY. ChatRoom
+   relays 'reward' and 'velora_system' messages between clients
+   — that is how the popups overlay pushes cards into chat — so
+   anyone holding OVERLAY_KEY can put content on the live
+   stream. A viewer key must never carry that ability, so
+   sockets opened with it are marked read-only and their
+   messages are dropped.
 --------------------------------------------------------- */
 
 function timingSafeEqual(a, b) {
@@ -132,7 +143,17 @@ export default {
     --------------------------------------------------------- */
     if (url.pathname === "/ws/chat") {
       const auth = checkKey(request, url, env.OVERLAY_KEY);
-      if (!auth.ok) return unauthorized();
+
+      /* Full access failed — try the read-only viewer key.
+         Sockets opened this way may receive but never relay. */
+      let readOnly = false;
+
+      if (!auth.ok) {
+        const viewer = checkKey(request, url, env.VIEWER_KEY);
+        if (!viewer.ok || viewer.unconfigured) return unauthorized();
+        readOnly = true;
+      }
+
       if (auth.unconfigured) console.warn("OVERLAY_KEY unset — /ws/chat is open");
 
       // Start the Beam reader if it isn't already going.
@@ -149,11 +170,18 @@ export default {
 
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
       const room = env.ChatRoom.get(id);
-      return room.fetch(request);
+
+      // Tell the durable object how this socket was authorised.
+      // Set here, never read from the client.
+      const headers = new Headers(request.headers);
+      headers.set("x-gac-readonly", readOnly ? "1" : "0");
+
+      return room.fetch(new Request(request, { headers }));
     }
 
     /* ---------------------------------------------------------
        ⭐ 2. WebSocket for popup overlay (MUST STAY ABOVE ASSETS)
+       Viewer key deliberately NOT accepted — popups are yours.
     --------------------------------------------------------- */
     if (url.pathname === "/ws/popups") {
       const auth = checkKey(request, url, env.OVERLAY_KEY);
@@ -313,8 +341,15 @@ export default {
        call this, and the overlay key is the one they carry.
     --------------------------------------------------------- */
     if (url.pathname === "/api/blaze/subscribe" && request.method === "POST") {
+      /* Accepts the viewer key as well: subscribing a session
+         only lets that socket RECEIVE Blaze chat, which is
+         exactly what a read-only pop-out needs. */
       const auth = checkKey(request, url, env.OVERLAY_KEY);
-      if (!auth.ok) return unauthorized();
+
+      if (!auth.ok) {
+        const viewer = checkKey(request, url, env.VIEWER_KEY);
+        if (!viewer.ok || viewer.unconfigured) return unauthorized();
+      }
 
       let body;
       try {
