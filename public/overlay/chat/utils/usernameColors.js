@@ -1,5 +1,21 @@
 // ---------------------------------------------------------
 // USERNAME COLOR — PER SESSION + WEIGHTED PALETTES
+//
+// Every platform gets a palette drawn from its own brand
+// colours, so a name is always tinted in the colours of the
+// platform it came from.
+//
+// The palettes added for vpzone, arena, pilled, odysee,
+// bitchute and nimotv were sampled directly from the icon PNGs
+// in public/icons/ — the most common non-grey, non-transparent
+// colours in each mark, plus lighter and darker variants for
+// variety. So VPZONE names are its pink and blues, Arena's are
+// its orange, and so on. The older palettes above them were
+// hand-tuned and are left as they are.
+//
+// Weighting is by repetition: a colour listed three times is
+// three times as likely, which keeps the primary brand colour
+// dominant while still giving the lane variety.
 // ---------------------------------------------------------
 
 // Generate a session seed once per overlay load
@@ -78,13 +94,59 @@ export function colorForUsername(name, platform) {
       "#FF7A00","#FF7A00",
       "#E66F00",
       "#CC6400"
-    ]
+    ],
+
+    vpzone: [
+      "#F9266C","#F9266C","#F9266C",
+      "#FF276F","#FF276F","#DA215F",
+      "#F9588D","#558DF9","#558DF9",
+      "#5790FF","#4B7CDA","#60ABFB",
+      "#60ABFB","#62AEFF","#5496DC",
+    ],
+    arena: [
+      "#EA5209","#EA5209","#EA5209",
+      "#FF590A","#FF590A","#CB4708",
+      "#EA7238","#E3530B","#E3530B",
+      "#FC5C0C","#C4480A","#D45A1C",
+      "#D45A1C","#EE651F","#B54D18",
+    ],
+    pilled: [
+      "#0091CB","#0091CB","#0091CB",
+      "#00A3E4","#00A3E4","#007BAC",
+      "#299DCB","#00B6DE","#00B6DE",
+      "#00CBF8","#009DBF","#005073",
+      "#005073","#00628C","#003B54",
+    ],
+    odysee: [
+      "#F67737","#F67737","#F67737",
+      "#FF7B39","#FF7B39","#D76830",
+      "#F69868","#F98D2A","#F98D2A",
+      "#FF902B","#DA7C25","#F24259",
+      "#F24259","#FF465E","#D33A4E",
+    ],
+    bitchute: [
+      "#FC1408","#FC1408","#FC1408",
+      "#FF1408","#FF1408","#DD1207",
+      "#FC443A",
+    ],
+    nimotv: [
+      "#622CF6","#622CF6","#622CF6",
+      "#662EFF","#662EFF","#5627D7",
+      "#865DF6","#7E53F6","#7E53F6",
+      "#8356FF","#6E49D7","#FED700",
+      "#FED700","#FFD800","#DFBD00",
+    ],
   };
 
   const palette = palettes[platform];
   if (palette) return palette[index % palette.length];
 
-  // Fallback rainbow
+  /* Unknown platform — Beam can relay one we have no palette
+     for. A readable spread of hues beats a broken lookup, and
+     the console note makes the gap visible so a palette can be
+     added from that platform's icon. */
+  if (platform) console.debug("[Overlay] no colour palette for platform:", platform);
+
   const hue = index % 360;
   return `hsl(${hue}, 70%, 60%)`;
 }
