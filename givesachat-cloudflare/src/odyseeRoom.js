@@ -7,56 +7,58 @@ import {
 } from "./odyseeTransform.js";
 
 import { odyseeSticker } from "./odyseeStickers.js";
+import { odyseeCustomEmote } from "./odyseeEmotes.js";
 
 /* ---------------------------------------------------------
    Resolving a :token: to a picture
 
-   Odysee has three separate asset families behind chat tokens,
-   with three unrelated URL shapes, and publishes an index for
-   none of them. All three were found by inspecting real
-   rendered messages:
+   Odysee has three asset families behind chat tokens, with
+   three unrelated URL shapes:
 
-     :cowboy_hat_face:
-       emoticons/twemoji/smilies/cowboy_hat_face.png
-     :rocket:
-       emoticons/twemoji/activities/rocket.png
-     :confused_2:
-       emoticons/48%20px/confused%402x.png
-     :PISS:
-       stickers/PISS/PNG/piss_with_frame.png
+     :cowboy_hat_face:  emoticons/twemoji/smilies/cowboy_hat_face.png
+     :sleep:            emoticons/48%20px/Sleep%402x.png
+     :PISS:             stickers/PISS/PNG/piss_with_frame.png
 
-   None of these is derivable from the token:
+   Two of the three are ARBITRARY. There is no rule connecting
+   ":sleep:" to "Sleep@2x.png" or ":SICK_SKULL:" to "with
+   borderdark with frame.png" — those mappings are hand-written
+   data, and no amount of pattern-matching reaches them. An
+   earlier version of this file tried, and kept half-working.
 
-     - the twemoji CATEGORY is Odysee's own grouping (rocket is
-       under activities, though twemoji files it under travel)
-     - :confused_2: is NOT confused_2.png. The trailing "_2"
-       becomes "@2x", and the directory has a space in it
-     - :PISS: is not an emote at all. It is a sticker, in an
-       uppercase directory, with a lowercase filename carrying
-       a "_with_frame" suffix
+   Both are now transcribed from Odysee's own client bundle into
+   odyseeStickers.js and odyseeEmotes.js, so they resolve
+   exactly and cost ZERO requests.
 
-   Two samples cannot prove a rule, so nothing here is asserted.
-   Every plausible shape is offered as a CANDIDATE and the CDN
-   decides which is real. A name resolves to whichever candidate
-   returns 200, or to nothing — in which case the token renders
-   as text and the log names it.
+   The twemoji family is the one that genuinely IS derivable —
+   the filename is always the token — so only its category needs
+   finding, and that is a single parallel batch of seven,
+   cached for a week.
 
-   Adding a newly discovered shape means adding one line here.
+   Everything below the manifest check is fallback for tokens
+   Odysee has added since these snapshots were taken. It is
+   guesswork, and labelled as such.
 --------------------------------------------------------- */
 
 const CDN = "https://static.odycdn.com";
 
-/* CONFIRMED by real URLs: smilies, activities, handsignals.
-   The rest are plausible twemoji-style names that have never
-   actually returned a 200 — they cost nothing but a parallel
-   request each, and "handsignals" is a reminder that Odysee's
-   category names are its own invention rather than twemoji's,
-   so more unguessable ones almost certainly exist. */
+/* The COMPLETE set, read from Odysee's emote module — not a
+   guess. There are exactly seven, and "people", "animals",
+   "travel" and "objects" (which I had invented from twemoji
+   convention) are not among them.
+
+   Within a category the filename is the token plus ".png", so
+   unlike the custom set these ARE derivable. Only the category
+   is unknown, which is one parallel batch of seven and then
+   cached for a week. */
 const TWEMOJI_CATEGORIES = [
-  "smilies", "handsignals", "activities",
-  "people", "animals", "nature", "food",
-  "travel", "objects", "symbols", "flags"
+  "smilies", "handsignals", "nature",
+  "activities", "symbols", "food", "flags"
 ];
+
+/* Odysee's list has one token whose filename doesn't match it —
+   a typo on their side that would otherwise 404 in all seven
+   categories. */
+const TWEMOJI_FILENAME = { triump: "triumph" };
 
 const enc = encodeURIComponent;
 
@@ -91,69 +93,44 @@ export function emoteCandidates(name) {
      this snapshot was taken degrades to probing rather than to
      nothing.
   --------------------------------------------------------- */
-  const known = odyseeSticker(name);
+  const known = odyseeSticker(name) || odyseeCustomEmote(name);
   if (known) return [{ ...known, label: "manifest" }];
 
   /* ---------------------------------------------------------
-     ALL-CAPS tokens are stickers, lowercase ones are emotes.
+     FALLBACK ONLY — everything below is guesswork.
 
-     Across every real sample so far the split is clean:
+     Both manifests above are snapshots of Odysee's client. A
+     token that misses them is either a twemoji emoji (whose
+     filename IS derivable: twemoji/<category>/<token>.png, and
+     only the category needs finding) or something Odysee added
+     after the snapshot was taken.
 
-       stickers  PISS  WHUUT  BRAVO  WOW  MOUNT_RUSHMORE
-       emotes    ouch  sleep  peace  confused_2  cry_2
-
-     This is used only to ORDER the candidates, never to
-     exclude any — both families are always tried. So if the
-     pattern breaks the token still resolves, just after one
-     extra parallel batch rather than the first. What it buys is
-     correctness when a name exists in BOTH families: ":peace:"
-     should be the emote even if a peace sticker also exists,
-     and first match wins.
+     ALL-CAPS tokens are stickers, lowercase ones are emotes —
+     true across every real sample. Used only to ORDER these,
+     never to exclude, so a broken pattern still resolves, just
+     one batch later.
   --------------------------------------------------------- */
   const looksLikeSticker = name === name.toUpperCase() && /[A-Z]/.test(name);
 
   const emotes = [];
   const stickers = [];
 
-  // Standard emoji, filed under Odysee's own category grouping.
+  const file = TWEMOJI_FILENAME[name] || name;
+
   for (const category of TWEMOJI_CATEGORIES) {
     emotes.push({
       kind: "emote",
       label: `twemoji/${category}`,
-      url: `${CDN}/emoticons/twemoji/${category}/${enc(name)}.png`
+      url: `${CDN}/emoticons/twemoji/${category}/${enc(file)}.png`
     });
   }
 
-  /* ---------------------------------------------------------
-     Odysee's own emote set, in the "48 px" directory.
-
-     Every custom emote observed is a @2x file:
-
-       :ouch:        ouch@2x.png
-       :peace:       peace@2x.png
-       :sleep:       Sleep@2x.png     <- capital S
-       :confused_2:  confused@2x.png
-       :cry_2:       cry@2x.png
-
-     Two things follow. The @2x suffix is UNIVERSAL here, not
-     something only the _<digit> tokens carry — an earlier
-     version only applied it to suffixed names, which is why
-     plain emotes like :ouch: never resolved.
-
-     And the trailing _1 / _2 is not a size marker. Sleep@2x
-     proves filenames vary in case, so ":cry_1:" and ":cry_2:"
-     are almost certainly Cry@2x.png and cry@2x.png — two files
-     that collide to one display name, which Odysee numbers to
-     keep apart. Hence stripping the suffix and trying every
-     casing, rather than reading the digit as a size.
-
-     "@" is percent-encoded to match the URL Odysee's own client
-     emits byte for byte. Both forms are legal in a path, but
-     the encoded one is what was observed working.
-  --------------------------------------------------------- */
+  /* A custom emote added since the snapshot. Case is unknown —
+     the manifest shows Sleep, ROCK and ouch all coexisting — so
+     the plausible casings are tried. */
   const base = name.replace(/_\d$/, "");
 
-  for (const variant of caseVariants(base)) {
+  for (const variant of new Set([...caseVariants(name), ...caseVariants(base)])) {
     emotes.push({
       kind: "emote",
       label: `48px ${variant}@2x`,
@@ -161,71 +138,19 @@ export function emoteCandidates(name) {
     });
   }
 
-  // Same set without the retina suffix, in case any predate it.
-  for (const variant of caseVariants(base)) {
-    emotes.push({
-      kind: "emote",
-      label: `48px ${variant}`,
-      url: `${CDN}/emoticons/${enc("48 px")}/${enc(variant)}.png`
-    });
-  }
-
-  /* ---------------------------------------------------------
-     Stickers: stickers/<PACK>/PNG/<lowercase name><suffix>.png
-
-     Five real URLs, and they vary on two axes:
-
-       :PISS:            PISS/PNG/piss_with_frame.png
-       :WHUUT:           WHUUT/PNG/whuut_with-frame.png
-       :BRAVO:           MISC/PNG/bravo.png
-       :WOW:             MISC/PNG/wow.png
-       :MOUNT_RUSHMORE:  MISC/PNG/mount_rushmore.png
-
-     THE PACK IS NOT ALWAYS THE TOKEN. Three of the five sit in
-     a shared MISC pack; only PISS and WHUUT get a directory of
-     their own — those are the two with frames, so a framed
-     sticker seems to be its own pack while plain ones are
-     collected in MISC. Other packs certainly exist and will
-     need adding as they turn up.
-
-     THE SUFFIX IS SPELLED TWO WAYS. Underscore for PISS, hyphen
-     for WHUUT, absent for the MISC three. That is inconsistency
-     in Odysee's own naming rather than a rule, so all three are
-     tried and none is preferred.
-
-     THREE MORE SAMPLES SHOW THIS CANNOT BE SOLVED BY PATTERN:
-
-       :THUG_LIFE:       THUG LIFE/PNG/thug_life_with_border_clean.png
-       :SPHAGETTI_BATH:  SPHAGETTI BATH/PNG/sphagetti bath_with_frame.png
-       :SICK_SKULL:      SICK/PNG/with borderdark with frame.png
-
-     The pack sometimes replaces underscores with spaces, and
-     sometimes is only the token's FIRST word. The filename
-     sometimes keeps underscores, sometimes uses spaces, and in
-     the SICK_SKULL case contains nothing from the token at all
-     — "with borderdark with frame" is just what someone named
-     the file. The frame suffix now has a fourth spelling.
-
-     So the shapes below are a best effort, not a solution. They
-     cover the derivable cases; anything like SICK_SKULL will
-     fall through to text no matter how many are added, because
-     there is no rule to find. The real fix is Odysee's own
-     sticker manifest — see the note in emoteAssets().
-  --------------------------------------------------------- */
+  /* A sticker added since the snapshot. The manifest shows the
+     pack is sometimes the token, sometimes its first word, and
+     sometimes the shared MISC pack; the frame suffix is spelled
+     three ways. These cover the shapes actually seen. */
   const spaced = lower.replace(/_/g, " ");
-  const firstWord = name.split("_")[0];
 
-  const PACKS = [name, name.replace(/_/g, " "), firstWord, "MISC"];
-  const FILES = [lower, spaced];
-  const SUFFIXES = ["", "_with_frame", "_with-frame", "_with_border_clean"];
-
-  for (const pack of new Set(PACKS)) {
-    for (const file of new Set(FILES)) {
-      for (const suffix of SUFFIXES) {
+  for (const pack of new Set([name, name.replace(/_/g, " "), name.split("_")[0], "MISC"])) {
+    for (const f of new Set([lower, spaced])) {
+      for (const suffix of ["", "_with_frame", "_with-frame"]) {
         stickers.push({
           kind: "sticker",
-          label: `sticker ${pack}/${file}${suffix}`,
-          url: `${CDN}/stickers/${enc(pack)}/PNG/${enc(file)}${suffix}.png`
+          label: `sticker ${pack}/${f}${suffix}`,
+          url: `${CDN}/stickers/${enc(pack)}/PNG/${enc(f)}${suffix}.png`
         });
       }
     }
