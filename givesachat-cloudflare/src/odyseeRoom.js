@@ -44,9 +44,16 @@ import {
 
 const CDN = "https://static.odycdn.com";
 
+/* CONFIRMED by real URLs: smilies, activities, handsignals.
+   The rest are plausible twemoji-style names that have never
+   actually returned a 200 — they cost nothing but a parallel
+   request each, and "handsignals" is a reminder that Odysee's
+   category names are its own invention rather than twemoji's,
+   so more unguessable ones almost certainly exist. */
 const TWEMOJI_CATEGORIES = [
-  "smilies", "people", "animals", "nature", "food",
-  "activities", "travel", "objects", "symbols", "flags"
+  "smilies", "handsignals", "activities",
+  "people", "animals", "nature", "food",
+  "travel", "objects", "symbols", "flags"
 ];
 
 const enc = encodeURIComponent;
@@ -168,20 +175,41 @@ export function emoteCandidates(name) {
      in Odysee's own naming rather than a rule, so all three are
      tried and none is preferred.
 
-     The filename is lowercase in all five, so filename case is
-     no longer permuted — five samples agreeing is enough to
-     stop guessing at it.
+     THREE MORE SAMPLES SHOW THIS CANNOT BE SOLVED BY PATTERN:
+
+       :THUG_LIFE:       THUG LIFE/PNG/thug_life_with_border_clean.png
+       :SPHAGETTI_BATH:  SPHAGETTI BATH/PNG/sphagetti bath_with_frame.png
+       :SICK_SKULL:      SICK/PNG/with borderdark with frame.png
+
+     The pack sometimes replaces underscores with spaces, and
+     sometimes is only the token's FIRST word. The filename
+     sometimes keeps underscores, sometimes uses spaces, and in
+     the SICK_SKULL case contains nothing from the token at all
+     — "with borderdark with frame" is just what someone named
+     the file. The frame suffix now has a fourth spelling.
+
+     So the shapes below are a best effort, not a solution. They
+     cover the derivable cases; anything like SICK_SKULL will
+     fall through to text no matter how many are added, because
+     there is no rule to find. The real fix is Odysee's own
+     sticker manifest — see the note in emoteAssets().
   --------------------------------------------------------- */
-  const PACKS = [name, "MISC"];
-  const SUFFIXES = ["", "_with_frame", "_with-frame"];
+  const spaced = lower.replace(/_/g, " ");
+  const firstWord = name.split("_")[0];
+
+  const PACKS = [name, name.replace(/_/g, " "), firstWord, "MISC"];
+  const FILES = [lower, spaced];
+  const SUFFIXES = ["", "_with_frame", "_with-frame", "_with_border_clean"];
 
   for (const pack of new Set(PACKS)) {
-    for (const suffix of SUFFIXES) {
-      stickers.push({
-        kind: "sticker",
-        label: `sticker ${pack}/${lower}${suffix}`,
-        url: `${CDN}/stickers/${enc(pack)}/PNG/${enc(lower)}${suffix}.png`
-      });
+    for (const file of new Set(FILES)) {
+      for (const suffix of SUFFIXES) {
+        stickers.push({
+          kind: "sticker",
+          label: `sticker ${pack}/${file}${suffix}`,
+          url: `${CDN}/stickers/${enc(pack)}/PNG/${enc(file)}${suffix}.png`
+        });
+      }
     }
   }
 
@@ -697,32 +725,50 @@ export class OdyseeRoom {
     return out;
   }
 
+  /* ---------------------------------------------------------
+     Candidates are tried in BATCHES, not all at once.
+
+     The list has grown past forty as more sticker shapes turned
+     up, and firing all of them would spend forty subrequests on
+     every unknown token — against a per-invocation cap, inside
+     a websocket handler that is holding up a chat message.
+
+     Ordering already puts the likely shapes first, so batching
+     means the common case costs one batch and the pathological
+     case is still bounded. A batch that hits returns without
+     issuing the rest at all.
+  --------------------------------------------------------- */
   async findEmoteAsset(name) {
     const candidates = emoteCandidates(name);
+    const BATCH = 12;
 
-    const attempts = await Promise.all(
-      candidates.map(async (candidate) => {
-        try {
-          const res = await fetch(candidate.url, {
-            method: "GET",
-            signal: AbortSignal.timeout(4000)
-          });
+    for (let i = 0; i < candidates.length; i += BATCH) {
+      const batch = candidates.slice(i, i + BATCH);
 
-          /* The CDN answers 403, not 404, for a file that isn't
-             there — so this must test for 200 exactly. Using
-             res.ok or !== 404 would treat every miss as a hit
-             and point every token at the first candidate. */
-          return res.status === 200 ? candidate : null;
-        } catch {
-          return null;
-        }
-      })
-    );
+      const attempts = await Promise.all(
+        batch.map(async (candidate) => {
+          try {
+            const res = await fetch(candidate.url, {
+              method: "GET",
+              signal: AbortSignal.timeout(4000)
+            });
 
-    /* Candidate ORDER is the tie-break, and it is deliberate:
-       twemoji first, then Odysee's own emotes, then stickers
-       framed before unframed. */
-    return attempts.find(Boolean) || null;
+            /* The CDN answers 403, not 404, for a file that
+               isn't there — so this must test for 200 exactly.
+               res.ok or !== 404 would treat every miss as a hit
+               and point every token at the first candidate. */
+            return res.status === 200 ? candidate : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      const hit = attempts.find(Boolean);
+      if (hit) return hit;
+    }
+
+    return null;
   }
 
   /* ---------------------------------------------------------
