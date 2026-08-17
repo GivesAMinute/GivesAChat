@@ -66,7 +66,8 @@ export const IGNORED_SENDER_TYPES = [
   "velora",   // direct: webhook -> ChatRoom
   "blaze",    // direct: Socket.IO in the overlay
   "vpzone",   // direct: WebSocket in VPZoneRoom
-  "arena"     // direct: polled by ArenaRoom
+  "arena",    // direct: polled by ArenaRoom
+  "odysee"    // direct: Commentron socket in OdyseeRoom
 ];
 
 const UUID_RE =

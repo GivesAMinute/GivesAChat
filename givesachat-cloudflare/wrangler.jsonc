@@ -36,6 +36,10 @@
       {
         "name": "VPZoneRoom",
         "class_name": "VPZoneRoom"
+      },
+      {
+        "name": "OdyseeRoom",
+        "class_name": "OdyseeRoom"
       }
     ]
   },
@@ -64,6 +68,10 @@
     "VPZoneRoom": {
       "type": "durable-object",
       "storage": "sqlite"
+    },
+    "OdyseeRoom": {
+      "type": "durable-object",
+      "storage": "sqlite"
     }
   },
 
@@ -85,7 +93,15 @@
 
     // VPZONE — anonymous read-only gateway, no credential needed.
     // VPZONE_API_KEY (optional secret) only enables avatars.
-    "VPZONE_CHANNEL": "givesaminute"
+    "VPZONE_CHANNEL": "givesaminute",
+
+    // Odysee — public endpoints, no credential.
+    //
+    // This is the CHANNEL claim id, which never changes. The
+    // per-stream claim id the chat socket actually needs is
+    // discovered at runtime from api.odysee.live, because it is
+    // different for every stream.
+    "ODYSEE_CHANNEL_CLAIM_ID": "2e4c63a39e28e8e2bcac74debece9f7893fc3fe5"
   },
 
   "assets": {

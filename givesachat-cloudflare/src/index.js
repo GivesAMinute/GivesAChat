@@ -5,6 +5,7 @@ import { PopupRoom } from "./popupRoom.js";
 import { BeamRoom } from "./beamRoom.js";
 import { ArenaRoom } from "./arenaRoom.js";
 import { VPZoneRoom } from "./vpzoneRoom.js";
+import { OdyseeRoom } from "./odyseeRoom.js";
 import {
   generateAuthorizationUrl,
   exchangeAuthCode,
@@ -21,7 +22,7 @@ import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 import { debugKickAvatar } from "./kickAvatars.js";
 import { subscribeBlazeSession, probeBlazeEndpoints } from "./blazeAuth.js";
 
-export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom, ArenaRoom, VPZoneRoom };
+export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom, ArenaRoom, VPZoneRoom, OdyseeRoom };
 
 /* ---------------------------------------------------------
    Beam's SSE reader lives in a durable object. Nudge it awake
@@ -36,6 +37,16 @@ async function wakeVpzone(env) {
     await stub.fetch("https://do/start");
   } catch (err) {
     console.error("VPZONE wake failed:", err);
+  }
+}
+
+async function wakeOdysee(env) {
+  try {
+    const id = env.OdyseeRoom.idFromName("odysee-live-chat");
+    const stub = env.OdyseeRoom.get(id);
+    await stub.fetch("https://do/start");
+  } catch (err) {
+    console.error("Odysee wake failed:", err);
   }
 }
 
@@ -213,10 +224,12 @@ export default {
         ctx.waitUntil(wakeBeam(env));
         ctx.waitUntil(wakeArena(env));
         ctx.waitUntil(wakeVpzone(env));
+        ctx.waitUntil(wakeOdysee(env));
       } else {
         await wakeBeam(env);
         await wakeArena(env);
         await wakeVpzone(env);
+        await wakeOdysee(env);
       }
 
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
@@ -498,6 +511,28 @@ export default {
 
       const id = env.VPZoneRoom.idFromName("vpzone-live-chat");
       return env.VPZoneRoom.get(id).fetch(`https://do/${action}`);
+    }
+
+    /* ---------------------------------------------------------
+       7d-c. Odysee control (/odysee/status|start|stop|resolve)
+
+       `resolve` is a diagnostic — it confirms the shape of the
+       LBRY proxy response used for avatars. Remove it once
+       avatars are verified on stream.
+    --------------------------------------------------------- */
+    if (url.pathname.startsWith("/odysee/")) {
+      const auth = checkKey(request, url, env.INGEST_KEY);
+      if (!auth.ok) return unauthorized();
+
+      const action = url.pathname.split("/")[2];
+      if (!["start", "stop", "status", "resolve"].includes(action)) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const id = env.OdyseeRoom.idFromName("odysee-live-chat");
+      return env.OdyseeRoom.get(id).fetch(
+        `https://do/${action}${url.search}`
+      );
     }
 
     /* ---------------------------------------------------------

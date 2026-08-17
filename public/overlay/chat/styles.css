@@ -391,3 +391,23 @@ body.header-off #messages {
   margin: 0 2px;
   display: inline-block;
 }
+
+/* ---------------------------------------------------------
+   ⭐ Odysee tips (hyperchat)
+
+   A comment with support_amount > 0 is a paid comment. The
+   amount is prefixed to the message rather than given its own
+   card, so it flows through the ordinary bubble — Odysee's
+   orange picks it out without a second layout to maintain.
+--------------------------------------------------------- */
+.odysee-tip {
+  display: inline-block;
+  background: #F67737;
+  color: #000;
+  font-weight: 700;
+  font-size: 0.8em;
+  padding: 1px 8px;
+  border-radius: 8px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
