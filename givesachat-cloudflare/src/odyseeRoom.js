@@ -114,28 +114,51 @@ function emoteCandidates(name) {
   /* ---------------------------------------------------------
      Stickers.
 
-     :PISS: resolves to stickers/PISS/PNG/piss_with_frame.png —
-     uppercase directory, lowercase file, "_with_frame" suffix.
-     :WHUUT: does not resolve that way, so at least one part of
-     that shape varies between stickers and it is not yet clear
-     which. Every combination of the two known axes — directory
-     case and filename case — is offered, framed before plain
-     since framed is what chat renders.
-  --------------------------------------------------------- */
-  for (const dir of new Set([name, lower])) {
-    for (const file of new Set([lower, name])) {
-      out.push({
-        kind: "sticker",
-        label: `sticker-framed ${dir}/${file}`,
-        url: `${CDN}/stickers/${enc(dir)}/PNG/${enc(file)}_with_frame.png`
-      });
+     Two real sticker URLs, and they disagree with each other:
 
-      out.push({
-        kind: "sticker",
-        label: `sticker ${dir}/${file}`,
-        url: `${CDN}/stickers/${enc(dir)}/PNG/${enc(file)}.png`
-      });
-    }
+       :PISS:   stickers/PISS/PNG/piss_with_frame.png
+       :WHUUT:  stickers/WHUUT/PNG/whuut_with-frame.png
+
+     Underscore in one, HYPHEN in the other. Same directory
+     shape, same lowercase filename, same "with frame" idea —
+     spelled two different ways. That is not a pattern with a
+     rule behind it, it is inconsistency in Odysee's own asset
+     naming, so both spellings have to be tried and neither can
+     be preferred on principle.
+
+     Directory case and filename case are varied too, but only
+     against the primary spelling — the two known stickers both
+     use an uppercase directory with a lowercase file, so that
+     combination is tried against every suffix while the others
+     get the common one. This keeps the list bounded instead of
+     multiplying every axis by every other.
+  --------------------------------------------------------- */
+  const FRAME_SUFFIXES = ["_with_frame", "_with-frame", ""];
+
+  // Observed shape: uppercase directory, lowercase filename.
+  for (const suffix of FRAME_SUFFIXES) {
+    out.push({
+      kind: "sticker",
+      label: `sticker ${name}/${lower}${suffix || " (plain)"}`,
+      url: `${CDN}/stickers/${enc(name)}/PNG/${enc(lower)}${suffix}.png`
+    });
+  }
+
+  // Fallbacks for stickers that don't follow it.
+  for (const [dir, file] of [[name, name], [lower, lower]]) {
+    if (dir === name && file === lower) continue;
+
+    out.push({
+      kind: "sticker",
+      label: `sticker ${dir}/${file}_with_frame`,
+      url: `${CDN}/stickers/${enc(dir)}/PNG/${enc(file)}_with_frame.png`
+    });
+
+    out.push({
+      kind: "sticker",
+      label: `sticker ${dir}/${file}`,
+      url: `${CDN}/stickers/${enc(dir)}/PNG/${enc(file)}.png`
+    });
   }
 
   return out;
