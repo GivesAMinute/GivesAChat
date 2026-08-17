@@ -145,8 +145,8 @@ export default {
          read-only VIEWER_KEY already attached, so nothing has
          to be typed or remembered:
 
-           .../chat            -> persistent, no header
-           .../chat?header=yes -> keep the header
+           .../chat           -> persistent, header on
+           .../chat?header=no -> hide the header
 
          Read-only by construction: this only ever attaches
          VIEWER_KEY, never OVERLAY_KEY, so the link cannot be
@@ -165,10 +165,10 @@ export default {
         target.searchParams.set("key", env.VIEWER_KEY);
         target.searchParams.set("mode", "persistent");
 
-        // Header off by default — a pop-out window wants chat,
-        // not the stream furniture. ?header=yes brings it back.
+        // Header on by default, so viewers get the logo, date and
+        // GIVERS Watching Now. ?header=no strips it back to bubbles.
         const header = (url.searchParams.get("header") || "").toLowerCase();
-        if (!["yes", "on", "1", "true"].includes(header)) {
+        if (["no", "off", "0", "false", "hide", "none"].includes(header)) {
           target.searchParams.set("header", "no");
         }
 
