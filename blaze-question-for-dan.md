@@ -1,3 +1,11 @@
+> **RESOLVED — Feb 2026.** Blaze published emote endpoints on the dev
+> portal, so this was never sent. Kept for the record.
+>
+> `GET /v1/emotes/channels/{channelId}` and `GET /v1/emotes/blaze`,
+> both accepting an App Access Token, returning `{ id, name,
+> imageUrl, isPublic }`. `id` is the uuid on the wire and `imageUrl`
+> is the finished URL — exactly the "id in, URL out" asked for below.
+
 # Question for Dan (Blaze) — resolving emote IDs to image URLs
 
 Hey Dan, I've built a multi-platform chat overlay and wired up Blaze via

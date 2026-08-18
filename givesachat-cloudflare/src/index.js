@@ -21,6 +21,7 @@ import {
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 import { debugKickAvatar } from "./kickAvatars.js";
 import { subscribeBlazeSession, probeBlazeEndpoints } from "./blazeAuth.js";
+import { getBlazeEmoteMap } from "./blazeEmotes.js";
 
 export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom, ArenaRoom, VPZoneRoom, OdyseeRoom };
 
@@ -444,6 +445,56 @@ export default {
         return new Response(
           JSON.stringify({ ok: false, error: String(err?.message || err) }),
           { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    /* ---------------------------------------------------------
+       7b-ii. Blaze emote map
+
+       Blaze chat runs in the overlay (Socket.IO doesn't run in
+       workerd), so the overlay needs the id -> imageUrl map to
+       render emotes. It cannot fetch it directly — that would
+       need the app token in the browser — so the worker holds
+       the credential, resolves the map, and hands over just the
+       finished URLs.
+
+       Same key treatment as /subscribe: the viewer key is
+       accepted, because a read-only pop-out has to render
+       emotes too.
+    --------------------------------------------------------- */
+    if (url.pathname === "/api/blaze/emotes" && request.method === "GET") {
+      const auth = checkKey(request, url, env.OVERLAY_KEY);
+
+      if (!auth.ok) {
+        const viewer = checkKey(request, url, env.VIEWER_KEY);
+        if (!viewer.ok || viewer.unconfigured) return unauthorized();
+      }
+
+      try {
+        const map = await getBlazeEmoteMap(
+          env,
+          url.searchParams.get("force") === "1"
+        );
+
+        return new Response(
+          JSON.stringify({ ok: true, count: Object.keys(map).length, emotes: map }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              /* The overlay refetches on reconnect; a short
+                 browser cache keeps that from hammering the
+                 worker without making a new emote wait long. */
+              "Cache-Control": "public, max-age=300"
+            }
+          }
+        );
+      } catch (err) {
+        console.error("[BLAZE] emote map error:", err);
+        return new Response(
+          JSON.stringify({ ok: false, error: String(err?.message || err) }),
+          { status: 502, headers: { "Content-Type": "application/json" } }
         );
       }
     }

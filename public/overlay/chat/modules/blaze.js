@@ -47,49 +47,77 @@ function escapeHtml(text) {
 }
 
 /* ---------------------------------------------------------
-   Custom emotes — PARTIALLY RESOLVED
+   Custom emotes — RESOLVED
 
    Messages carry an emote token inline:
 
      "emote test[emote:2f733d36-16bb-4a05-bb3f-1d7e73634a6e]"
 
    That uuid is the EMOTE ID, not the image filename. The same
-   emote (:ANGRYPYRO2:) renders in Blaze's own client as
+   emote renders in Blaze's own client as
 
      cdn.blaze.stream/uploads/emote/8e447717-...-e9a6d5b02071.png
 
-   — a different uuid entirely. So the CDN URL cannot be built
-   from the token alone, and Blaze publishes no emotes endpoint
-   to resolve one to the other. Question outstanding with Blaze.
+   — a different uuid entirely, so the URL could never be built
+   from the token. Blaze published the resolving endpoints in
+   Feb 2026, and the worker now fetches the id -> imageUrl map
+   with the app token and serves it at /api/blaze/emotes.
 
-   Until that lands, the img is emitted anyway but hides itself
-   if it fails to load, so a broken image never reaches the
-   stream. When the real mapping is known, only buildEmoteUrl()
-   below needs to change.
+   The map is fetched once at setup and refreshed on reconnect.
+   An emote uploaded mid-stream will therefore miss until the
+   overlay reconnects; it renders as its :NAME: text rather
+   than as a gap, which is the same fallback Odysee uses.
 
-   The uuid is matched strictly rather than with a loose
-   wildcard: this string goes straight into a src attribute,
-   and message text is attacker-controlled.
+   The uuid is still matched strictly rather than with a loose
+   wildcard — the value goes into a src attribute and message
+   text is attacker-controlled — and the resolved URL is
+   host-checked before use even though it came from the worker.
 --------------------------------------------------------- */
 const EMOTE_TOKEN =
   /\[emote:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]/gi;
 
-const BLAZE_EMOTE_CDN = "https://cdn.blaze.stream/uploads/emote/";
+const EMOTE_ENDPOINT = "/api/blaze/emotes";
+const BLAZE_CDN = /^https:\/\/cdn\.blaze\.stream\//i;
 
-function buildEmoteUrl(emoteId) {
-  // Known to be wrong for now — see the note above.
-  return `${BLAZE_EMOTE_CDN}${emoteId.toLowerCase()}.png`;
+let emoteMap = {};
+
+async function loadEmoteMap() {
+  try {
+    const res = await fetch(withKey(EMOTE_ENDPOINT));
+    const json = await res.json().catch(() => ({}));
+
+    if (!res.ok || !json.ok || !json.emotes) {
+      console.warn("[Blaze] emote map unavailable:", res.status, json.error || "");
+      return;
+    }
+
+    emoteMap = json.emotes;
+    console.log(`[Blaze] loaded ${json.count} emotes`);
+  } catch (err) {
+    /* Not fatal. Emotes fall back to their :NAME: text and the
+       rest of chat is unaffected. */
+    console.warn("[Blaze] emote map request failed:", err);
+  }
 }
 
 function renderBlazeEmotes(html) {
-  return html.replace(EMOTE_TOKEN, (_match, uuid) => {
-    const src = buildEmoteUrl(uuid);
+  return html.replace(EMOTE_TOKEN, (match, uuid) => {
+    const emote = emoteMap[uuid] || emoteMap[uuid.toLowerCase()];
 
-    /* onerror is safe here: this markup is ours, not user
-       input, and the uuid has already been pattern-matched.
-       Removing the node beats showing a broken image icon
-       mid-stream. */
-    return `<img class="blaze-emote-img" src="${src}" alt="" onerror="this.remove()">`;
+    if (!emote || !BLAZE_CDN.test(emote.url)) {
+      /* Unknown id — added since the map was fetched, or a
+         subscriber emote we can't see. Show the name if we have
+         one, otherwise drop the token rather than leaving a raw
+         [emote:uuid] on stream. */
+      console.debug("[Blaze] unresolved emote id:", uuid);
+      return emote?.name ? `:${emote.name}:` : "";
+    }
+
+    const alt = emote.name ? `:${escapeHtml(emote.name)}:` : "";
+
+    /* alt doubles as the fallback: if the CDN fails, the
+       browser draws the emote name instead of a broken image. */
+    return `<img class="blaze-emote-img" src="${emote.url}" alt="${alt}" title="${alt}">`;
   });
 }
 
@@ -161,6 +189,10 @@ function handleEventSub(message) {
 
     clearTimeout(resubscribeTimer);
 
+    /* A reconnect is the natural moment to refresh the map, so
+       an emote added mid-stream appears without a page reload. */
+    loadEmoteMap();
+
     subscribeSession(sessionId).then((ok) => {
       if (ok) return;
       // Retry once shortly after — a cold worker or a brief
@@ -197,6 +229,12 @@ export function setupBlazeChat() {
   if (!overlayKey()) {
     console.warn("[Blaze] no overlay key in URL — chat disabled");
   }
+
+  /* Fetched before the socket opens so the map is in place by
+     the time the first message lands. Not awaited — chat must
+     not wait on it, and an early message simply falls back to
+     its emote name. */
+  loadEmoteMap();
 
   if (socket) {
     try { socket.close(); } catch {}
