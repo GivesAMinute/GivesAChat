@@ -393,6 +393,22 @@ body.header-off #messages {
 }
 
 /* ---------------------------------------------------------
+   ⭐ BitChute stickers
+
+   Inline tokens rather than a separate message type, so a
+   sticker can sit mid-sentence alongside text. Sized between an
+   emote and an Odysee sticker for that reason — big enough to
+   read, small enough not to break the line.
+--------------------------------------------------------- */
+.bitchute-sticker {
+  height: 64px;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 3px;
+  display: inline-block;
+}
+
+/* ---------------------------------------------------------
    ⭐ Odysee tips (hyperchat)
 
    A comment with support_amount > 0 is a paid comment. The

@@ -67,7 +67,8 @@ export const IGNORED_SENDER_TYPES = [
   "blaze",    // direct: Socket.IO in the overlay
   "vpzone",   // direct: WebSocket in VPZoneRoom
   "arena",    // direct: polled by ArenaRoom
-  "odysee"    // direct: Commentron socket in OdyseeRoom
+  "odysee",   // direct: Commentron socket in OdyseeRoom
+  "bitchute"  // direct: Socket.IO in BitChuteRoom
 ];
 
 const UUID_RE =
