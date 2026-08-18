@@ -71,12 +71,77 @@ The dangerous bugs are the ones with no error:
 
 ## 6. Cost control
 
-Every platform DO needs an idle shutdown or hibernation. A `$12.50`
-Cloudflare bill came from objects that never stopped.
+Requests are basically free — 1M/month, then $0.15/million. **Duration
+is the entire bill.** A Durable Object is billed for wall-clock time
+it spends resident, at 128 MB:
+
+```
+1 second resident   =     0.125 GB-s
+1 day resident 24/7 =    10,800 GB-s
+Free allowance      =   400,000 GB-s / month  =  37 object-days
+```
+
+**One object left resident round the clock eats 81% of the monthly
+free tier.** With seven objects that arithmetic gets away from you
+fast. Divide any Duration figure by 10,800 to read it as "object-days
+resident" — it turns an abstract number into an obvious one.
 
 Cache anything resolved from a third party — avatars, emote paths —
 and cache the *misses* too, or a typo'd token re-probes on every
 message.
+
+### Push, don't poll
+
+Four platform rooms each polled ChatRoom every 30s asking "is anyone
+watching?". Staggered, that woke ChatRoom every ~7 seconds forever.
+Hibernation needs a quiet window, so it never got one and billed
+around the clock.
+
+ChatRoom now pushes `/idle` on its last disconnect. Wakes went from
+11,520/day to 1,153. **The object being polled pays for the poll** —
+if something needs to know when state changes, have the owner tell it.
+
+Keep an infrequent poll as a safety net anyway (5 min), in case the
+notification is never sent: an eviction mid-close, a deploy.
+
+### A send-only socket is not a consumer
+
+**The subtlest bug in this whole project.** The popups overlay opens
+`/ws/popups` *and* a second `/ws/chat` socket — send-only, used to
+push reward cards into the lane. It reads nothing.
+
+The worker couldn't tell it from a real chat overlay, so opening the
+popups overlay fired all four platform wakes and started Beam's SSE,
+Arena's poller and the VPZONE and Odysee sockets — four upstream
+connections feeding a client that ignored every one of them. Six
+objects resident for as long as popups was open.
+
+The tell was in the metrics long before the cause: PopupRoom and
+ChatRoom showed *identical* duration on wildly different request
+counts. Same page opens both, so they live and die together.
+
+Fixing it needed two halves, and one alone would have been worse than
+the bug:
+
+1. the socket declares `?role=popups`; the worker skips the wakes
+2. ChatRoom excludes it from `/clients` and from the disconnect
+   notification
+
+Without (2) the rooms would start correctly and then never stop,
+because a popups overlay left open still counted as a viewer.
+
+**Generalise it:** before wiring a connection to "someone is
+watching", ask whether that client actually *reads* anything.
+
+### The Errors column is mostly WebSocket closes
+
+A WebSocket upgrade is recorded as `Canceled` when the socket
+eventually closes, and that lands in Errors. Only objects accepting
+inbound WebSockets show any, in proportion to how much of their
+traffic is WebSocket — ChatRoom 5–34%, PopupRoom 83–87%, everything
+else 0–0.4%.
+
+Not a fault. Don't chase it.
 
 ---
 
