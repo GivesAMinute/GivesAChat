@@ -18,6 +18,9 @@ import { setupHeader } from "./modules/header.js";
 // ⭐ Header on/off via ?header=no
 import { showHeader } from "./modules/chatMode.js";
 
+// ⭐ Scroll-back in the browser / iPad (never OBS)
+import { initChatScroll } from "./modules/chatScroll.js";
+
 async function initOverlay() {
   /* ---------------------------------------------------------
      ⭐ Header toggle — applied before anything paints so the
@@ -25,6 +28,13 @@ async function initOverlay() {
   --------------------------------------------------------- */
   const headerOn = showHeader();
   if (!headerOn) document.body.classList.add("header-off");
+
+  /* ---------------------------------------------------------
+     ⭐ Scroll-back. Set up before any message can arrive, so
+     the lane is already following the bottom when the first
+     one lands rather than jumping once it initialises.
+  --------------------------------------------------------- */
+  initChatScroll();
 
   // ⭐ Audio unlock
   if (isIOSDevice()) {

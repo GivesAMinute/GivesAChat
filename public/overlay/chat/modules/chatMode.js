@@ -18,6 +18,8 @@
    you both looks simultaneously.
 --------------------------------------------------------- */
 
+import { isScrolledBack } from "./chatScroll.js";
+
 const DEFAULT_EXIT_DELAY_MS = 45000;
 const EXIT_ANIMATION_MS = 800;
 
@@ -134,8 +136,47 @@ export function scheduleExit(element, options = {}) {
     return;
   }
 
-  setTimeout(() => {
-    element.classList.add(exitClass);
-    setTimeout(() => element.remove(), EXIT_ANIMATION_MS);
-  }, delay);
+  setTimeout(() => removeWhenAllowed(element, exitClass), delay);
 }
+
+/* ---------------------------------------------------------
+   Exits wait while the lane is scrolled back.
+
+   Without this, scrolling up to read a message you missed
+   would be pointless: it would fade out from under you at the
+   45s mark, and everything above it would shuffle down as its
+   neighbours went too.
+
+   So a due element parks in a pending set instead, and leaves
+   when the lane returns to the bottom. Nothing accumulates
+   invisibly — these are elements that were already on their way
+   out, just held.
+
+   In OBS this never engages: scroll-back is off there, so
+   isScrolledBack() is always false and this is a straight
+   passthrough to the original behaviour.
+--------------------------------------------------------- */
+const pendingExits = new Set();
+
+function removeWhenAllowed(element, exitClass) {
+  if (!element.isConnected) return;
+
+  if (isScrolledBack()) {
+    pendingExits.add({ element, exitClass });
+    return;
+  }
+
+  element.classList.add(exitClass);
+  setTimeout(() => element.remove(), EXIT_ANIMATION_MS);
+}
+
+window.addEventListener("gac:scroll-resumed", () => {
+  if (pendingExits.size === 0) return;
+
+  const due = [...pendingExits];
+  pendingExits.clear();
+
+  for (const { element, exitClass } of due) {
+    removeWhenAllowed(element, exitClass);
+  }
+});

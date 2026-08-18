@@ -417,6 +417,52 @@ body.header-off #messages {
 }
 
 /* ---------------------------------------------------------
+   ⭐ Scroll-back  (browser / iPad only — never OBS)
+
+   Added by chatScroll.js as body.scrollback when OBS is not
+   detected. OBS never gets these rules, so the lane there stays
+   exactly as it is: no pointer events, no scrolling, nothing to
+   knock out of place mid-broadcast.
+
+   THE justify-content SWAP IS THE WHOLE TRICK. The lane is a
+   flex column with justify-content: flex-end so messages sit on
+   the bottom. But content that overflows the TOP of a flex-end
+   container CANNOT BE SCROLLED TO — the browser clips it and
+   the scroll range never covers it. It looks like scrolling is
+   broken when in fact the content is unreachable by design.
+
+   The fix is to bottom-anchor a different way: switch to
+   flex-start and give the first child margin-top: auto. That
+   pushes the stack to the bottom identically, but leaves the
+   overflow at the top reachable. Visually nothing changes.
+--------------------------------------------------------- */
+body.scrollback #messages {
+  justify-content: flex-start;
+
+  overflow-y: auto;
+  overscroll-behavior: contain;      /* don't scroll the page behind */
+  -webkit-overflow-scrolling: touch; /* momentum on iOS */
+
+  /* Opt back into input just for the lane. #chat-container
+     stays pointer-events: none, which is fine — a parent with
+     none doesn't stop a child with auto from receiving events. */
+  pointer-events: auto;
+}
+
+body.scrollback #messages > *:first-child {
+  margin-top: auto;
+}
+
+/* No scrollbar, as asked — the gesture is the whole interface. */
+body.scrollback #messages {
+  scrollbar-width: none;
+}
+
+body.scrollback #messages::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------------------------------------------------------
    ⭐ Odysee stickers
 
    A different asset family to emotes, not a bigger emote —
