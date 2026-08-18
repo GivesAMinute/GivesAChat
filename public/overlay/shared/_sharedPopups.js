@@ -22,7 +22,20 @@ const sharedPopups = {
   wsURL: withKey("wss://givesachat-cloudflare.benonkoebsch.workers.dev/ws/popups"),
 
   // Chat overlay WebSocket endpoint (MUST be absolute)
-  chatWSURL: withKey("wss://givesachat-cloudflare.benonkoebsch.workers.dev/ws/chat"),
+  /* role=popups matters more than it looks.
+   *
+   * This socket is SEND-ONLY: the popups overlay uses it to push
+   * reward and velora_system cards into the chat lane. It never
+   * consumes Beam, Arena, VPZONE or Odysee messages.
+   *
+   * Without the flag the worker treats it like a chat overlay
+   * and starts all four platform rooms — so opening the popups
+   * overlay span up the entire ingestion pipeline and held six
+   * durable objects resident for as long as it was open.
+   */
+  chatWSURL: withKey(
+    "wss://givesachat-cloudflare.benonkoebsch.workers.dev/ws/chat"
+  ) + "&role=popups",
 
   // Velora access token (loaded at runtime)
   veloraAccessToken: null,

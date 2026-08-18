@@ -83,7 +83,8 @@ export class ChatRoom {
          evicted between messages.
       --------------------------------------------------------- */
       const readOnly = request.headers.get("x-gac-readonly") === "1";
-      pair[1].serializeAttachment({ readOnly });
+      const role = request.headers.get("x-gac-role") === "popups" ? "popups" : "chat";
+      pair[1].serializeAttachment({ readOnly, role });
 
       return new Response(null, {
         status: 101,
@@ -101,14 +102,19 @@ export class ChatRoom {
     }
 
     /* ---------------------------------------------------------
-       ⭐ How many overlays are connected?
+       ⭐ How many overlays are actually WATCHING?
 
-       BeamRoom polls this to decide whether its SSE connection
-       is worth holding open — see IDLE_SHUTDOWN_MS there.
+       The platform rooms use this to decide whether their
+       upstream connection is worth holding open.
+
+       The popups overlay's socket is deliberately excluded. It
+       only pushes cards into the lane and reads nothing, so
+       counting it would keep four platform rooms alive feeding
+       a client that ignores everything they send.
     --------------------------------------------------------- */
     if (url.pathname === "/clients") {
       return new Response(
-        JSON.stringify({ count: this.state.getWebSockets().length }),
+        JSON.stringify({ count: this.consumerCount() }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -178,14 +184,26 @@ export class ChatRoom {
      poll once every 5 minutes as a safety net in case this
      notification never lands — an eviction mid-close, a deploy.
   --------------------------------------------------------- */
+  /* Sockets that actually read chat. The popups overlay's
+     send-only socket doesn't count — see the /clients note. */
+  consumerCount(excluding = null) {
+    return this.state.getWebSockets().filter((ws) => {
+      if (ws === excluding) return false;
+      try {
+        return ws.deserializeAttachment()?.role !== "popups";
+      } catch {
+        /* No attachment — a socket from before roles existed.
+           Treat it as a viewer: over-counting keeps chat working,
+           under-counting would silently kill it. */
+        return true;
+      }
+    }).length;
+  }
+
   async announceIfEmpty(closing) {
     /* The socket being closed can still appear in the list at
        this point, so exclude it rather than trusting length. */
-    const remaining = this.state
-      .getWebSockets()
-      .filter((s) => s !== closing).length;
-
-    if (remaining > 0) return;
+    if (this.consumerCount(closing) > 0) return;
 
     const rooms = [
       [this.env.BeamRoom, "beam-unified-chat"],

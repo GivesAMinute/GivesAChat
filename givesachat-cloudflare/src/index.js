@@ -217,20 +217,37 @@ export default {
 
       if (auth.unconfigured) console.warn("OVERLAY_KEY unset — /ws/chat is open");
 
-      // Start the Beam reader if it isn't already going.
-      // Must go through waitUntil: this response returns
-      // immediately, and an un-awaited subrequest would be
-      // cancelled before it ever reached the durable object.
-      if (ctx?.waitUntil) {
-        ctx.waitUntil(wakeBeam(env));
-        ctx.waitUntil(wakeArena(env));
-        ctx.waitUntil(wakeVpzone(env));
-        ctx.waitUntil(wakeOdysee(env));
-      } else {
-        await wakeBeam(env);
-        await wakeArena(env);
-        await wakeVpzone(env);
-        await wakeOdysee(env);
+      /* ---------------------------------------------------------
+         The popups overlay opens a chat socket too, but only to
+         PUSH reward and velora_system cards into the lane. It
+         never reads Beam, Arena, VPZONE or Odysee messages.
+
+         Treating it like a chat overlay meant opening the popups
+         overlay started all four platform rooms and held six
+         durable objects resident for as long as it was open —
+         four upstream connections nobody was listening to.
+
+         The flag only ever removes capability, so a client
+         setting it maliciously would just deny itself chat.
+      --------------------------------------------------------- */
+      const isPopupsSender = url.searchParams.get("role") === "popups";
+
+      if (!isPopupsSender) {
+        // Start the platform readers if they aren't already going.
+        // Must go through waitUntil: this response returns
+        // immediately, and an un-awaited subrequest would be
+        // cancelled before it ever reached the durable object.
+        if (ctx?.waitUntil) {
+          ctx.waitUntil(wakeBeam(env));
+          ctx.waitUntil(wakeArena(env));
+          ctx.waitUntil(wakeVpzone(env));
+          ctx.waitUntil(wakeOdysee(env));
+        } else {
+          await wakeBeam(env);
+          await wakeArena(env);
+          await wakeVpzone(env);
+          await wakeOdysee(env);
+        }
       }
 
       const id = env.ChatRoom.idFromName("givesachat-main-v4");
@@ -240,6 +257,7 @@ export default {
       // Set here, never read from the client.
       const headers = new Headers(request.headers);
       headers.set("x-gac-readonly", readOnly ? "1" : "0");
+      headers.set("x-gac-role", isPopupsSender ? "popups" : "chat");
 
       return room.fetch(new Request(request, { headers }));
     }
