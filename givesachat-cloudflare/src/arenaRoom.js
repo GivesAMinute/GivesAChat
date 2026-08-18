@@ -27,6 +27,10 @@ const INFO_POLL_MS = 60_000;       // checking whether we went live
 const ALARM_INTERVAL_MS = 30_000;
 const IDLE_SHUTDOWN_MS = 120_000;
 
+/* Safety-net interval for the ChatRoom client-count check.
+   Presence is normally pushed, so this is a fallback only. */
+const CLIENT_RECHECK_MS = 300_000;
+
 // Guards against unbounded growth on a long stream. Well above
 // any single history response.
 const MAX_SEEN_IDS = 2_000;
@@ -49,6 +53,12 @@ export class ArenaRoom {
     this.seeded = false;
 
     this.lastClientSeenAt = Date.now();
+
+    /* Presence is pushed by ChatRoom. Assume someone is
+       watching until told otherwise — the safety net below
+       corrects it if that assumption is wrong. */
+    this.clientsPresent = true;
+    this.lastClientCheckAt = 0;
     this.lastInfoCheck = 0;
     this.lastChatPoll = null;
     this.messageCount = 0;
@@ -62,6 +72,7 @@ export class ArenaRoom {
 
     if (url.pathname.endsWith("/start")) {
       this.lastClientSeenAt = Date.now();
+      this.clientsPresent = true;
       this.stoppedReason = null;
       this.ensureRunning();
       return this.json({ ok: true, running: this.running });
@@ -71,6 +82,19 @@ export class ArenaRoom {
       this.running = false;
       this.stoppedReason = "manual";
       return this.json({ ok: true, running: false });
+    }
+
+    /* Pushed by ChatRoom the moment its last overlay
+       disconnects. This replaces asking ChatRoom every 30
+       seconds — four rooms doing that kept ChatRoom permanently
+       resident and billing, which was the whole problem.
+
+       The grace period still applies from here, so a page
+       refresh doesn't tear the upstream connection down. */
+    if (url.pathname.endsWith("/idle")) {
+      this.clientsPresent = false;
+      this.lastClientSeenAt = Date.now();
+      return this.json({ ok: true });
     }
 
     if (url.pathname.endsWith("/status")) {
@@ -96,12 +120,11 @@ export class ArenaRoom {
   }
 
   async alarm() {
-    const count = await this.overlayCount();
-    if (count !== null && count > 0) this.lastClientSeenAt = Date.now();
+    await this.refreshClientPresence();
 
     const idleFor = Date.now() - this.lastClientSeenAt;
 
-    if (count === 0 && idleFor > IDLE_SHUTDOWN_MS) {
+    if (!this.clientsPresent && idleFor > IDLE_SHUTDOWN_MS) {
       if (this.running) {
         console.log("[ARENA] no overlays connected — stopping poller");
       }
@@ -121,6 +144,27 @@ export class ArenaRoom {
     } catch (err) {
       console.error("[ARENA] setAlarm failed:", err);
     }
+  }
+
+  /* ---------------------------------------------------------
+     Presence is PUSHED by ChatRoom now — see the /idle route.
+     This is only a safety net for a notification that never
+     arrived (an eviction mid-close, a deploy), so it runs every
+     5 minutes instead of every 30 seconds.
+
+     That single change is what lets ChatRoom hibernate.
+  --------------------------------------------------------- */
+  async refreshClientPresence() {
+    const now = Date.now();
+    if (now - this.lastClientCheckAt < CLIENT_RECHECK_MS) return;
+
+    this.lastClientCheckAt = now;
+
+    const count = await this.overlayCount();
+    if (count === null) return;   // unknown — leave state as it was
+
+    this.clientsPresent = count > 0;
+    if (count > 0) this.lastClientSeenAt = now;
   }
 
   async overlayCount() {

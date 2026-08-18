@@ -158,6 +158,50 @@ export class ChatRoom {
 
   async webSocketClose(ws, code, reason, wasClean) {
     try { ws.close(code, reason); } catch {}
+    await this.announceIfEmpty(ws);
+  }
+
+  /* ---------------------------------------------------------
+     Tell the platform rooms when the last overlay leaves.
+
+     They used to find out by polling this object every 30
+     seconds — four of them, staggered, which meant a wake here
+     roughly every 7 seconds forever. Hibernation needs a quiet
+     window, so this object never got one and billed duration
+     around the clock whether anyone was watching or not.
+
+     Inverting it costs one fanout on the last disconnect
+     instead of ~11,500 polls a day, and lets this object sleep.
+
+     The rooms keep their own grace period, so a page refresh
+     doesn't tear down the upstream connections. They also still
+     poll once every 5 minutes as a safety net in case this
+     notification never lands — an eviction mid-close, a deploy.
+  --------------------------------------------------------- */
+  async announceIfEmpty(closing) {
+    /* The socket being closed can still appear in the list at
+       this point, so exclude it rather than trusting length. */
+    const remaining = this.state
+      .getWebSockets()
+      .filter((s) => s !== closing).length;
+
+    if (remaining > 0) return;
+
+    const rooms = [
+      [this.env.BeamRoom, "beam-unified-chat"],
+      [this.env.ArenaRoom, "arena-live-chat"],
+      [this.env.VPZoneRoom, "vpzone-live-chat"],
+      [this.env.OdyseeRoom, "odysee-live-chat"]
+    ];
+
+    await Promise.allSettled(
+      rooms.map(([ns, name]) => {
+        if (!ns) return Promise.resolve();
+        return ns.get(ns.idFromName(name)).fetch("https://do/idle");
+      })
+    );
+
+    console.log("[ChatRoom] last overlay left — platform rooms notified");
   }
 
   async webSocketError(ws, error) {

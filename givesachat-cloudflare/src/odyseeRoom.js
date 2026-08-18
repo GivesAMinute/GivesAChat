@@ -203,6 +203,10 @@ const LBRY_PROXY = "https://api.na-backend.odysee.com/api/v1/proxy";
 const ALARM_INTERVAL_MS = 30_000;
 const IDLE_SHUTDOWN_MS = 120_000;
 
+/* Safety-net interval for the ChatRoom client-count check.
+   Presence is normally pushed, so this is a fallback only. */
+const CLIENT_RECHECK_MS = 300_000;
+
 /* Commentron is silent when nobody is talking — there is no
    presence or ping frame to use as a liveness signal the way
    VPZONE's presence doubles as one. A quiet socket is normal,
@@ -244,6 +248,12 @@ export class OdyseeRoom {
     this.lastError = null;
     this.stoppedReason = null;
     this.lastClientSeenAt = Date.now();
+
+    /* Presence is pushed by ChatRoom. Assume someone is
+       watching until told otherwise — the safety net below
+       corrects it if that assumption is wrong. */
+    this.clientsPresent = true;
+    this.lastClientCheckAt = 0;
   }
 
   async fetch(request) {
@@ -251,6 +261,7 @@ export class OdyseeRoom {
 
     if (url.pathname.endsWith("/start")) {
       this.lastClientSeenAt = Date.now();
+      this.clientsPresent = true;
       this.stoppedReason = null;
       this.ensureRunning();
       return this.json({ ok: true, running: this.running });
@@ -259,6 +270,19 @@ export class OdyseeRoom {
     if (url.pathname.endsWith("/stop")) {
       this.stop("manual");
       return this.json({ ok: true, running: false });
+    }
+
+    /* Pushed by ChatRoom the moment its last overlay
+       disconnects. This replaces asking ChatRoom every 30
+       seconds — four rooms doing that kept ChatRoom permanently
+       resident and billing, which was the whole problem.
+
+       The grace period still applies from here, so a page
+       refresh doesn't tear the upstream connection down. */
+    if (url.pathname.endsWith("/idle")) {
+      this.clientsPresent = false;
+      this.lastClientSeenAt = Date.now();
+      return this.json({ ok: true });
     }
 
     if (url.pathname.endsWith("/status")) {
@@ -375,10 +399,9 @@ export class OdyseeRoom {
   }
 
   async alarm() {
-    const count = await this.overlayCount();
-    if (count !== null && count > 0) this.lastClientSeenAt = Date.now();
+    await this.refreshClientPresence();
 
-    if (count === 0 && Date.now() - this.lastClientSeenAt > IDLE_SHUTDOWN_MS) {
+    if (!this.clientsPresent && Date.now() - this.lastClientSeenAt > IDLE_SHUTDOWN_MS) {
       this.stop("idle");
       return;   // no alarm rescheduled — object can be evicted
     }
@@ -405,6 +428,27 @@ export class OdyseeRoom {
     } catch (err) {
       console.error("[ODYSEE] setAlarm failed:", err);
     }
+  }
+
+  /* ---------------------------------------------------------
+     Presence is PUSHED by ChatRoom now — see the /idle route.
+     This is only a safety net for a notification that never
+     arrived (an eviction mid-close, a deploy), so it runs every
+     5 minutes instead of every 30 seconds.
+
+     That single change is what lets ChatRoom hibernate.
+  --------------------------------------------------------- */
+  async refreshClientPresence() {
+    const now = Date.now();
+    if (now - this.lastClientCheckAt < CLIENT_RECHECK_MS) return;
+
+    this.lastClientCheckAt = now;
+
+    const count = await this.overlayCount();
+    if (count === null) return;   // unknown — leave state as it was
+
+    this.clientsPresent = count > 0;
+    if (count > 0) this.lastClientSeenAt = now;
   }
 
   async overlayCount() {
