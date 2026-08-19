@@ -1,7 +1,7 @@
 # Adding a platform to GivesAChat
 
-Notes from doing this six times (Beam, Blaze, Arena, VPZONE, Velora,
-Odysee). Read before starting the seventh.
+Notes from doing this seven times (Beam, Blaze, Arena, VPZONE, Velora,
+Odysee, BitChute). Read before starting the eighth.
 
 ## 1. Capture real data before writing a parser
 
@@ -13,6 +13,38 @@ guess. Get the actual frames first:
 - Then **Fetch/XHR** for the REST calls around it
 
 Every parser written ahead of real data has been wrong.
+
+### Capture both directions of a WebSocket
+
+**A capture of only the frames the server sends is half a capture.**
+In Chrome: click the socket → **Messages** → change the dropdown from
+*All Messages* to **Send**.
+
+BitChute cost an entire debugging session on this. The socket
+connected, the token was accepted, an identity was issued for the
+correct thread — and no messages ever arrived, with no error. The
+missing piece was one frame the client sends and nothing echoes:
+
+```
+42["join_room","<channel id>"]
+```
+
+Inbound frames are the ones that get pasted around, because they are
+the interesting ones. The outbound frames are the ones that make the
+inbound frames happen.
+
+### Read the list of requests, don't guess endpoint names
+
+Looking for BitChute's socket token, I guessed `api/beta/video`. It
+returned **200** — and was the wrong endpoint. An older route still
+answering, with none of the data we needed.
+
+Thirty seconds of reading the Fetch/XHR list gave the real answer:
+`api/beta9/video` for metadata (note the **9**), and
+`api/beta/apps/commentfreely/video`, which returns the signed socket
+token in an `auth` field. Neither was guessable.
+
+A 200 from a guessed URL is not evidence. See §3.
 
 ## 2. If their client renders it, the answer is in their bundle
 
@@ -58,6 +90,45 @@ The dangerous bugs are the ones with no error:
   add it to the overlay.
 - **Odysee timestamps are seconds**, not ms. Read as ms that's 1970,
   pinning every message to the top of the lane.
+- **Authenticated is not subscribed.** BitChute's socket accepted our
+  token, put us in the right thread, assigned us a display name and an
+  avatar, and sent no messages — because we never emitted `join_room`.
+  Connecting successfully proves nothing about whether you will
+  receive anything.
+
+The pattern in all four: **the system reports success and does
+nothing.** When something silently produces no output, suspect a
+missing subscribe, a stale id, or a unit mismatch before suspecting
+the parser — the parser at least fails loudly.
+
+### Tell "quiet" apart from "broken"
+
+A reader that is connected with `messageCount: 0` is ambiguous: quiet
+room, unhandled event name, or never subscribed. Keep a small ring
+buffer of recent raw frames on the status route (`recentFrames` in
+`bitchuteRoom.js`) and the three become distinguishable instantly.
+This is worth building *before* you need it — it is the difference
+between one round trip and six.
+
+Log unrecognised event names rather than dropping them. A platform
+adds a feature; you want it in the log, not in a silence.
+
+## 4b. Signed tokens: work out who mints them
+
+Before deciding whether an integration can live in a Durable Object or
+has to run in the browser, establish where its credential comes from.
+
+For BitChute the token decoded to JSON with `": "` and `", "`
+separators — **`json.dumps` defaults, which `JSON.stringify` never
+produces**. That single detail proved it was minted in Python on their
+server, therefore fetchable by a Worker, therefore no overlay needed.
+
+Also worth checking: is the signature actually keyed? Hash the payload
+and timestamp a dozen plausible ways and compare. If one matches, it's
+a checksum. BitChute's didn't match any, across two captures with
+identical payloads and differing signatures — so it's HMAC'd with a
+key we'll never have, and fetching a real one is the only route. Ten
+minutes to rule out, and it decides the architecture.
 
 ## 5. Things that have bitten us more than once
 
@@ -68,6 +139,12 @@ The dangerous bugs are the ones with no error:
 - One missing import kills the whole overlay module graph
 - Tokens/credentials go in via `npx wrangler secret put`, never in
   chat, never in the repo
+- Percent-encode a token before putting it in a query string. Base64
+  can contain `+`, and `+` in a query decodes to a space on nearly
+  every server — which corrupts the signature and looks like a
+  rejected token
+- Delete diagnostic routes once they've done their job. They dump
+  third-party response bodies and outlive their usefulness fast
 
 ## 6. Cost control
 

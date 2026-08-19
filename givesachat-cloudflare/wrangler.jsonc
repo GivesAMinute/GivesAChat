@@ -40,6 +40,10 @@
       {
         "name": "OdyseeRoom",
         "class_name": "OdyseeRoom"
+      },
+      {
+        "name": "BitChuteRoom",
+        "class_name": "BitChuteRoom"
       }
     ]
   },
@@ -72,6 +76,10 @@
     "OdyseeRoom": {
       "type": "durable-object",
       "storage": "sqlite"
+    },
+    "BitChuteRoom": {
+      "type": "durable-object",
+      "storage": "sqlite"
     }
   },
 
@@ -101,7 +109,19 @@
     // per-stream claim id the chat socket actually needs is
     // discovered at runtime from api.odysee.live, because it is
     // different for every stream.
-    "ODYSEE_CHANNEL_CLAIM_ID": "2e4c63a39e28e8e2bcac74debece9f7893fc3fe5"
+    "ODYSEE_CHANNEL_CLAIM_ID": "2e4c63a39e28e8e2bcac74debece9f7893fc3fe5",
+
+    // BitChute — anonymous read, no credential.
+    //
+    // The chat socket is keyed to the CHANNEL (x7gWP4Vw8CXN),
+    // which is why no per-stream lookup is needed. But the signed
+    // cf_auth token has to be fetched from a pop-out page, and
+    // that page is per-VIDEO.
+    //
+    // If this id turns out to change every broadcast, it becomes
+    // the Odysee problem again and needs resolving at runtime —
+    // check /bitchute/token after the next stream starts.
+    "BITCHUTE_VIDEO_ID": "Oxf29kKWYoS7"
   },
 
   "assets": {

@@ -209,7 +209,8 @@ export class ChatRoom {
       [this.env.BeamRoom, "beam-unified-chat"],
       [this.env.ArenaRoom, "arena-live-chat"],
       [this.env.VPZoneRoom, "vpzone-live-chat"],
-      [this.env.OdyseeRoom, "odysee-live-chat"]
+      [this.env.OdyseeRoom, "odysee-live-chat"],
+      [this.env.BitChuteRoom, "bitchute-live-chat"]
     ];
 
     await Promise.allSettled(

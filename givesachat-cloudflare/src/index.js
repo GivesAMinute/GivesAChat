@@ -6,6 +6,7 @@ import { BeamRoom } from "./beamRoom.js";
 import { ArenaRoom } from "./arenaRoom.js";
 import { VPZoneRoom } from "./vpzoneRoom.js";
 import { OdyseeRoom } from "./odyseeRoom.js";
+import { BitChuteRoom } from "./bitchuteRoom.js";
 import {
   generateAuthorizationUrl,
   exchangeAuthCode,
@@ -23,7 +24,16 @@ import { debugKickAvatar } from "./kickAvatars.js";
 import { subscribeBlazeSession, probeBlazeEndpoints } from "./blazeAuth.js";
 import { getBlazeEmoteMap } from "./blazeEmotes.js";
 
-export { ChatRoom, VeloraTokenStore, PopupRoom, BeamRoom, ArenaRoom, VPZoneRoom, OdyseeRoom };
+export {
+  ChatRoom,
+  VeloraTokenStore,
+  PopupRoom,
+  BeamRoom,
+  ArenaRoom,
+  VPZoneRoom,
+  OdyseeRoom,
+  BitChuteRoom
+};
 
 /* ---------------------------------------------------------
    Beam's SSE reader lives in a durable object. Nudge it awake
@@ -48,6 +58,16 @@ async function wakeOdysee(env) {
     await stub.fetch("https://do/start");
   } catch (err) {
     console.error("Odysee wake failed:", err);
+  }
+}
+
+async function wakeBitchute(env) {
+  try {
+    const id = env.BitChuteRoom.idFromName("bitchute-live-chat");
+    const stub = env.BitChuteRoom.get(id);
+    await stub.fetch("https://do/start");
+  } catch (err) {
+    console.error("BitChute wake failed:", err);
   }
 }
 
@@ -242,11 +262,13 @@ export default {
           ctx.waitUntil(wakeArena(env));
           ctx.waitUntil(wakeVpzone(env));
           ctx.waitUntil(wakeOdysee(env));
+          ctx.waitUntil(wakeBitchute(env));
         } else {
           await wakeBeam(env);
           await wakeArena(env);
           await wakeVpzone(env);
           await wakeOdysee(env);
+          await wakeBitchute(env);
         }
       }
 
@@ -600,6 +622,24 @@ export default {
 
       const id = env.OdyseeRoom.idFromName("odysee-live-chat");
       return env.OdyseeRoom.get(id).fetch(
+        `https://do/${action}${url.search}`
+      );
+    }
+
+    /* ---------------------------------------------------------
+       7d-d. BitChute control (/bitchute/status|start|stop)
+    --------------------------------------------------------- */
+    if (url.pathname.startsWith("/bitchute/")) {
+      const auth = checkKey(request, url, env.INGEST_KEY);
+      if (!auth.ok) return unauthorized();
+
+      const action = url.pathname.split("/")[2];
+      if (!["start", "stop", "status"].includes(action)) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const id = env.BitChuteRoom.idFromName("bitchute-live-chat");
+      return env.BitChuteRoom.get(id).fetch(
         `https://do/${action}${url.search}`
       );
     }
