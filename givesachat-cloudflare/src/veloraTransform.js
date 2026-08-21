@@ -1,6 +1,6 @@
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 import { applyVeloraEmotes } from "./veloraEmotes.js";
-import { resolveVeloraBadges } from "./veloraBadges.js";
+import { resolveVeloraBadges, resolveSubscriptionBadge } from "./veloraBadges.js";
 
 /* ---------------------------------------------------------
    1st / 2nd GIVER claim rewards.
@@ -58,7 +58,12 @@ export async function transformVeloraChatMessage(msg, env) {
       avatar: msg.avatar || msg.avatarUrl || null,
 
       badges: Array.isArray(msg.badges) ? msg.badges : [],
-      subscriptionBadge: msg.subscriptionBadge || null,
+
+      /* Resolved here rather than in the overlay: the channel's
+         badge set is one fetch, cached for an hour, and the
+         browser should never have to look anything up to render
+         a message. */
+      subscriptionBadge: await resolveSubscriptionBadge(msg, env),
 
       // Catalog badges (events etc.) resolved to asset urls. Role
       // badges are excluded — the overlay has its own artwork.
@@ -69,8 +74,13 @@ export async function transformVeloraChatMessage(msg, env) {
       isModerator: msg.isModerator || msg.isMod || false,
       isMod: msg.isModerator || msg.isMod || false,
       isVip: msg.isVip || false,
-      isSubscriber: msg.isSubscriber || false,
-      subscriberMonths: msg.subscriberMonths || 0,
+
+      /* isSub is what the docs actually document; isSubscriber
+         was the only field read before, so this was always
+         false. Both are accepted. */
+      isSubscriber: msg.isSub || msg.isSubscriber || false,
+      subTier: msg.subTier ?? null,
+      subscriberMonths: msg.subMonths || msg.subscriberMonths || 0,
 
       color: msg.color || msg.accentColor || null,
 
@@ -124,7 +134,7 @@ export async function transformVeloraEvent(event, payload, env) {
         avatar: data.avatarUrl || user.avatar || null,
 
         badges: Array.isArray(data.badges) ? data.badges : [],
-        subscriptionBadge: data.subscriptionBadge || null,
+        subscriptionBadge: await resolveSubscriptionBadge(data, env),
 
         // Catalog badges (events etc.) resolved to asset urls. Role
         // badges are excluded — the overlay has its own artwork.
@@ -135,9 +145,11 @@ export async function transformVeloraEvent(event, payload, env) {
         isModerator: data.isModerator || data.isMod || user.roles?.mod || false,
         isMod: data.isModerator || data.isMod || user.roles?.mod || false,
         isVip: data.isVip || user.roles?.vip || false,
-        isSubscriber: data.isSubscriber || user.roles?.subscriber || false,
+        isSubscriber:
+          data.isSub || data.isSubscriber || user.roles?.subscriber || false,
+        subTier: data.subTier ?? null,
         subscriberMonths:
-          data.subscriberMonths || user.subscriberMonths || 0,
+          data.subMonths || data.subscriberMonths || user.subscriberMonths || 0,
 
         color: data.color || user.color || null,
 

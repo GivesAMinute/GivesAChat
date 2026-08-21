@@ -2,6 +2,16 @@
 
 import { wrapWithTooltip } from "../../utils/tooltip.js";
 
+/* Badge urls and labels come from Velora, so they are third-party
+   data going into an attribute. Escaped rather than trusted. */
+function esc(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 export function renderVeloraBadges(msg) {
   let out = `<span class="velora-badges">`;
 
@@ -11,17 +21,32 @@ export function renderVeloraBadges(msg) {
   const ordered = Array.isArray(msg.badges) ? msg.badges : [];
 
   for (const badgeId of ordered) {
-    // -------------------------------------------------------
-    // ⭐ Subscriber badge (Velora dynamic URL)
-    // -------------------------------------------------------
-    if (badgeId === "subscription") {
-      if (msg.subscriptionBadge?.staticAssetUrl) {
+    /* -------------------------------------------------------
+       ⭐ Subscriber badge
+
+       BOTH SLUGS. Velora sends "subscriber"; this only checked
+       for "subscription", so the branch never ran and subscriber
+       badges silently never appeared.
+
+       The worker resolves the artwork from the channel's own
+       badge set — months-based, 2/3/6/9/12… with a base "New
+       Subscriber" — and hands over { url, label }. It used to
+       expect staticAssetUrl here, which was a second reason
+       nothing rendered even when the slug matched.
+    ------------------------------------------------------- */
+    if (badgeId === "subscriber" || badgeId === "subscription") {
+      const sub = msg.subscriptionBadge;
+      const url = sub?.url || sub?.staticAssetUrl || sub?.animatedAssetUrl;
+
+      if (url) {
+        const label = esc(sub.label || "Subscriber");
+
         out += wrapWithTooltip(`
           <img class="velora-badge"
-               src="${msg.subscriptionBadge.staticAssetUrl}"
-               alt="${msg.subscriptionBadge.label}"
-               title="${msg.subscriptionBadge.label}">
-        `, msg.subscriptionBadge.label);
+               src="${esc(url)}"
+               alt="${label}"
+               title="${label}">
+        `, label);
       }
       continue;
     }

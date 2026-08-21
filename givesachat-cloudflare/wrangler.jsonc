@@ -107,6 +107,11 @@
     "VELORA_CLIENT_ID": "velora_45271c710e18820f",
     "VELORA_REDIRECT_URI": "https://givesachat-cloudflare.benonkoebsch.workers.dev/velora/callback",
 
+    // Used to fetch the channel's own subscription badge set from
+    // /api/badges/channel/:username — months-based artwork, public,
+    // no token needed.
+    "VELORA_CHANNEL": "GivesAMinute",
+
     // Blaze — Client ID is public; the secret is a Cloudflare
     // secret (npx wrangler secret put BLAZE_CLIENT_SECRET)
     "BLAZE_CLIENT_ID": "SIQ6qp4IcEVM6D6TBWLousZQY0VrCLQC",
