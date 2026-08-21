@@ -366,7 +366,27 @@ export default {
       --------------------------------------------------------- */
       const isPopupsSender = url.searchParams.get("role") === "popups";
 
-      if (!isPopupsSender) {
+      /* ---------------------------------------------------------
+         VIEWERS CONSUME CHAT. THEY DO NOT SUMMON IT.
+
+         The public pop-out at bjwok.com/chat authenticates with
+         VIEWER_KEY, which marks the socket read-only. Until now
+         it also fired all six platform wakes — so a viewer who
+         opened the page while nothing was streaming and left the
+         tab open overnight kept six durable objects resident
+         until they closed it.
+
+         That is a stranger's browser tab deciding what our bill
+         is. A read-only client should receive whatever is already
+         flowing and start nothing: if the operator isn't
+         streaming, there is nothing for them to see anyway.
+
+         Same principle as the popups socket, arrived at from the
+         other direction — before wiring a connection to "someone
+         is watching", ask whether it should be allowed to START
+         anything.
+      --------------------------------------------------------- */
+      if (!isPopupsSender && !readOnly) {
         // Start the platform readers if they aren't already going.
         // Must go through waitUntil: this response returns
         // immediately, and an un-awaited subrequest would be
@@ -691,6 +711,22 @@ export default {
       return env.OdyseeRoom.get(id).fetch(
         `https://do/${action}${url.search}`
       );
+    }
+
+    /* ---------------------------------------------------------
+       7d-0. ChatRoom socket census (diagnostic)
+
+       Answers "is anything actually connected right now?" — the
+       question that decides whether the platform rooms are
+       entitled to stay resident. Delete once the duration
+       numbers are understood.
+    --------------------------------------------------------- */
+    if (url.pathname === "/chat/sockets") {
+      const auth = checkKey(request, url, env.INGEST_KEY);
+      if (!auth.ok) return unauthorized();
+
+      const id = env.ChatRoom.idFromName("givesachat-main-v4");
+      return env.ChatRoom.get(id).fetch("https://do/sockets");
     }
 
     /* ---------------------------------------------------------

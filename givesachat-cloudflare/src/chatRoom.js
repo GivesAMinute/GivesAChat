@@ -119,6 +119,39 @@ export class ChatRoom {
       );
     }
 
+    /* ---------------------------------------------------------
+       Diagnostic: WHO is connected, not just how many.
+
+       Rooms stay resident because this object reports a consumer.
+       If a socket dies without a clean close — OBS killed, laptop
+       asleep, network dropped — it can linger in getWebSockets()
+       and keep every platform room awake indefinitely, which
+       looks exactly like "the overlay was left open".
+
+       Telling those apart needs the roles, not the count.
+    --------------------------------------------------------- */
+    if (url.pathname === "/sockets") {
+      const sockets = this.state.getWebSockets().map((ws) => {
+        let attachment = null;
+        try { attachment = ws.deserializeAttachment(); } catch {}
+
+        return {
+          role: attachment?.role ?? "(none — pre-role socket)",
+          readOnly: attachment?.readOnly ?? null,
+          readyState: ws.readyState
+        };
+      });
+
+      return new Response(
+        JSON.stringify({
+          total: sockets.length,
+          consumers: this.consumerCount(),
+          sockets
+        }, null, 2),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response("Not found", { status: 404 });
   }
 
@@ -190,7 +223,28 @@ export class ChatRoom {
     return this.state.getWebSockets().filter((ws) => {
       if (ws === excluding) return false;
       try {
-        return ws.deserializeAttachment()?.role !== "popups";
+        const a = ws.deserializeAttachment();
+
+        /* Send-only: pushes cards in, reads nothing. */
+        if (a?.role === "popups") return false;
+
+        /* ---------------------------------------------------
+           Read-only viewers on the public pop-out don't count
+           either.
+
+           They cannot start the platform rooms — the worker
+           skips the wakes for them — but without this they
+           could still KEEP them running: close your own
+           overlay while a viewer has theirs open, and the
+           rooms would never learn that nobody who matters is
+           watching.
+
+           Both halves are needed, exactly as with the popups
+           socket. Either alone leaves the leak intact.
+        --------------------------------------------------- */
+        if (a?.readOnly) return false;
+
+        return true;
       } catch {
         /* No attachment — a socket from before roles existed.
            Treat it as a viewer: over-counting keeps chat working,
