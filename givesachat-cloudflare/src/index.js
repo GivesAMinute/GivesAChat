@@ -833,6 +833,13 @@ export default {
           result.pages.length > 0
         );
       } catch (err) {
+        /* Not an error from the visitor's point of view — they
+           signed in fine, they simply aren't the operator. Shown
+           as a normal outcome rather than a red failure. */
+        if (err.notOwner) {
+          return facebookPage("Signed in — access restricted", err.message, true);
+        }
+
         return facebookPage("Could not connect", err.message, false);
       }
     }

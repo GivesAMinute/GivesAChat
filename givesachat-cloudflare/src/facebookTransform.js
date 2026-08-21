@@ -51,11 +51,21 @@ function escapeAttr(value) {
    drop it and let the overlay show its own fallback rather than
    render a generic outline that reads as a broken load.
 --------------------------------------------------------- */
+/* Shown when Facebook won't say who commented, which is most of
+   the time. A neutral silhouette reads as "a viewer"; an empty
+   gap reads as "something failed to load", and the bubble sits
+   lopsided next to ones that do have a picture. */
+export const ANONYMOUS_AVATAR = "/icons/anonymous.svg";
+
 export function facebookAvatar(from) {
   const pic = from?.picture?.data;
 
-  if (!pic || pic.is_silhouette) return null;
-  if (typeof pic.url !== "string" || !AVATAR_HOST.test(pic.url)) return null;
+  /* is_silhouette marks Facebook's own grey placeholder — no
+     more informative than ours, and served from their CDN. */
+  if (!pic || pic.is_silhouette) return ANONYMOUS_AVATAR;
+  if (typeof pic.url !== "string" || !AVATAR_HOST.test(pic.url)) {
+    return ANONYMOUS_AVATAR;
+  }
 
   return pic.url;
 }
@@ -98,10 +108,24 @@ export function transformFacebookComment(comment, page = {}) {
 
   const from = comment.from || null;
 
-  /* `from` is omitted when the commenter's privacy settings
-     don't allow an app to identify them. That is a normal state,
-     not an error: the comment is still real and still worth
-     showing, just anonymously. */
+  /* ---------------------------------------------------------
+     `from` is USUALLY ABSENT, and that is normal.
+
+     Confirmed against a real viewer comment — the entire object
+     is missing, not empty:
+
+       {"id":"…","message":"Testing a chat message",
+        "created_time":"2026-08-21T07:56:56+0000"}
+
+     Meta scopes user identity per app: someone who has never
+     authorised THIS app cannot be identified through it, and
+     pages_read_user_content grants the content, not the person.
+     The Page's own comments do carry `from`, because the Page
+     is not a third party to itself.
+
+     So most viewers arrive anonymous. Nothing to fix — the
+     comment is still real and still worth showing.
+  --------------------------------------------------------- */
   const displayName = from?.name || "Facebook viewer";
 
   /* The Page commenting on its own broadcast is the streamer.

@@ -330,9 +330,28 @@ export async function completeFacebookAuth(env, code, state) {
   const owner = env.FACEBOOK_OWNER_ID;
 
   if (owner && owner !== me.id) {
-    throw new Error(
-      `account ${me.id} is not the configured owner — token not stored`
+    /* ---------------------------------------------------------
+       Worded for a human, because a human sees it.
+
+       This is the expected outcome for anyone who is not the
+       operator — including a Meta App Review tester, who WILL
+       click through this flow. "account 123 is not the
+       configured owner" reads like a bug and invites a rejection
+       on the grounds that login is broken. It isn't broken; it
+       is the access control working.
+    --------------------------------------------------------- */
+    const err = new Error(
+      "Sign-in succeeded, but this app is operated by one person for " +
+        "their own Facebook Page and does not store credentials for any " +
+        "other account.\n\n" +
+        "Your Facebook account was authenticated correctly and nothing " +
+        "was saved. This restriction is deliberate: the app has no user " +
+        "accounts and is not offered to the public.\n\n" +
+        "You can remove its access at any time under Facebook → Settings " +
+        "→ Apps and Websites."
     );
+    err.notOwner = true;
+    throw err;
   }
 
   /* ---------------------------------------------------------

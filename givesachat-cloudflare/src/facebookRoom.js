@@ -417,11 +417,39 @@ export class FacebookRoom {
   --------------------------------------------------------- */
   readUsage(res) {
     try {
-      const raw = res.headers.get("x-app-usage");
-      if (!raw) return;
+      /* ---------------------------------------------------
+         TWO different headers, and Page calls use the second.
 
-      const usage = JSON.parse(raw);
-      const pct = Number(usage?.call_count);
+         x-app-usage covers calls made with a USER token. A call
+         made with a PAGE token reports under
+         x-business-use-case-usage instead, keyed by page id,
+         with the percentages one level deeper.
+
+         Reading only the first left appUsagePercent null on
+         every response — an adaptive backoff that could never
+         fire, which is worse than no backoff at all because it
+         looks like protection.
+      --------------------------------------------------- */
+      let pct = null;
+
+      const appRaw = res.headers.get("x-app-usage");
+      if (appRaw) {
+        pct = Number(JSON.parse(appRaw)?.call_count);
+      }
+
+      const bucRaw = res.headers.get("x-business-use-case-usage");
+      if (bucRaw) {
+        const buc = JSON.parse(bucRaw);
+
+        /* { "<page-id>": [ { call_count, total_cputime, ... } ] } */
+        for (const entries of Object.values(buc || {})) {
+          for (const entry of entries || []) {
+            const n = Number(entry?.call_count);
+            if (Number.isFinite(n)) pct = Math.max(pct ?? 0, n);
+          }
+        }
+      }
+
       if (!Number.isFinite(pct)) return;
 
       this.usage = pct;
