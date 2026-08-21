@@ -5,3 +5,14 @@ backend/node_modules
 !/backend/dist
 
 .DS_Store
+
+# SSH private keys — NEVER commit these.
+# Two keypairs were committed here in July 2026 and are permanently
+# compromised as a result. Deleting a key from a repo does not
+# un-publish it; the only remedy is rotating it wherever it is
+# authorised. See SECURITY-ssh-key-rotation.md
+keys/
+*.key
+*.pem
+id_rsa*
+id_ed25519*
