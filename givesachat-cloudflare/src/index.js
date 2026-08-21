@@ -24,15 +24,13 @@ import {
   getVeloraAccessToken
 } from "./veloraAuth.js";
 import { transformVeloraEvent } from "./veloraTransform.js";
-import { probeVeloraEndpoints } from "./veloraEmotes.js";
 import {
   VeloraTokenStore,
   putOAuthState,
   takeOAuthState
 } from "./veloraTokenStore.js";
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
-import { debugKickAvatar } from "./kickAvatars.js";
-import { subscribeBlazeSession, probeBlazeEndpoints } from "./blazeAuth.js";
+import { subscribeBlazeSession } from "./blazeAuth.js";
 import { getBlazeEmoteMap } from "./blazeEmotes.js";
 
 export {
@@ -658,55 +656,6 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       7c. Blaze endpoint probe (diagnostic)
-
-       Authenticated discovery for an emotes endpoint Blaze has
-       not documented. Delete once emotes are resolved.
-    --------------------------------------------------------- */
-    if (url.pathname === "/blaze/probe") {
-      const auth = checkKey(request, url, env.INGEST_KEY);
-      if (!auth.ok) return unauthorized();
-
-      try {
-        const results = await probeBlazeEndpoints(
-          env,
-          url.searchParams.get("path")
-        );
-
-        return new Response(JSON.stringify(results, null, 2), {
-          status: 200,
-          headers: { "Content-Type": "application/json" }
-        });
-      } catch (err) {
-        return new Response(
-          JSON.stringify({ error: String(err?.message || err) }, null, 2),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        );
-      }
-    }
-
-    /* ---------------------------------------------------------
-       7c-b. Velora endpoint probe (diagnostic)
-
-       Finding the badge catalog and the full emote set — see
-       the note in veloraEmotes.js.
-    --------------------------------------------------------- */
-    if (url.pathname === "/velora/probe") {
-      const auth = checkKey(request, url, env.INGEST_KEY);
-      if (!auth.ok) return unauthorized();
-
-      const results = await probeVeloraEndpoints(
-        env,
-        url.searchParams.get("path")
-      );
-
-      return new Response(JSON.stringify(results, null, 2), {
-        status: 200,
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-
-    /* ---------------------------------------------------------
        7d-b. VPZONE gateway control (/vpzone/status|start|stop)
     --------------------------------------------------------- */
     if (url.pathname.startsWith("/vpzone/")) {
@@ -734,7 +683,7 @@ export default {
       if (!auth.ok) return unauthorized();
 
       const action = url.pathname.split("/")[2];
-      if (!["start", "stop", "status", "resolve", "emote"].includes(action)) {
+      if (!["start", "stop", "status"].includes(action)) {
         return new Response("Not found", { status: 404 });
       }
 
@@ -897,229 +846,6 @@ export default {
         return json(status);
       }
 
-      /* ---------------------------------------------------------
-         Which fields will the SSE endpoint actually accept?
-
-         streaming-graph rejected our first attempt with a 400 and
-         an HTML error page rather than Graph's usual JSON error,
-         which says the query was refused before reaching the API.
-
-         So the variants are tried in order, richest first, with a
-         deliberate control that MUST fail — otherwise a wall of
-         200s would tell us nothing. One call each, which matters:
-         the whole app budget is 200 calls an hour.
-
-         Delete once the working shape is baked into facebookRoom.
-      --------------------------------------------------------- */
-      if (action === "sse") {
-        if (!token) return json({ ok: false, error: "not connected" });
-
-        const pages = pageTokens(token);
-        if (!pages.length) return json({ ok: false, error: "no Page tokens" });
-
-        const page = pages[0];
-        const pt = encodeURIComponent(page.access_token);
-
-        // Resolve the live video the same way the room does.
-        const lvRes = await fetch(
-          `${FB_API}/${page.id}/live_videos?fields=id,status&limit=5&access_token=${pt}`
-        );
-        const lvJson = await lvRes.json();
-        const live = (lvJson.data || []).find((v) => v.status === "LIVE");
-
-        if (!live) {
-          return json({ ok: false, error: "not live — start a broadcast first" });
-        }
-
-        /* The permalink carries a DIFFERENT video id to the live
-           video id. Worth testing both, since which one this
-           endpoint wants is exactly the sort of thing that
-           produces a generic error rather than a helpful one. */
-        const lv2 = await fetch(
-          `${FB_API}/${live.id}?fields=permalink_url&access_token=${pt}`
-        ).then((r) => r.json()).catch(() => ({}));
-
-        const permalinkId =
-          String(lv2?.permalink_url || "").match(/\/videos\/(\d+)/)?.[1] || null;
-
-        const UA =
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
-          "(KHTML, like Gecko) Chrome/126.0 Safari/537.36";
-
-        const F = "from{name,id},message";
-
-        const variants = [
-          ["live id, Accept + UA", live.id, F, { Accept: "text/event-stream", "User-Agent": UA }],
-          ["live id, UA only", live.id, F, { "User-Agent": UA }],
-          ["live id, no headers", live.id, F, {}],
-          ["live id, no fields", live.id, null, { "User-Agent": UA }],
-          ["PERMALINK id", permalinkId, F, { "User-Agent": UA }],
-          ["CONTROL: nonexistent id", "1", F, { "User-Agent": UA }]
-        ];
-
-        /* Strip style and script CONTENT before removing tags —
-           otherwise the "message" is the error page's CSS, which
-           is what the first version of this probe reported. */
-        const readable = (html) =>
-          String(html)
-            .replace(/<(style|script)[^>]*>[\s\S]*?<\/\1>/gi, " ")
-            .replace(/<[^>]+>/g, " ")
-            .replace(/&\w+;/g, " ")
-            .replace(/\s+/g, " ")
-            .trim()
-            .slice(0, 400);
-
-        const results = [];
-
-        for (const [label, videoId, fields, headers] of variants) {
-          if (!videoId) {
-            results.push({ label, skipped: "no id available" });
-            continue;
-          }
-
-          const url =
-            `https://streaming-graph.facebook.com/${videoId}/live_comments` +
-            `?access_token=${pt}&comment_rate=one_per_two_seconds` +
-            (fields ? `&fields=${encodeURIComponent(fields)}` : "");
-
-          try {
-            const res = await fetch(url, {
-              headers,
-              signal: AbortSignal.timeout(6000)
-            });
-
-            /* Success here is an INFINITE stream, so reading to
-               completion would hang. Status answers it; cancel
-               either way. */
-            let sample = null;
-            let contentType = res.headers.get("content-type");
-
-            if (!res.ok) {
-              sample = readable(await res.text().catch(() => ""));
-            } else {
-              try { await res.body?.cancel(); } catch {}
-            }
-
-            results.push({
-              label,
-              videoId,
-              status: res.status,
-              ok: res.ok,
-              contentType,
-              sample
-            });
-          } catch (err) {
-            const msg = String(err?.message || err);
-            const held = /timed out|aborted/i.test(msg);
-
-            /* A timeout on a streaming endpoint means it CONNECTED
-               and held the connection open — that is success. */
-            results.push({
-              label,
-              videoId,
-              status: held ? "OPEN (held connection)" : "error",
-              ok: held,
-              sample: msg.slice(0, 160)
-            });
-          }
-        }
-
-        return json(
-          redactTokens({ liveVideoId: live.id, permalinkId, results })
-        );
-      }
-
-      if (action === "probe") {
-        if (!token) {
-          return json({ ok: false, error: "not connected — open /facebook/connect" });
-        }
-
-        /* Named tokenStatus, not token: the value is expiry and
-           connection state, and a key called `token` invites
-           exactly the redaction mistake made above. */
-        const out = { tokenStatus: describeToken(token) };
-
-        /* Paging is noise AND the thing that carries a token in
-           its URLs. Dropped before anything is returned. */
-        const strip = (o) => {
-          if (o && typeof o === "object") delete o.paging;
-          return o;
-        };
-
-        /* ---------------------------------------------------
-           Every Page is checked, not just one.
-
-           Which Page is live is a runtime question — Benon has
-           two and may add more — so the room resolves it per
-           broadcast rather than reading an id from config. The
-           probe mirrors that so what we test is what will run.
-
-           Each Page is queried with ITS OWN token, never the
-           user token. That is the whole point of the Page route:
-           those tokens do not expire.
-        --------------------------------------------------- */
-        const pages = pageTokens(token);
-
-        if (!pages.length) {
-          return json(
-            redactTokens({
-              ...out,
-              error:
-                "no Pages returned. Check the app has pages_show_list and " +
-                "that you are an admin of at least one Page, then reconnect."
-            })
-          );
-        }
-
-        out.pageResults = [];
-
-        for (const page of pages) {
-          const pt = encodeURIComponent(page.access_token);
-          const result = { id: page.id, name: page.name, tasks: page.tasks };
-
-          try {
-            const liveRes = await fetch(
-              `${FB_API}/${page.id}/live_videos` +
-                `?fields=id,status,title,creation_time,permalink_url` +
-                `&limit=5&access_token=${pt}`
-            );
-            result.liveVideos = strip(await liveRes.json());
-            result.liveVideosStatus = liveRes.status;
-
-            /* LIVE is the active broadcast. Others seen here are
-               SCHEDULED_UNPUBLISHED, LIVE_STOPPED, VOD. */
-            const live = (result.liveVideos?.data || []).find(
-              (v) => v.status === "LIVE"
-            );
-
-            result.liveVideoId = live?.id || null;
-
-            if (live) {
-              /* `from` is the field to scrutinise. Facebook
-                 omits it for commenters in some contexts, and a
-                 comment with no name and no avatar would change
-                 how this has to be rendered. */
-              const cRes = await fetch(
-                `${FB_API}/${live.id}/comments` +
-                  `?fields=id,message,created_time,from{id,name,picture}` +
-                  `&limit=10&access_token=${pt}`
-              );
-              result.comments = strip(await cRes.json());
-              result.commentsStatus = cRes.status;
-            } else {
-              result.comments = null;
-              result.note = "no live_videos entry with status LIVE on this Page";
-            }
-          } catch (err) {
-            result.error = String(err?.message || err);
-          }
-
-          out.pageResults.push(result);
-        }
-
-        return json(redactTokens(out));
-      }
-
       return new Response("Not found", { status: 404 });
     }
 
@@ -1175,17 +901,6 @@ export default {
       const action = url.pathname.split("/")[2];
 
       // Diagnostic: trace a Kick avatar lookup end to end.
-      if (action === "kick-avatar") {
-        const slug = url.searchParams.get("slug");
-        if (!slug) return new Response("Missing ?slug=", { status: 400 });
-
-        const report = await debugKickAvatar(slug);
-        return new Response(JSON.stringify(report, null, 2), {
-          status: 200,
-          headers: { "Content-Type": "application/json" }
-        });
-      }
-
       if (!["start", "stop", "status"].includes(action)) {
         return new Response("Not found", { status: 404 });
       }
