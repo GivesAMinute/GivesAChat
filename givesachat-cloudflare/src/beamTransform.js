@@ -68,7 +68,8 @@ export const IGNORED_SENDER_TYPES = [
   "vpzone",   // direct: WebSocket in VPZoneRoom
   "arena",    // direct: polled by ArenaRoom
   "odysee",   // direct: Commentron socket in OdyseeRoom
-  "bitchute"  // direct: Socket.IO in BitChuteRoom
+  "bitchute", // direct: Socket.IO in BitChuteRoom
+  "facebook"  // direct: live_comments SSE in FacebookRoom
 ];
 
 const UUID_RE =

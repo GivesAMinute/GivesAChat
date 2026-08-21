@@ -47,18 +47,20 @@ async function initOverlay() {
      ⭐ Brave/iOS Fix #1 — Delay heavy initializers
      Prevents Brave “Wait or Force Reload?” and iOS stalls.
   --------------------------------------------------------- */
-  setTimeout(async () => {
-    // ⭐ Load reward sounds (heavy)
-    await fetchRewardSounds();
-
+  setTimeout(() => {
     /* ---------------------------------------------------------
-       ⭐ Brave/iOS Fix #2 — Delay WebSocket startup
-       Matches the delay inside websocket.js
-    --------------------------------------------------------- */
-    setupSocket();   // ⭐ Velora + Beam, via the worker
+       ⭐ ORDER MATTERS, and it is not the obvious one.
 
-    // ⭐ Blaze connects directly: Socket.IO cannot run in workerd
-    setupBlazeChat();
+       Chat comes first. It used to sit behind
+       `await fetchRewardSounds()` — a call to Velora's API — so
+       any wobble at their end left us with an overlay showing no
+       messages and no clock, with nothing wrong on our side.
+
+       Nothing that isn't chat gets to run before chat, and
+       nothing optional gets to be awaited on the way there.
+    --------------------------------------------------------- */
+    run("socket", () => setupSocket());        // Velora + Beam via the worker
+    run("blaze", () => setupBlazeChat());      // direct: Socket.IO can't run in workerd
 
     /* ---------------------------------------------------------
        ⭐ Header systems — date, viewer count.
@@ -69,16 +71,39 @@ async function initOverlay() {
        requesting a viewer count nothing displays.
     --------------------------------------------------------- */
     if (headerOn) {
-      loadCurrentDate();
-      setupHeader();
+      run("date", () => loadCurrentDate());
+      run("header", () => setupHeader());
     }
 
-    /* ---------------------------------------------------------
-       ❌ Beamstream removed
-       (iframe scraper & imports fully removed)
-    --------------------------------------------------------- */
-
+    /* Optional, and deliberately last: reward sounds are the
+       only thing lost if Velora is unavailable. Not awaited by
+       anything. */
+    run("rewardSounds", () => fetchRewardSounds());
   }, 120); // 100–150ms is the sweet spot for Brave/iOS
+}
+
+/* ---------------------------------------------------------
+   ⭐ One initialiser must never take down the others.
+
+   Each of these is independent: the socket doesn't need the
+   clock, the clock doesn't need Blaze. Isolating them means a
+   failure costs exactly the feature that failed, and says so in
+   the console instead of leaving a blank overlay to explain.
+--------------------------------------------------------- */
+function run(label, fn) {
+  try {
+    const result = fn();
+
+    // Catch async rejections too — a returned promise that
+    // rejects would otherwise be an unhandled rejection.
+    if (result && typeof result.catch === "function") {
+      result.catch((err) =>
+        console.error(`[Overlay] ${label} failed:`, err?.message || err)
+      );
+    }
+  } catch (err) {
+    console.error(`[Overlay] ${label} failed:`, err?.message || err);
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {

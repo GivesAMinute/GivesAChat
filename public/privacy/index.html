@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GivesAChat — Privacy Policy</title>
+  <style>
+    :root { color-scheme: dark light; }
+
+    body {
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+      max-width: 720px;
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-size: 17px;
+      line-height: 1.65;
+      color: #e8e8e8;
+      background: #121212;
+    }
+
+    h1 { font-size: 30px; font-weight: 600; margin: 0 0 6px; }
+    h2 { font-size: 20px; font-weight: 600; margin: 36px 0 10px; color: #f0b90b; }
+
+    .updated { color: #9a9a9a; font-size: 15px; margin: 0 0 8px; }
+
+    ul { padding-left: 22px; }
+    li { margin: 6px 0; }
+
+    a { color: #f0b90b; }
+
+    code {
+      background: #1e1e1e;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 15px;
+    }
+
+    .box {
+      border: 1px solid #333;
+      border-left: 3px solid #f0b90b;
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin: 24px 0;
+      background: #181818;
+    }
+
+    footer {
+      margin-top: 48px;
+      padding-top: 20px;
+      border-top: 1px solid #2a2a2a;
+      color: #9a9a9a;
+      font-size: 15px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>GivesAChat — Privacy Policy</h1>
+  <p class="updated">Last updated: 19 August 2026</p>
+
+  <p>
+    GivesAChat is a personal live-streaming tool. It collects live chat
+    messages from the streaming platforms its operator broadcasts to and
+    displays them together in a single on-screen overlay, so that a
+    streamer can read comments from several platforms at once.
+  </p>
+
+  <p>
+    It is operated by a single individual for their own broadcasts. It is
+    not a commercial service, has no user accounts, and is not offered to
+    the public.
+  </p>
+
+  <h2>What information is processed</h2>
+
+  <p>
+    When the operator is live, GivesAChat reads the public chat attached
+    to that broadcast. For each message this is:
+  </p>
+
+  <ul>
+    <li>the commenter's public display name</li>
+    <li>the commenter's public profile picture</li>
+    <li>the text of the comment, and any emote or sticker in it</li>
+    <li>the time the comment was posted</li>
+    <li>public badges or roles shown alongside the comment</li>
+  </ul>
+
+  <p>
+    This is the same information any other viewer of the stream can see in
+    the chat window. Nothing private is requested, and no information is
+    read from anyone who has not chosen to comment on the broadcast.
+  </p>
+
+  <h2>What it is used for</h2>
+
+  <p>
+    Solely to display the message on screen during the broadcast, for the
+    duration it is on screen. Messages are passed straight through to the
+    overlay as they arrive.
+  </p>
+
+  <h2>What is stored</h2>
+
+  <div class="box">
+    <strong>Chat messages are not stored.</strong> They are relayed to the
+    overlay in real time and discarded. Closing the overlay ends the
+    connection and nothing is written to disk or to a database.
+  </div>
+
+  <p>
+    The only data retained is what is needed to connect to each platform:
+  </p>
+
+  <ul>
+    <li>
+      access tokens belonging to the operator's own accounts, held as
+      encrypted secrets in Cloudflare Workers
+    </li>
+    <li>
+      the operator's own channel and broadcast identifiers
+    </li>
+  </ul>
+
+  <p>
+    No commenter data is retained after a message leaves the screen.
+  </p>
+
+  <h2>What is not done</h2>
+
+  <ul>
+    <li>No data is sold, rented, or shared with third parties</li>
+    <li>No advertising, tracking pixels, or analytics</li>
+    <li>No profiling, and no building of any record of individuals</li>
+    <li>No collection of email addresses, phone numbers, or contacts</li>
+    <li>No access to private messages, friends lists, or anything not publicly attached to a comment</li>
+  </ul>
+
+  <h2>Third parties</h2>
+
+  <p>
+    Chat is read from the platforms the operator broadcasts to, using each
+    platform's own public API. Those platforms handle your data under
+    their own privacy policies. GivesAChat runs on
+    <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare Workers</a>,
+    which processes the traffic in transit.
+  </p>
+
+  <h2>User data deletion</h2>
+
+  <p>
+    Because chat messages are never stored, there is normally nothing to
+    delete: a message ceases to exist in this system the moment it leaves
+    the overlay.
+  </p>
+
+  <p>
+    If you have commented on one of the operator's broadcasts and want to
+    confirm that no record of you is held, or want to ask that your
+    comments not be displayed on future broadcasts, email the address
+    below with the platform and the display name you used. Requests are
+    handled within 30 days.
+  </p>
+
+  <p>
+    To remove this application's access to your own Facebook account
+    entirely, go to
+    <strong>Facebook → Settings &amp; Privacy → Settings → Apps and
+    Websites</strong>, select the app, and choose <strong>Remove</strong>.
+  </p>
+
+  <h2>Children</h2>
+
+  <p>
+    This tool is not directed at children and does not knowingly process
+    information from anyone under 13.
+  </p>
+
+  <h2>Changes</h2>
+
+  <p>
+    Any change to this policy will be published on this page with a new
+    date at the top.
+  </p>
+
+  <h2>Contact</h2>
+
+  <p>
+    <a href="mailto:benonkoebsch@gmail.com">benonkoebsch@gmail.com</a>
+  </p>
+
+  <footer>
+    GivesAChat is an independent personal project. It is not affiliated
+    with, endorsed by, or sponsored by any of the platforms it connects
+    to.
+  </footer>
+</body>
+</html>

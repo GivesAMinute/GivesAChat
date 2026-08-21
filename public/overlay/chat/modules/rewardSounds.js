@@ -8,15 +8,52 @@ const CHANNEL_ID = "4f1cb975-eace-4650-8246-053007bd0036";
 /* ---------------------------------------------------------
    ⭐ Fetch reward sound URLs from Velora
 --------------------------------------------------------- */
+/* ---------------------------------------------------------
+   NEVER let this reject.
+
+   This is a call to a third party we don't control, and it used
+   to be the first await in the overlay's startup chain. When
+   Velora was slow, down, or answered with an HTML error page,
+   res.json() threw — and because the caller awaited it before
+   doing anything else, the rejection took the WebSocket, the
+   date, the header and Blaze down with it.
+
+   The symptom was baffling in exactly the wrong way: a chat
+   overlay with no chat and no clock, no error on screen, and
+   nothing wrong with our own worker.
+
+   Reward sounds are a nice-to-have. Losing them should cost us
+   reward sounds and nothing else, so every failure path here
+   ends in a warning and a return.
+--------------------------------------------------------- */
 async function fetchRewardSounds() {
   const url = `https://api.velora.tv/api/channel-points/${CHANNEL_ID}/items/with-built-in`;
-  const res = await fetch(url);
-  const data = await res.json();
 
-  if (data.items) {
-    data.items.forEach(item => {
+  try {
+    /* Bounded, so a hanging connection can't stall startup
+       either — a request that never settles is just as bad as
+       one that throws. */
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+
+    if (!res.ok) {
+      console.warn(`[RewardSounds] Velora returned ${res.status} — no sounds loaded`);
+      return;
+    }
+
+    const data = await res.json();
+
+    if (!data?.items) {
+      console.warn("[RewardSounds] unexpected response shape — no sounds loaded");
+      return;
+    }
+
+    data.items.forEach((item) => {
       if (item.alertSoundUrl) rewardSounds.set(item.id, item.alertSoundUrl);
     });
+
+    console.log(`[RewardSounds] loaded ${rewardSounds.size} sounds`);
+  } catch (err) {
+    console.warn("[RewardSounds] could not load sounds:", err?.message || err);
   }
 }
 

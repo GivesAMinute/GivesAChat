@@ -129,6 +129,13 @@ export function colorForUsername(name, platform) {
       "#FF1408","#FF1408","#DD1207",
       "#FC443A",
     ],
+    facebook: [
+      "#0866FF","#0866FF","#0866FF",
+      "#1877F2","#1877F2","#0653CC",
+      "#4293FF","#3B8BF5","#3B8BF5",
+      "#63A8FF","#0A4DA6","#00337A",
+      "#00337A","#1B62B8","#0D2E5C",
+    ],
     nimotv: [
       "#622CF6","#622CF6","#622CF6",
       "#662EFF","#662EFF","#5627D7",

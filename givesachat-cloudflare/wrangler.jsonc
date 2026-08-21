@@ -44,6 +44,14 @@
       {
         "name": "BitChuteRoom",
         "class_name": "BitChuteRoom"
+      },
+      {
+        "name": "FacebookTokenStore",
+        "class_name": "FacebookTokenStore"
+      },
+      {
+        "name": "FacebookRoom",
+        "class_name": "FacebookRoom"
       }
     ]
   },
@@ -78,6 +86,14 @@
       "storage": "sqlite"
     },
     "BitChuteRoom": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    },
+    "FacebookTokenStore": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    },
+    "FacebookRoom": {
       "type": "durable-object",
       "storage": "sqlite"
     }
@@ -121,7 +137,37 @@
     // If this id turns out to change every broadcast, it becomes
     // the Odysee problem again and needs resolving at runtime —
     // check /bitchute/token after the next stream starts.
-    "BITCHUTE_VIDEO_ID": "Oxf29kKWYoS7"
+    "BITCHUTE_VIDEO_ID": "Oxf29kKWYoS7",
+
+    // Facebook — public app id, safe in the repo. The app SECRET
+    // is a wrangler secret and must never appear here.
+    //
+    // FACEBOOK_OWNER_ID pins which account may connect, which is
+    // what lets /facebook/connect stay unprotected: the URL is
+    // opened directly from a browser, and a key in a URL leaks
+    // into history, referrers and proxy logs. A stranger who
+    // finds the link authorises their own account and is
+    // rejected at the callback.
+    //
+    // App-scoped, so it is meaningless outside this one app —
+    // and it CHANGES when the app changes. This is the second
+    // app: the first could not host the Live Video API use case
+    // alongside Facebook Login, which is why profile streaming
+    // could never have worked on it.
+    //
+    "FACEBOOK_APP_ID": "2575242256241936",
+    "FACEBOOK_OWNER_ID": "10162724753141073",
+
+    // Which Pages we hold tokens for. Authorising returns one for
+    // every Page the account administers — eleven here — and those
+    // tokens never expire, so unlisted ones are discarded at save
+    // time rather than stored and ignored.
+    //
+    // Comma-separated. Adding one needs a reconnect as well as a
+    // deploy; /facebook/status will say so if you forget.
+    //
+    //   108984299449293  Gives A Minute
+    "FACEBOOK_PAGE_IDS": "108984299449293"
   },
 
   "assets": {

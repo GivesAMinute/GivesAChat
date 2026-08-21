@@ -3,6 +3,10 @@
 import sharedPopups from "/overlay/shared/_sharedPopups.js";
 import { renderVeloraAlertCard } from "./veloraRendererPopups.js";
 import { runConfetti, runBalloons } from "./celebrations.js";
+import {
+  veloraCardValues,
+  renderVeloraTemplate
+} from "/overlay/shared/veloraCardVariables.js";
 
 /* ---------------------------------------------------------
    1st / 2nd GIVER claims
@@ -54,54 +58,26 @@ export function isClaimRedemption(data) {
      "{username} was the 1st GIVER to this stream!"
      "This is their {times} time claiming {place}!"
 
-   {username} and {place} we can fill. {times} is computed by
-   Velora's own client and isn't in the webhook payload — if a
-   count ever turns up on the event, add its field name to
-   claimCount() below and line two starts rendering.
+   Every token in those lines is now resolvable. {Times} comes
+   from counts.lifetime and {Place} from builtInType — both were
+   missing from the payload originally and were added by Velora
+   after we asked. Substitution follows their documented rules
+   and lives in the shared module.
 --------------------------------------------------------- */
-function claimCount(data) {
-  const candidates = [
-    data.times, data.claimCount, data.count,
-    data.timesClaimed, data.totalClaims
-  ];
-
-  for (const value of candidates) {
-    const n = Number(value);
-    if (Number.isFinite(n) && n > 0) return n;
-  }
-
-  return null;
-}
-
-function ordinal(n) {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
-function fillTemplate(template, { username, place, times }) {
-  if (typeof template !== "string") return "";
-
-  return template
-    .replace(/\{username\}/gi, username)
-    .replace(/\{place\}/gi, place)
-    .replace(/\{times\}/gi, times ? ordinal(times) : "");
-}
-
 export function buildClaimText(data, place) {
-  const username = data.displayName || data.username || "Someone";
   const design = data.cardDesign || {};
-  const times = claimCount(data);
+
+  /* Our own reward-id match is passed as the fallback only.
+     builtInType wins when present — it is Velora's own answer to
+     the same question, and it survives the rewards being
+     recreated with new ids. */
+  const values = veloraCardValues(data, { place });
 
   const line1 =
-    fillTemplate(design.textLine1?.content, { username, place, times }).trim() ||
-    `${username} was ${place} to the stream!`;
+    renderVeloraTemplate(design.textLine1?.content, values).trim() ||
+    `${values.user} was ${values.place || place} to the stream!`;
 
-  // Only render line two if the count is actually available —
-  // "This is their  time claiming 1st!" reads as a bug.
-  const line2 = times
-    ? fillTemplate(design.textLine2?.content, { username, place, times }).trim()
-    : "";
+  const line2 = renderVeloraTemplate(design.textLine2?.content, values).trim();
 
   return { line1, line2 };
 }
@@ -209,43 +185,65 @@ function normaliseCardDesign(data, line1, line2) {
 }
 
 /* ---------------------------------------------------------
-   Render — uses the standard Velora stream alert card, the
-   same treatment follows, raids and subs get in popups.
+   Avatar
 
-   The text is passed as `message` because resolvePopupText()
-   returns that verbatim when present, which lets us hand over
-   the substituted string instead of Velora's raw template.
+   Goes straight onto img.src, so it is checked before use — an
+   author-supplied field should never reach a src unvalidated.
+   Falls back to the Velora mark rather than null, which would
+   render as a broken image icon.
+--------------------------------------------------------- */
+function claimAvatar(data) {
+  const url = data.avatarUrl || data.userAvatarUrl || data.profileImageUrl;
 
-   Sound and card lifetime are handled by the alert renderer;
-   all we add is the celebration.
+  if (typeof url === "string" && /^https:\/\/[^"'<>\s]+$/i.test(url)) {
+    return url;
+  }
+
+  return "/icons/velora.png";
+}
+
+/* ---------------------------------------------------------
+   Render
+
+   Uses the "stream alert" bubble — the gold-bordered card the
+   chat overlay already uses for follows, subs and Volts — rather
+   than the big sticker treatment other popups get.
+
+   Two deliberate differences from the chat overlay's version:
+   no platform icon outside the bubble, and no slide-out. This
+   overlay is a standalone card in the middle of the screen, not
+   a message in a lane, so sliding it sideways makes no sense.
+
+   Queued through renderVeloraAlertCard so two claims arriving
+   together don't draw on top of each other; the variant tells
+   the renderer which card to build.
+
+   Sound and celebration are ours; lifetime and fade are the
+   renderer's.
 --------------------------------------------------------- */
 export function renderClaimAlert(data) {
   const claim = identifyClaim(data);
   if (!claim) return false;
 
   const { line1, line2 } = buildClaimText(data, claim.place);
-  const message = [line1, line2].filter(Boolean).join("  ");
 
   sharedPopups.wake();
   sharedPopups.markPopupEvent();
 
   renderVeloraAlertCard({
+    variant: "claim",
     event: "channel.stream_alert",
     alertType: "claim",
     timestamp: Date.now(),
 
-    // resolvePopupText() returns this as-is
-    message,
+    line1,
+    line2,
 
     displayName: data.displayName || data.username || null,
     username: data.username || null,
+    avatarUrl: claimAvatar(data),
 
     cardDesign: normaliseCardDesign(data, line1, line2),
-
-    // The claimer's own avatar, falling back to the Velora mark.
-    // Never null: the renderer assigns whatever it gets straight
-    // to img.src, and null becomes a broken image.
-    customImageUrl: data.avatarUrl || "/icons/velora.png",
 
     // Deliberately null — the sound is played by playClaimSound()
     // below so failures are reported rather than swallowed.

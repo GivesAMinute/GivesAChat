@@ -7,6 +7,17 @@ import { ArenaRoom } from "./arenaRoom.js";
 import { VPZoneRoom } from "./vpzoneRoom.js";
 import { OdyseeRoom } from "./odyseeRoom.js";
 import { BitChuteRoom } from "./bitchuteRoom.js";
+import { FacebookRoom } from "./facebookRoom.js";
+import {
+  FacebookTokenStore,
+  beginFacebookAuth,
+  completeFacebookAuth,
+  getFacebookToken,
+  describeToken,
+  pageTokens,
+  allowedPageIds,
+  FB_API
+} from "./facebookAuth.js";
 import {
   generateAuthorizationUrl,
   exchangeAuthCode,
@@ -32,7 +43,9 @@ export {
   ArenaRoom,
   VPZoneRoom,
   OdyseeRoom,
-  BitChuteRoom
+  BitChuteRoom,
+  FacebookTokenStore,
+  FacebookRoom
 };
 
 /* ---------------------------------------------------------
@@ -68,6 +81,16 @@ async function wakeBitchute(env) {
     await stub.fetch("https://do/start");
   } catch (err) {
     console.error("BitChute wake failed:", err);
+  }
+}
+
+async function wakeFacebook(env) {
+  try {
+    const id = env.FacebookRoom.idFromName("facebook-live-chat");
+    const stub = env.FacebookRoom.get(id);
+    await stub.fetch("https://do/start");
+  } catch (err) {
+    console.error("Facebook wake failed:", err);
   }
 }
 
@@ -146,6 +169,99 @@ function checkKey(request, url, expected) {
     "";
 
   return { ok: timingSafeEqual(provided, expected), unconfigured: false };
+}
+
+/* ---------------------------------------------------------
+   Strip access tokens out of anything we hand back.
+
+   Graph API embeds the caller's token in its own paging URLs:
+
+     "next": "https://graph.facebook.com/...?access_token=EAAY..."
+
+   So a diagnostic that dumps a raw Graph response leaks a live
+   credential to whoever reads the output — which is exactly what
+   happened the first time /facebook/probe was run, into a chat
+   window. Redaction lives here rather than at the call site so
+   there is one place to get it right.
+
+   Recursive, because the token can be nested arbitrarily deep.
+--------------------------------------------------------- */
+function redactTokens(value) {
+  if (typeof value === "string") {
+    return value.replace(
+      /(access_token=)[A-Za-z0-9._\-]+/gi,
+      "$1[REDACTED]"
+    );
+  }
+
+  if (Array.isArray(value)) return value.map(redactTokens);
+
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      /* Never echo a token — but match the key exactly rather
+         than loosely. A bare `token` key was also catching our
+         own describeToken() status block, redacting the expiry
+         and connection state that the diagnostic exists to
+         report. Over-redaction is a smaller failure than a leak,
+         but it still hides the answer. */
+      if (/^(access_token|fb_exchange_token|client_secret|app_secret)$/i.test(k)) {
+        out[k] = "[REDACTED]";
+        continue;
+      }
+      out[k] = redactTokens(v);
+    }
+    return out;
+  }
+
+  return value;
+}
+
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body, null, 2), {
+    status,
+    headers: { "Content-Type": "application/json" }
+  });
+}
+
+/* ---------------------------------------------------------
+   A human lands on the Facebook callback in a browser, usually
+   straight after pressing a Stream Deck button, so it answers in
+   plain language rather than JSON.
+
+   Text is escaped and inserted as textContent would be — the
+   message can carry a Facebook error string, which is not ours
+   and not to be trusted as markup.
+--------------------------------------------------------- */
+function facebookPage(title, message, ok) {
+  const esc = (s) =>
+    String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+  const accent = ok ? "#4ade80" : "#f87171";
+
+  return new Response(
+    `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GivesAChat — Facebook</title></head>
+<body style="margin:0;min-height:100vh;display:flex;align-items:center;
+justify-content:center;background:#121212;color:#e8e8e8;
+font-family:Inter,system-ui,-apple-system,sans-serif;padding:24px">
+<div style="max-width:520px">
+<h1 style="font-size:26px;font-weight:600;margin:0 0 12px;color:${accent}">
+${esc(title)}</h1>
+<pre style="white-space:pre-wrap;font-size:16px;line-height:1.6;
+font-family:inherit;margin:0;color:#c8c8c8">${esc(message)}</pre>
+<p style="margin-top:28px;font-size:15px;color:#8a8a8a">
+You can close this tab.</p>
+</div></body></html>`,
+    {
+      status: ok ? 200 : 400,
+      headers: { "Content-Type": "text/html; charset=utf-8" }
+    }
+  );
 }
 
 function unauthorized() {
@@ -263,12 +379,14 @@ export default {
           ctx.waitUntil(wakeVpzone(env));
           ctx.waitUntil(wakeOdysee(env));
           ctx.waitUntil(wakeBitchute(env));
+          ctx.waitUntil(wakeFacebook(env));
         } else {
           await wakeBeam(env);
           await wakeArena(env);
           await wakeVpzone(env);
           await wakeOdysee(env);
           await wakeBitchute(env);
+          await wakeFacebook(env);
         }
       }
 
@@ -624,6 +742,246 @@ export default {
       return env.OdyseeRoom.get(id).fetch(
         `https://do/${action}${url.search}`
       );
+    }
+
+    /* ---------------------------------------------------------
+       7d-e. Facebook OAuth  (/facebook/connect|callback)
+
+       Both are deliberately UNKEYED. The Stream Deck button opens
+       /connect directly, and a key in a URL leaks into browser
+       history, referrer headers and proxy logs.
+
+       What protects the token store is the identity check in the
+       callback: only the configured owner's authorisation is
+       saved. A stranger opening either URL authorises their own
+       account and is turned away.
+    --------------------------------------------------------- */
+    if (url.pathname === "/facebook/connect") {
+      try {
+        return Response.redirect(await beginFacebookAuth(env), 302);
+      } catch (err) {
+        return new Response(`Facebook connect failed: ${err.message}`, {
+          status: 500
+        });
+      }
+    }
+
+    if (url.pathname === "/facebook/callback") {
+      const error = url.searchParams.get("error_description");
+      if (error) return facebookPage("Authorisation cancelled", error, false);
+
+      const code = url.searchParams.get("code");
+      const state = url.searchParams.get("state");
+
+      if (!code || !state) {
+        return facebookPage("Missing code", "No authorisation code returned.", false);
+      }
+
+      try {
+        const result = await completeFacebookAuth(env, code, state);
+
+        const days = Math.floor((result.expires_in || 0) / 86400);
+
+        const pageList = result.pages.length
+          ? result.pages.map((p) => `  • ${p.name}  (${p.id})`).join("\n")
+          : "  (none — see below)";
+
+        let note =
+          `Pages stored:\n${pageList}\n\n` +
+          `Page tokens do not expire — chat will keep working ` +
+          `without any renewal.\n\n` +
+          `The user token behind them lasts about ${days} days, and is ` +
+          `only needed to discover Pages. If you add one to ` +
+          `FACEBOOK_PAGE_IDS later, reconnect here so its token is ` +
+          `stored — a deploy alone is not enough.`;
+
+        if (result.skippedCount) {
+          note +=
+            `\n\n${result.skippedCount} other Page(s) you administer were ` +
+            `skipped and their tokens discarded, because they are not in ` +
+            `FACEBOOK_PAGE_IDS. Page tokens never expire, so we only keep ` +
+            `the ones we actually use.`;
+        }
+
+        if (result.missing?.length) {
+          note +=
+            `\n\nWARNING — these ids are configured but were NOT returned ` +
+            `by Facebook:\n  ${result.missing.join("\n  ")}\n` +
+            `Check for a typo, or that you still administer them.`;
+        }
+
+        if (!result.pages.length) {
+          note +=
+            `\n\nNo Pages were stored. Either the app is missing the ` +
+            `pages_show_list permission, you declined Page access on the ` +
+            `consent screen, or FACEBOOK_PAGE_IDS matches none of them.`;
+        }
+
+        /* On the very first run there is no pinned owner, so the
+           id is shown here to be put into config. It identifies
+           the account only to this one app. */
+        if (!result.pinned) {
+          note +=
+            `\n\nFirst run — add this to wrangler.jsonc so only your ` +
+            `account can reconnect in future:\n\n` +
+            `"FACEBOOK_OWNER_ID": "${result.user_id}"`;
+        }
+
+        return facebookPage(
+          `Connected as ${result.user_name}`,
+          note,
+          result.pages.length > 0
+        );
+      } catch (err) {
+        return facebookPage("Could not connect", err.message, false);
+      }
+    }
+
+    /* ---------------------------------------------------------
+       7d-f. Facebook control (/facebook/status|probe)
+
+       `probe` is the capture step: it lists the live videos and
+       pulls the comments on whichever is live, returning the RAW
+       Graph API responses. That is what the transform gets
+       written from — the shape of from{picture} in particular is
+       not worth guessing at.
+
+       Delete once the transform is verified.
+    --------------------------------------------------------- */
+    if (url.pathname.startsWith("/facebook/")) {
+      const auth = checkKey(request, url, env.INGEST_KEY);
+      if (!auth.ok) return unauthorized();
+
+      const action = url.pathname.split("/")[2];
+
+      /* Room control. Separate from the token routes below,
+         which need the stored token rather than the room. */
+      if (action === "start" || action === "stop") {
+        const id = env.FacebookRoom.idFromName("facebook-live-chat");
+        return env.FacebookRoom.get(id).fetch(`https://do/${action}`);
+      }
+
+      if (action === "room") {
+        const id = env.FacebookRoom.idFromName("facebook-live-chat");
+        return env.FacebookRoom.get(id).fetch("https://do/status");
+      }
+
+      const token = await getFacebookToken(env);
+
+      if (action === "status") {
+        const status = describeToken(token);
+
+        /* Configured but not stored — the one way the save-time
+           allowlist can fail, and it would otherwise look like a
+           Page that simply never goes live. */
+        const configured = allowedPageIds(env);
+        const held = (token?.pages || []).map((p) => p.id);
+
+        status.configuredPageIds = configured;
+        status.missingPageTokens = configured.filter((id) => !held.includes(id));
+
+        if (status.missingPageTokens.length) {
+          status.action =
+            "Reconnect at /facebook/connect — these Pages are configured " +
+            "but no token is stored for them. A deploy alone does not " +
+            "fetch new Page tokens.";
+        }
+
+        return json(status);
+      }
+
+      if (action === "probe") {
+        if (!token) {
+          return json({ ok: false, error: "not connected — open /facebook/connect" });
+        }
+
+        /* Named tokenStatus, not token: the value is expiry and
+           connection state, and a key called `token` invites
+           exactly the redaction mistake made above. */
+        const out = { tokenStatus: describeToken(token) };
+
+        /* Paging is noise AND the thing that carries a token in
+           its URLs. Dropped before anything is returned. */
+        const strip = (o) => {
+          if (o && typeof o === "object") delete o.paging;
+          return o;
+        };
+
+        /* ---------------------------------------------------
+           Every Page is checked, not just one.
+
+           Which Page is live is a runtime question — Benon has
+           two and may add more — so the room resolves it per
+           broadcast rather than reading an id from config. The
+           probe mirrors that so what we test is what will run.
+
+           Each Page is queried with ITS OWN token, never the
+           user token. That is the whole point of the Page route:
+           those tokens do not expire.
+        --------------------------------------------------- */
+        const pages = pageTokens(token);
+
+        if (!pages.length) {
+          return json(
+            redactTokens({
+              ...out,
+              error:
+                "no Pages returned. Check the app has pages_show_list and " +
+                "that you are an admin of at least one Page, then reconnect."
+            })
+          );
+        }
+
+        out.pageResults = [];
+
+        for (const page of pages) {
+          const pt = encodeURIComponent(page.access_token);
+          const result = { id: page.id, name: page.name, tasks: page.tasks };
+
+          try {
+            const liveRes = await fetch(
+              `${FB_API}/${page.id}/live_videos` +
+                `?fields=id,status,title,creation_time,permalink_url` +
+                `&limit=5&access_token=${pt}`
+            );
+            result.liveVideos = strip(await liveRes.json());
+            result.liveVideosStatus = liveRes.status;
+
+            /* LIVE is the active broadcast. Others seen here are
+               SCHEDULED_UNPUBLISHED, LIVE_STOPPED, VOD. */
+            const live = (result.liveVideos?.data || []).find(
+              (v) => v.status === "LIVE"
+            );
+
+            result.liveVideoId = live?.id || null;
+
+            if (live) {
+              /* `from` is the field to scrutinise. Facebook
+                 omits it for commenters in some contexts, and a
+                 comment with no name and no avatar would change
+                 how this has to be rendered. */
+              const cRes = await fetch(
+                `${FB_API}/${live.id}/comments` +
+                  `?fields=id,message,created_time,from{id,name,picture}` +
+                  `&limit=10&access_token=${pt}`
+              );
+              result.comments = strip(await cRes.json());
+              result.commentsStatus = cRes.status;
+            } else {
+              result.comments = null;
+              result.note = "no live_videos entry with status LIVE on this Page";
+            }
+          } catch (err) {
+            result.error = String(err?.message || err);
+          }
+
+          out.pageResults.push(result);
+        }
+
+        return json(redactTokens(out));
+      }
+
+      return new Response("Not found", { status: 404 });
     }
 
     /* ---------------------------------------------------------

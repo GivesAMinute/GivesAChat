@@ -260,3 +260,241 @@ body {
   40%  { transform: scale(1.25); opacity: 1; }
   100% { transform: scale(1.0); }
 }
+
+/* ---------------------------------------------------------
+   ⭐ Velora Claim Card (1st / 2nd to the stream)
+
+   The gold "Stream Alert" bubble from the chat overlay, ported
+   here so the claim reads as the same object the viewer sees for
+   follows, subs and Volts.
+
+   Two deliberate differences from the chat overlay version:
+
+     - no .platform-icon outside the bubble
+     - no slide-in / slide-out
+
+   Sliding is a lane behaviour. This card appears alone in the
+   middle of the screen, so it scales in and fades out instead.
+--------------------------------------------------------- */
+.velora-claim-popup {
+  /* .velora-card-popup centres via inset:0 + flex, which is
+     what we want — but its children are sized for a 450px
+     sticker, so the bubble sets its own width. */
+  animation: veloraClaimEnter 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+@keyframes veloraClaimEnter {
+  0%   { transform: scale(0.82); opacity: 0; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+.velora-claim-bubble {
+  position: relative;
+  box-sizing: border-box;
+
+  /* Wider than the chat overlay's bubble: this card has to fit
+     a whole sentence on one line, and every extra pixel here is
+     a font size fitClaimLines() doesn't have to give up. */
+  width: 580px;
+  max-width: 94vw;
+
+  background: rgba(20, 20, 20, 0.82);
+  border: 3px solid #c89f2a;
+  border-radius: 12px;
+  box-shadow:
+    0 0 5px #c89f2a,
+    0 0 14px rgba(200, 159, 42, 0.65),
+    inset 0 0 8px rgba(200, 159, 42, 0.45);
+
+  padding: 14px 18px;
+  backdrop-filter: blur(6px);
+  overflow: hidden;
+
+  /* One declaration for the whole card — header and both lines
+     inherit it. system-ui is only reached if Google Fonts is
+     unreachable, which on a live stream is worth degrading
+     gracefully rather than failing to render. */
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04";
+}
+
+/* ---------------------------------------------------------
+   Header row — VELORA wordmark + "Stream Alert:"
+--------------------------------------------------------- */
+.velora-claim-bubble .velora-system-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;   /* centred over the whole card */
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.velora-claim-bubble .velora-system-logo {
+  height: 34px;   /* scaled with the title beside it */
+  opacity: 0.95;
+}
+
+/* Deliberately larger than line one. The header names what the
+   alert IS; the line below is the detail. Line one also shrinks
+   to fit, so a fixed header keeps the hierarchy stable however
+   long the claimer's name turns out to be. */
+.velora-claim-bubble .velora-system-title {
+  font-size: 30px;
+  font-weight: 600;
+  color: #d49f02;
+  opacity: 0.95;
+  margin-left: -2px;
+  letter-spacing: 0.2px;
+}
+
+/* ---------------------------------------------------------
+   Body — avatar beside the claim lines
+--------------------------------------------------------- */
+.velora-claim-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  /* Above the sheen and shimmer layers below, which are
+     positioned over the whole bubble. */
+  position: relative;
+  z-index: 4;
+}
+
+.velora-claim-avatar {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(200, 159, 42, 0.75);
+  background: #111;
+}
+
+.velora-claim-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  /* min-width:0 is what lets these shrink at all — a flex item
+     defaults to min-width:auto, which refuses to go below its
+     content and would push the card wider than the bubble
+     instead of letting the text be measured as overflowing. */
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+
+  text-align: left;
+}
+
+/* ---------------------------------------------------------
+   Gold text with a white outline
+
+   Gold alone disappears against a bright stream background —
+   the card sits over whatever is on screen, which we don't
+   control. The white stroke gives it an edge on any backdrop.
+
+   paint-order:stroke fill draws the outline BEHIND the glyph.
+   Without it the stroke is painted over the letterform and eats
+   into it from both sides, which thins the gold and makes small
+   text look broken.
+--------------------------------------------------------- */
+.velora-claim-bubble .velora-system-text {
+  color: #f0b90b;
+  opacity: 1;
+
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.92);
+  paint-order: stroke fill;
+
+  /* Separates the card from the background behind it; the
+     stroke handles legibility, this handles depth. */
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.85);
+
+  /* One line each. fitClaimLines() steps the size down until
+     that is true, and only re-enables wrapping if it hits the
+     floor — see .velora-claim-wrapped below. */
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.velora-claim-line1 {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* Italic so it reads as the aside it is — the "and this is
+   their 38th time" detail, not the headline. */
+.velora-claim-line2 {
+  font-size: 19px;
+  font-weight: 500;
+  font-style: italic;
+  line-height: 1.3;
+  text-align: center;
+  -webkit-text-stroke-width: 0.8px;   /* lighter at small size */
+}
+
+/* Applied only when the text still doesn't fit at the minimum
+   size. Unreadably small is worse than three lines. */
+.velora-claim-wrapped {
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+/* ---------------------------------------------------------
+   Sheen + gold shimmer, matching the chat overlay bubble
+--------------------------------------------------------- */
+.velora-claim-bubble::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+
+  background: linear-gradient(
+    120deg,
+    rgba(255,255,255,0.0) 0%,
+    rgba(255,255,255,0.18) 45%,
+    rgba(255,255,255,0.0) 100%
+  );
+  background-size: 200% 100%;
+
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 2;
+
+  animation: velora-sheen-move 3.8s linear infinite;
+}
+
+.velora-claim-bubble::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 215, 64, 0.32) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+
+  opacity: 0.45;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 3;
+
+  animation: veloraShimmer 3.2s linear infinite;
+}
+
+@keyframes velora-sheen-move {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes veloraShimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
