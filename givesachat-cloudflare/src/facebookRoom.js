@@ -356,6 +356,15 @@ export class FacebookRoom {
       return;   // no alarm rescheduled: object can be evicted
     }
 
+    /* A deploy evicts this object, but the alarm is persisted, so
+       it can be revived here rather than through ensureRunning().
+       Without this the room would reopen streams while still
+       reporting running:false — a status line that contradicts
+       what the object is actually doing is worse than no status
+       line at all. */
+    this.running = true;
+    this.stoppedReason = null;
+
     await this.refreshLiveStreams();
     await this.scheduleAlarm();
   }
