@@ -6,35 +6,72 @@ import { getFacebookToken, pageTokens, FB_API } from "./facebookAuth.js";
 /* ---------------------------------------------------------
    FacebookRoom
 
-   Facebook is the only platform here with a real, documented
-   streaming endpoint:
+   Reads live comments from Facebook PAGES. Not from a personal
+   profile — that is not possible, see facebookAuth.js.
 
-     https://streaming-graph.facebook.com/{live-video-id}/live_comments
-       ?access_token=…&comment_rate=one_per_two_seconds&fields=…
-
-   Server-sent events, same shape as Beam's feed, so this is the
-   most conventional integration in the project — after being by
-   far the most awkward to get permission for.
+   Comments are POLLED from the comments edge, not streamed.
+   Facebook documents an SSE endpoint for this and it does not
+   work for us; the reasoning is below, next to the poll
+   interval, because that is where it matters.
 
    TWO IDS, AND THEY ARE NOT THE SAME.
 
-   The live video id (1720419190090746) is what the SSE stream
-   and the comments edge are keyed to. The permalink carries a
-   DIFFERENT id (1090562013396681), and comment ids are prefixed
-   with that second one. Using the permalink id to open the
-   stream returns nothing, forever, without an error.
+   The live video id (1720426506756681) is what the comments edge
+   is keyed to. The permalink carries a DIFFERENT id
+   (1035671325924215), and comment ids are prefixed with that
+   second one. Using the permalink id gets you nothing.
 
    THE LIVE VIDEO ID CHANGES EVERY BROADCAST, so it is resolved
    at runtime from the Page — the same lesson as Odysee's claim
    id, arriving from a different direction.
 --------------------------------------------------------- */
 
-const STREAM_HOST = "https://streaming-graph.facebook.com";
+/* ---------------------------------------------------------
+   Why this polls instead of streaming
 
-/* one_per_two_seconds is Facebook's rate cap on the stream.
-   The alternative, ten_per_second, is for high-volume broadcasts
-   and would deliver bursts the lane cannot render anyway. */
-const COMMENT_RATE = "one_per_two_seconds";
+   Facebook documents an SSE endpoint for exactly this:
+
+     streaming-graph.facebook.com/{live-video-id}/live_comments
+
+   It does not work for us. Every request returns 400 with a
+   generic HTML error page — and critically, SO DOES A REQUEST
+   FOR VIDEO ID "1". A nonexistent broadcast answering
+   identically to a real one means the endpoint never evaluates
+   the request at all, so no combination of fields, headers or
+   ids was ever going to fix it. Six field variants and six
+   header/id variants, all identical.
+
+   That control is the only reason we stopped looking. Without
+   it, a wall of 400s looks like a parameter problem forever.
+
+   The comments EDGE works fine — it returned real comments
+   during setup — so we poll it. Slower and it costs rate limit,
+   but it works today, which beats an elegant integration that
+   doesn't.
+--------------------------------------------------------- */
+
+/* ---------------------------------------------------------
+   Poll interval, and why it adapts
+
+   The app rate limit is small and its exact shape is unclear:
+   calls made with a Page token may count against the Page's
+   budget rather than the app's. Rather than guess, we start at
+   a sensible rate and let Facebook's own x-app-usage header
+   tell us when to back off.
+--------------------------------------------------------- */
+const COMMENT_POLL_MS = 15_000;
+const COMMENT_POLL_MAX_MS = 60_000;
+
+/* Percentages from x-app-usage. Back off well before the cliff:
+   being throttled mid-stream loses chat entirely, whereas
+   polling slower just adds latency. */
+const USAGE_BACKOFF_AT = 75;
+const USAGE_RECOVER_AT = 40;
+
+/* Comment ids already sent, so a poll that overlaps the previous
+   window doesn't render everything twice. Bounded — a long
+   stream would otherwise grow this without limit. */
+const SEEN_LIMIT = 500;
 
 const ALARM_INTERVAL_MS = 30_000;
 const IDLE_SHUTDOWN_MS = 120_000;
@@ -94,6 +131,11 @@ export class FacebookRoom {
     this.lastClientCheckAt = 0;
 
     this.recentFrames = [];
+
+    /* Adaptive: raised by readUsage() when Facebook says we are
+       pushing too hard, restored when the window clears. */
+    this.pollInterval = COMMENT_POLL_MS;
+    this.usage = null;
   }
 
   async fetch(request) {
@@ -128,6 +170,8 @@ export class FacebookRoom {
           connectedAt: s.connectedAt
         })),
         messageCount: this.messageCount,
+        pollIntervalMs: this.pollInterval,
+        appUsagePercent: this.usage,
         stoppedReason: this.stoppedReason,
         lastError: this.lastError,
         recentFrames: this.recentFrames
@@ -155,23 +199,13 @@ export class FacebookRoom {
 
     if (!pages.length) {
       this.lastError = "no Page tokens stored — connect at /facebook/connect";
+      console.error("[FACEBOOK]", this.lastError);
       return;
     }
 
+    console.log(`[FACEBOOK] checking ${pages.length} page(s) for a broadcast`);
+
     for (const page of pages) {
-      /* ---------------------------------------------------
-         A Page we are already streaming needs no polling at
-         all. The SSE connection ending IS the notification
-         that the broadcast stopped — readStream() removes it
-         from the map, and the next check reopens or moves on.
-
-         This is the bigger saving of the two: during an
-         actual stream, when the overlay is open for hours,
-         this loop now makes zero calls instead of 120 an
-         hour against a 200/hour budget.
-      --------------------------------------------------- */
-      if (this.streams.has(page.id)) continue;
-
       try {
         const res = await fetch(
           `${FB_API}/${page.id}/live_videos?fields=id,status&limit=5` +
@@ -196,11 +230,42 @@ export class FacebookRoom {
            there is nothing to compare against or tear down —
            either a broadcast is running and we attach to it, or
            there isn't one and we wait. */
-        const live = (json.data || []).find((v) => v.status === "LIVE");
-        if (!live) continue;
+        const statuses = (json.data || [])
+          .map((v) => `${v.id}:${v.status}`)
+          .join(" ");
 
         console.log(
-          `[FACEBOOK] ${page.name} is live (${live.id}) — opening comments`
+          `[FACEBOOK] ${page.name} -> ${statuses || "no videos returned"}`
+        );
+
+        /* ---------------------------------------------------
+           This check is what tells us a broadcast ENDED.
+
+           With SSE, the connection closing would have said so.
+           The comments edge never stops answering — it serves
+           the finished VOD's comments quite happily — so the
+           only signal is status no longer being LIVE.
+        --------------------------------------------------- */
+        const live = (json.data || []).find((v) => v.status === "LIVE");
+        const current = this.streams.get(page.id);
+
+        if (!live) {
+          if (current) {
+            console.log(`[FACEBOOK] ${page.name} stopped broadcasting`);
+            this.closeStream(page.id);
+          }
+          continue;
+        }
+
+        // Same broadcast we are already polling — nothing to do.
+        if (current && current.liveVideoId === live.id) continue;
+
+        /* A different id means the broadcast was restarted. Close
+           the old poller first or we would hold two. */
+        if (current) this.closeStream(page.id);
+
+        console.log(
+          `[FACEBOOK] ${page.name} is live (${live.id}) — polling comments`
         );
         this.openStream(page, live.id);
       } catch (err) {
@@ -228,7 +293,12 @@ export class FacebookRoom {
     });
 
     this.readStream(page, liveVideoId, abort).catch((err) => {
-      console.error("[FACEBOOK] stream ended with error:", err?.message || err);
+      /* Recorded as well as logged. A stream that fails to open
+         at all — a 400 on the fields param, a rejected token —
+         otherwise leaves the room looking idle and blameless,
+         which is precisely the state that is hardest to debug. */
+      this.lastError = `stream ${liveVideoId}: ${err?.message || err}`;
+      console.error("[FACEBOOK] stream ended with error:", this.lastError);
       this.streams.delete(page.id);
     });
   }
@@ -241,86 +311,160 @@ export class FacebookRoom {
     this.streams.delete(pageId);
   }
 
+  /* ---------------------------------------------------------
+     Poll one broadcast's comments until it ends.
+
+     Runs as a loop rather than off the alarm so the DO stays
+     resident for the duration — the same residency an SSE
+     connection would have cost, and it keeps the polling
+     cadence independent of the 30-second alarm.
+  --------------------------------------------------------- */
   async readStream(page, liveVideoId, abort) {
-    const url =
-      `${STREAM_HOST}/${liveVideoId}/live_comments` +
-      `?access_token=${encodeURIComponent(page.access_token)}` +
-      `&comment_rate=${COMMENT_RATE}` +
-      `&fields=${encodeURIComponent("id,message,created_time,from{id,name,picture}")}`;
+    console.log(
+      `[FACEBOOK] polling comments for ${page.name} (${liveVideoId})`
+    );
 
-    const res = await fetch(url, {
-      headers: { Accept: "text/event-stream" },
-      signal: abort.signal
-    });
+    const seen = new Set();
+    let firstPass = true;
 
-    if (!res.ok || !res.body) {
-      const body = await res.text().catch(() => "");
-      throw new Error(
-        `live_comments -> ${res.status} ${body.slice(0, 200)}`
-      );
-    }
+    while (!abort.signal.aborted) {
+      const url =
+        `${FB_API}/${liveVideoId}/comments` +
+        `?access_token=${encodeURIComponent(page.access_token)}` +
+        `&fields=${encodeURIComponent("id,message,created_time,from{id,name,picture}")}` +
+        `&order=reverse_chronological&limit=25`;
 
-    this.backoff = MIN_BACKOFF_MS;
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-
-      /* SSE events are separated by a blank line. Anything after
-         the last separator is a partial event and stays in the
-         buffer — splitting on newline instead would hand half a
-         JSON object to the parser under load, which is the
-         classic way this goes wrong. */
-      const events = buffer.split("\n\n");
-      buffer = events.pop() || "";
-
-      for (const event of events) {
-        this.handleEvent(event, page);
+      let res;
+      try {
+        res = await fetch(url, { signal: abort.signal });
+      } catch (err) {
+        if (abort.signal.aborted) break;
+        throw err;
       }
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`comments -> ${res.status} ${body.slice(0, 200)}`);
+      }
+
+      this.readUsage(res);
+
+      const json = await res.json();
+      const rows = json?.data || [];
+
+      /* ---------------------------------------------------
+         The first pass is BACKFILL, not new chat.
+
+         Whatever is already on the broadcast when we attach
+         gets marked as seen and not rendered. Without this,
+         opening the overlay mid-stream would dump the last
+         25 comments into the lane at once — which is what
+         every other platform here deliberately avoids.
+      --------------------------------------------------- */
+      for (const row of rows) {
+        if (!row?.id) continue;
+
+        if (seen.has(row.id)) continue;
+        seen.add(row.id);
+
+        if (firstPass) continue;
+
+        this.handleComment(row, page);
+      }
+
+      /* Bound the set. reverse_chronological means the oldest
+         entries are the ones safe to forget. */
+      if (seen.size > SEEN_LIMIT) {
+        const excess = seen.size - SEEN_LIMIT;
+        let i = 0;
+        for (const id of seen) {
+          if (i++ >= excess) break;
+          seen.delete(id);
+        }
+      }
+
+      if (firstPass) {
+        console.log(
+          `[FACEBOOK] attached to ${page.name}; ${rows.length} existing ` +
+            `comment(s) ignored as backfill`
+        );
+        firstPass = false;
+      }
+
+      await this.sleep(this.pollInterval, abort);
     }
 
-    console.log(`[FACEBOOK] comment stream closed for ${page.name}`);
+    console.log(`[FACEBOOK] stopped polling ${page.name}`);
     this.streams.delete(page.id);
   }
 
-  handleEvent(raw, page) {
-    /* An SSE event can carry several data: lines, which are
-       concatenated. Comment payloads are single-line in practice,
-       but assuming so would break silently on a long message. */
-    const data = raw
-      .split("\n")
-      .filter((l) => l.startsWith("data:"))
-      .map((l) => l.slice(5).trim())
-      .join("");
+  sleep(ms, abort) {
+    return new Promise((resolve) => {
+      const t = setTimeout(resolve, ms);
+      abort.signal.addEventListener("abort", () => {
+        clearTimeout(t);
+        resolve();
+      }, { once: true });
+    });
+  }
 
-    if (!data) return;
+  /* ---------------------------------------------------------
+     Let Facebook tell us how hard we are pushing.
 
+     x-app-usage carries call_count as a percentage of the
+     window. Backing off on their number beats guessing at a
+     budget whose shape we were never sure of.
+  --------------------------------------------------------- */
+  readUsage(res) {
+    try {
+      const raw = res.headers.get("x-app-usage");
+      if (!raw) return;
+
+      const usage = JSON.parse(raw);
+      const pct = Number(usage?.call_count);
+      if (!Number.isFinite(pct)) return;
+
+      this.usage = pct;
+
+      if (pct >= USAGE_BACKOFF_AT && this.pollInterval < COMMENT_POLL_MAX_MS) {
+        this.pollInterval = Math.min(this.pollInterval * 2, COMMENT_POLL_MAX_MS);
+        console.warn(
+          `[FACEBOOK] app usage ${pct}% — slowing polling to ${this.pollInterval}ms`
+        );
+      } else if (pct <= USAGE_RECOVER_AT && this.pollInterval > COMMENT_POLL_MS) {
+        this.pollInterval = COMMENT_POLL_MS;
+        console.log(`[FACEBOOK] app usage ${pct}% — polling back to normal`);
+      }
+    } catch {
+      /* Header missing or malformed is not worth failing over. */
+    }
+  }
+
+  handleComment(comment, page) {
     this.recentFrames.push({
       at: new Date().toISOString().slice(11, 19),
-      frame: data.slice(0, 200)
+      frame: JSON.stringify(comment).slice(0, 200)
     });
     if (this.recentFrames.length > 20) this.recentFrames.shift();
-
-    let comment;
-    try {
-      comment = JSON.parse(data);
-    } catch {
-      console.warn("[FACEBOOK] unparseable event:", data.slice(0, 120));
-      return;
-    }
 
     const payload = transformFacebookComment(comment, {
       id: page.id,
       name: page.name
     });
 
-    if (!payload) return;
+    /* A comment arrived and produced nothing renderable —
+       attachment-only, most likely. Worth saying out loud: from
+       the overlay it is indistinguishable from receiving
+       nothing at all. */
+    if (!payload) {
+      console.log(
+        "[FACEBOOK] comment produced no message:",
+        JSON.stringify(comment).slice(0, 200)
+      );
+      return;
+    }
+
+    console.log(`[FACEBOOK] comment from ${payload.username}`);
 
     this.messageCount++;
     this.broadcast(payload);

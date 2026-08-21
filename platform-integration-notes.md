@@ -1,7 +1,7 @@
 # Adding a platform to GivesAChat
 
-Notes from doing this seven times (Beam, Blaze, Arena, VPZONE, Velora,
-Odysee, BitChute). Read before starting the eighth.
+Notes from doing this eight times (Beam, Blaze, Arena, VPZONE, Velora,
+Odysee, BitChute, Facebook). Read before starting the ninth.
 
 ## 1. Capture real data before writing a parser
 
@@ -78,6 +78,31 @@ to have no emotes endpoint and Odysee's CDN was shown to answer `403`
 (not `404`) for a miss — which would have made `res.ok` treat every
 miss as a hit.
 
+**The control ends the search as often as it starts it.** Facebook's
+documented SSE endpoint returned `400` for every field combination we
+tried. Six variants, identical errors — which reads as "wrong
+parameters, keep permuting". Then a control asking for **video id
+`1`** returned the *same* error. A nonexistent broadcast answering
+identically to a real one meant the endpoint never evaluated the
+request at all, and no parameter would ever have fixed it. We switched
+to polling and had chat working within the hour.
+
+Budget one call for the control. It is the cheapest call you will
+make.
+
+### Read the error page, not its stylesheet
+
+Stripping tags with `replace(/<[^>]+>/g, " ")` leaves the CONTENT of
+`<style>` and `<script>` behind, so the "error message" you log is a
+font stack. Remove those elements *and their contents* first:
+
+```js
+.replace(/<(style|script)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+.replace(/<[^>]+>/g, " ")
+```
+
+Cost a full round trip to notice.
+
 ## 4. Watch for the silent failure mode
 
 The dangerous bugs are the ones with no error:
@@ -96,7 +121,15 @@ The dangerous bugs are the ones with no error:
   Connecting successfully proves nothing about whether you will
   receive anything.
 
-The pattern in all four: **the system reports success and does
+- **A requested field coming back ABSENT is a refusal, not an empty
+  value.** Facebook dropped `live_status` from every response rather
+  than returning it null, and dropped it *silently*. Combined with a
+  `(#100) Missing permissions` on a related edge, that was the API
+  saying "you may not ask this" — but read on its own it looks like
+  the videos simply aren't live. Compare what you asked for against
+  what came back, not just the values you got.
+
+The pattern in all five: **the system reports success and does
 nothing.** When something silently produces no output, suspect a
 missing subscribe, a stale id, or a unit mismatch before suspecting
 the parser — the parser at least fails loudly.
@@ -130,6 +163,38 @@ identical payloads and differing signatures — so it's HMAC'd with a
 key we'll never have, and fetching a real one is the only route. Ten
 minutes to rule out, and it decides the architecture.
 
+## 4c. Rate limits can be the design constraint
+
+Most platforms here have no meaningful limit. Facebook does, and it is
+far smaller than it looks:
+
+```
+Development app:  200 calls/hour  ×  number of app users
+                  = 200/hour, because there is exactly one user
+```
+
+Polling `live_videos` every 30s is 120 calls/hour — **60% of the
+entire budget** spent asking a question almost always answered "no".
+
+Design the cadence against the budget, not against what feels
+responsive. And where the budget's shape is uncertain, let the
+platform tell you: Facebook returns `x-app-usage` with a `call_count`
+percentage on every response. `facebookRoom.js` doubles its own poll
+interval past 75% and recovers below 40%, which beats picking a number
+and hoping.
+
+## 4d. A documented endpoint is not a working endpoint
+
+Facebook publishes an SSE endpoint for live comments. It is in current
+docs, with examples. It returns `400` to us for everything, including
+requests it cannot possibly have parsed.
+
+Meta's own sample app for this feature was archived in 2021.
+
+Don't spend a day making the elegant path work when a plain one is
+available. Polling the comments edge is slower, costs rate limit and
+adds ~15s latency — and it shipped working chat the same hour.
+
 ## 5. Things that have bitten us more than once
 
 - Cloudflare `fetch` needs `http(s)` for a WS upgrade, never `wss://`
@@ -145,6 +210,11 @@ minutes to rule out, and it decides the architecture.
   rejected token
 - Delete diagnostic routes once they've done their job. They dump
   third-party response bodies and outlive their usefulness fast
+- **A diagnostic that echoes a third-party response can echo a
+  credential.** Graph API embeds the caller's access token in its own
+  `paging.next` URLs, so `/facebook/probe` leaked a live token into a
+  chat window the first time it ran. Redact centrally, match keys
+  exactly, and remember tokens hide inside URLs as well as fields
 
 ## 6. Cost control
 

@@ -890,6 +890,138 @@ export default {
         return json(status);
       }
 
+      /* ---------------------------------------------------------
+         Which fields will the SSE endpoint actually accept?
+
+         streaming-graph rejected our first attempt with a 400 and
+         an HTML error page rather than Graph's usual JSON error,
+         which says the query was refused before reaching the API.
+
+         So the variants are tried in order, richest first, with a
+         deliberate control that MUST fail — otherwise a wall of
+         200s would tell us nothing. One call each, which matters:
+         the whole app budget is 200 calls an hour.
+
+         Delete once the working shape is baked into facebookRoom.
+      --------------------------------------------------------- */
+      if (action === "sse") {
+        if (!token) return json({ ok: false, error: "not connected" });
+
+        const pages = pageTokens(token);
+        if (!pages.length) return json({ ok: false, error: "no Page tokens" });
+
+        const page = pages[0];
+        const pt = encodeURIComponent(page.access_token);
+
+        // Resolve the live video the same way the room does.
+        const lvRes = await fetch(
+          `${FB_API}/${page.id}/live_videos?fields=id,status&limit=5&access_token=${pt}`
+        );
+        const lvJson = await lvRes.json();
+        const live = (lvJson.data || []).find((v) => v.status === "LIVE");
+
+        if (!live) {
+          return json({ ok: false, error: "not live — start a broadcast first" });
+        }
+
+        /* The permalink carries a DIFFERENT video id to the live
+           video id. Worth testing both, since which one this
+           endpoint wants is exactly the sort of thing that
+           produces a generic error rather than a helpful one. */
+        const lv2 = await fetch(
+          `${FB_API}/${live.id}?fields=permalink_url&access_token=${pt}`
+        ).then((r) => r.json()).catch(() => ({}));
+
+        const permalinkId =
+          String(lv2?.permalink_url || "").match(/\/videos\/(\d+)/)?.[1] || null;
+
+        const UA =
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+          "(KHTML, like Gecko) Chrome/126.0 Safari/537.36";
+
+        const F = "from{name,id},message";
+
+        const variants = [
+          ["live id, Accept + UA", live.id, F, { Accept: "text/event-stream", "User-Agent": UA }],
+          ["live id, UA only", live.id, F, { "User-Agent": UA }],
+          ["live id, no headers", live.id, F, {}],
+          ["live id, no fields", live.id, null, { "User-Agent": UA }],
+          ["PERMALINK id", permalinkId, F, { "User-Agent": UA }],
+          ["CONTROL: nonexistent id", "1", F, { "User-Agent": UA }]
+        ];
+
+        /* Strip style and script CONTENT before removing tags —
+           otherwise the "message" is the error page's CSS, which
+           is what the first version of this probe reported. */
+        const readable = (html) =>
+          String(html)
+            .replace(/<(style|script)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+            .replace(/<[^>]+>/g, " ")
+            .replace(/&\w+;/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 400);
+
+        const results = [];
+
+        for (const [label, videoId, fields, headers] of variants) {
+          if (!videoId) {
+            results.push({ label, skipped: "no id available" });
+            continue;
+          }
+
+          const url =
+            `https://streaming-graph.facebook.com/${videoId}/live_comments` +
+            `?access_token=${pt}&comment_rate=one_per_two_seconds` +
+            (fields ? `&fields=${encodeURIComponent(fields)}` : "");
+
+          try {
+            const res = await fetch(url, {
+              headers,
+              signal: AbortSignal.timeout(6000)
+            });
+
+            /* Success here is an INFINITE stream, so reading to
+               completion would hang. Status answers it; cancel
+               either way. */
+            let sample = null;
+            let contentType = res.headers.get("content-type");
+
+            if (!res.ok) {
+              sample = readable(await res.text().catch(() => ""));
+            } else {
+              try { await res.body?.cancel(); } catch {}
+            }
+
+            results.push({
+              label,
+              videoId,
+              status: res.status,
+              ok: res.ok,
+              contentType,
+              sample
+            });
+          } catch (err) {
+            const msg = String(err?.message || err);
+            const held = /timed out|aborted/i.test(msg);
+
+            /* A timeout on a streaming endpoint means it CONNECTED
+               and held the connection open — that is success. */
+            results.push({
+              label,
+              videoId,
+              status: held ? "OPEN (held connection)" : "error",
+              ok: held,
+              sample: msg.slice(0, 160)
+            });
+          }
+        }
+
+        return json(
+          redactTokens({ liveVideoId: live.id, permalinkId, results })
+        );
+      }
+
       if (action === "probe") {
         if (!token) {
           return json({ ok: false, error: "not connected — open /facebook/connect" });
