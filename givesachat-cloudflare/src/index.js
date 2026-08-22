@@ -322,6 +322,21 @@ export default {
         target.searchParams.set("key", env.VIEWER_KEY);
         target.searchParams.set("mode", "persistent");
 
+        /* ---------------------------------------------------
+           A BACKGROUND, unlike the OBS overlay.
+
+           The overlay itself is transparent, because that is
+           what a compositor needs. This link is the opposite
+           case: it is read by a person in a browser tab, on a
+           second monitor or a phone, where transparent renders
+           as white and the chat is unreadable.
+
+           Overridable, so ?bg=black or ?bg=1e1e1e still work
+           for anyone who wants something different.
+        --------------------------------------------------- */
+        const bg = (url.searchParams.get("bg") || "").trim();
+        target.searchParams.set("bg", bg || "dark");
+
         // Header on by default, so viewers get the logo, date and
         // GIVERS Watching Now. ?header=no strips it back to bubbles.
         const header = (url.searchParams.get("header") || "").toLowerCase();
