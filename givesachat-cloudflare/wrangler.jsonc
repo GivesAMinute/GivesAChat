@@ -88,6 +88,27 @@
     "FacebookRoom": {
       "type": "durable-object",
       "storage": "sqlite"
+    },
+
+    /* ---------------------------------------------------------
+       Tombstone — VPZONE now arrives through Beam's relay.
+
+       Deleting a Durable Object class is not just deleting the
+       file. Cloudflare has a provisioned namespace for it, and
+       removing the class from both code and this list leaves
+       that namespace orphaned:
+
+         [orphaned_provisioned_namespace] class 'VPZoneRoom' …
+         is neither in code nor in `exports`
+
+       This entry retires the namespace properly. It is the
+       modern equivalent of a `deleted_classes` migration, and it
+       stays here permanently — removing it would orphan the
+       namespace all over again.
+    --------------------------------------------------------- */
+    "VPZoneRoom": {
+      "type": "durable-object",
+      "state": "deleted"
     }
   },
 
