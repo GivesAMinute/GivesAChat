@@ -4,13 +4,6 @@ import { ChatRoom } from "./chatRoom.js";
 import { PopupRoom } from "./popupRoom.js";
 import { BeamRoom } from "./beamRoom.js";
 import { ArenaRoom } from "./arenaRoom.js";
-/* VPZONE now arrives through Beam's relay, so nothing addresses
-   this object any more — no wake, no route, no idle fanout. It is
-   still exported only because deleting a Durable Object class
-   requires a `deleted_classes` migration, and that is worth doing
-   deliberately rather than bundled into a behaviour change. An
-   object nobody addresses is never resident and costs nothing. */
-import { VPZoneRoom } from "./vpzoneRoom.js";
 import { OdyseeRoom } from "./odyseeRoom.js";
 import { BitChuteRoom } from "./bitchuteRoom.js";
 import { FacebookRoom } from "./facebookRoom.js";
@@ -45,7 +38,6 @@ export {
   PopupRoom,
   BeamRoom,
   ArenaRoom,
-  VPZoneRoom,
   OdyseeRoom,
   BitChuteRoom,
   FacebookTokenStore,

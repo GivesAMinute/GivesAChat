@@ -23,13 +23,15 @@
    the room going away.
 --------------------------------------------------------- */
 
-const API_BASE = "https://api.vpzone.tv/v1";
+/* VERBATIM from vpzoneRoom.js. Not reconstructed — the first
+   version of this file guessed "https://api.vpzone.tv/v1",
+   which is a host that does not serve this API, so every avatar
+   lookup failed and the only symptom was missing pictures. */
+const API_BASE = "https://vpzone.tv/api/v1";
 
-/* Only these hosts may end up in an img src. Copied deliberately
-   rather than imported: this file must keep working after
-   vpzoneTransform.js is deleted. */
-const SAFE_ASSET =
-  /^https:\/\/(?:[a-z0-9-]+\.)*(?:vpzone\.tv|supabase\.co)\/[^"'<>\s]*$/i;
+/* Also verbatim, from vpzoneTransform.js. Duplicated rather than
+   imported so this keeps working once that file is deleted. */
+const SAFE_ASSET = /^https:\/\/[a-z0-9.-]*\.?(vpzone\.tv|supabase\.co)\//i;
 
 const AVATAR_TTL_MS = 6 * 60 * 60 * 1000;   // 6h for a hit
 const AVATAR_FAIL_TTL_MS = 10 * 60 * 1000;  // 10m for a miss
@@ -52,9 +54,35 @@ function safeAsset(url) {
  * @param {object} env
  * @returns {Promise<string|null>}
  */
+let warnedNoKey = false;
+let warnedNoUsername = false;
+
 export async function resolveVpzoneAvatar(username, cache, env) {
-  if (!env?.VPZONE_API_KEY) return null;
-  if (!username || typeof username !== "string") return null;
+  /* Said once, not per message. Without this the whole feature
+     fails silently — which is exactly how it looked after the
+     switch to Beam: chat working, avatars simply absent, and
+     nothing anywhere saying why. */
+  if (!env?.VPZONE_API_KEY) {
+    if (!warnedNoKey) {
+      warnedNoKey = true;
+      console.warn(
+        "[VPZONE] no VPZONE_API_KEY — avatars disabled. Set it with:",
+        "npx wrangler secret put VPZONE_API_KEY"
+      );
+    }
+    return null;
+  }
+
+  if (!username || typeof username !== "string") {
+    if (!warnedNoUsername) {
+      warnedNoUsername = true;
+      console.warn(
+        "[VPZONE] could not derive a username from the relayed message —",
+        "avatars disabled"
+      );
+    }
+    return null;
+  }
 
   const key = username.toLowerCase();
   const now = Date.now();
