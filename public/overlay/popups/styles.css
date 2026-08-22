@@ -19,18 +19,11 @@
 /* ---------------------------------------------------------
    BASE OVERLAY
 --------------------------------------------------------- */
-/* Transparent on BOTH elements. body alone is usually enough,
-   but the root element's background is what actually paints the
-   canvas, and only OBS injects a transparent default for us. */
-html,
-body {
-  background: transparent;
-}
-
 body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  background: transparent;
 }
 
 #overlay-root {

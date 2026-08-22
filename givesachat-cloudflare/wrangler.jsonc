@@ -112,6 +112,11 @@
     // no token needed.
     "VELORA_CHANNEL": "GivesAMinute",
 
+    // Used by /api/velora/reward-sounds, which proxies Velora's
+    // channel-points endpoint because they no longer send CORS
+    // headers and the browser refuses the response.
+    "VELORA_CHANNEL_ID": "4f1cb975-eace-4650-8246-053007bd0036",
+
     // Blaze — Client ID is public; the secret is a Cloudflare
     // secret (npx wrangler secret put BLAZE_CLIENT_SECRET)
     "BLAZE_CLIENT_ID": "SIQ6qp4IcEVM6D6TBWLousZQY0VrCLQC",

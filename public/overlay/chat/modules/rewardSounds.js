@@ -3,7 +3,9 @@
 import { audioUnlocked } from "./audio.js";
 
 const rewardSounds = new Map();
-const CHANNEL_ID = "4f1cb975-eace-4650-8246-053007bd0036";
+
+/* The channel id now lives in the worker (VELORA_CHANNEL_ID),
+   since that is where the fetch happens. */
 
 /* ---------------------------------------------------------
    ⭐ Fetch reward sound URLs from Velora
@@ -26,8 +28,30 @@ const CHANNEL_ID = "4f1cb975-eace-4650-8246-053007bd0036";
    reward sounds and nothing else, so every failure path here
    ends in a warning and a return.
 --------------------------------------------------------- */
+/* ---------------------------------------------------------
+   FETCHED THROUGH OUR OWN WORKER, NOT FROM VELORA DIRECTLY.
+
+   This used to call api.velora.tv straight from the browser.
+   Velora removed their Access-Control-Allow-Origin header, so
+   the browser began refusing the response:
+
+     blocked by CORS policy: No 'Access-Control-Allow-Origin'
+     header is present on the requested resource
+
+   Every reward sound stopped playing everywhere at once — and
+   because an empty map is indistinguishable from a redemption
+   with no sound configured, it failed completely silently.
+
+   CORS binds browsers, not servers. /api/velora/reward-sounds
+   fetches the same data worker-side and serves it from our own
+   origin, which also means a future change to their headers
+   can't take our audio out again.
+--------------------------------------------------------- */
 async function fetchRewardSounds() {
-  const url = `https://api.velora.tv/api/channel-points/${CHANNEL_ID}/items/with-built-in`;
+  /* Same key the overlay was opened with — works for both the
+     operator's OVERLAY_KEY and a viewer's VIEWER_KEY. */
+  const key = new URLSearchParams(location.search).get("key") || "";
+  const url = `/api/velora/reward-sounds?key=${encodeURIComponent(key)}`;
 
   try {
     /* Bounded, so a hanging connection can't stall startup
@@ -36,22 +60,26 @@ async function fetchRewardSounds() {
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
 
     if (!res.ok) {
-      console.warn(`[RewardSounds] Velora returned ${res.status} — no sounds loaded`);
+      console.warn(`[RewardSounds] proxy returned ${res.status} — no sounds loaded`);
       return;
     }
 
     const data = await res.json();
 
-    if (!data?.items) {
+    if (!Array.isArray(data?.sounds)) {
       console.warn("[RewardSounds] unexpected response shape — no sounds loaded");
       return;
     }
 
-    data.items.forEach((item) => {
-      if (item.alertSoundUrl) rewardSounds.set(item.id, item.alertSoundUrl);
+    data.sounds.forEach((s) => {
+      if (s?.id && s.url) rewardSounds.set(s.id, s.url);
     });
 
     console.log(`[RewardSounds] loaded ${rewardSounds.size} sounds`);
+
+    if (!rewardSounds.size && data.error) {
+      console.warn("[RewardSounds] upstream said:", data.error);
+    }
   } catch (err) {
     console.warn("[RewardSounds] could not load sounds:", err?.message || err);
   }
@@ -64,13 +92,36 @@ async function fetchRewardSounds() {
 let poolIndex = 0;
 
 function playRewardSoundImmediateBrowser(rewardId) {
-  if (!audioUnlocked) return;
+  /* ---------------------------------------------------------
+     TEMPORARY DIAGNOSTIC — logging only, no behaviour change.
+
+     There are three silent returns below and no way to tell
+     which one fires, so "no sound" has three possible causes
+     that look identical from the outside. Remove once the
+     cause is known.
+  --------------------------------------------------------- */
+  if (!audioUnlocked) {
+    console.warn("[RewardSounds] BAILED: audio not unlocked");
+    return;
+  }
 
   const url = rewardSounds.get(rewardId);
-  if (!url) return;
+  if (!url) {
+    console.warn(
+      `[RewardSounds] BAILED: no sound for rewardId ${JSON.stringify(rewardId)}`,
+      `— ${rewardSounds.size} sound(s) loaded, ids:`,
+      [...rewardSounds.keys()].slice(0, 5)
+    );
+    return;
+  }
 
   const pool = window.rewardAudioPool;
-  if (!pool || pool.length === 0) return;
+  if (!pool || pool.length === 0) {
+    console.warn("[RewardSounds] BAILED: audio pool empty");
+    return;
+  }
+
+  console.log(`[RewardSounds] playing ${rewardId}`);
 
   const audio = pool[poolIndex];
   poolIndex = (poolIndex + 1) % pool.length;
@@ -110,10 +161,25 @@ function playRewardSoundImmediateOBS(rewardId) {
    ⭐ BROWSER MODE: queue if TTS is speaking or pending
 --------------------------------------------------------- */
 function playRewardSound(rewardId) {
-  if (!audioUnlocked && !window.obsBrowserSource) return;
+  // TEMPORARY DIAGNOSTIC — remove with the others below.
+  console.log(
+    `[RewardSounds] redemption ${JSON.stringify(rewardId)} |`,
+    `unlocked=${audioUnlocked} obs=${!!window.obsBrowserSource}`,
+    `loaded=${rewardSounds.size} pool=${window.rewardAudioPool?.length ?? 0}`
+  );
+
+  if (!audioUnlocked && !window.obsBrowserSource) {
+    console.warn("[RewardSounds] BAILED: not unlocked and not OBS");
+    return;
+  }
 
   const url = rewardSounds.get(rewardId);
-  if (!url) return;
+  if (!url) {
+    console.warn(
+      `[RewardSounds] BAILED: rewardId ${JSON.stringify(rewardId)} not in the map`
+    );
+    return;
+  }
 
   /* ---------------------------------------------------------
      ⭐ OBS MODE — always play immediately, always overlap

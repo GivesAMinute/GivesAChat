@@ -62,15 +62,32 @@ export const beamStickerUrl = (src, asset = {}) => {
    entire failure mode. When adding a new platform to the
    overlay, add it here at the same time.
 --------------------------------------------------------- */
+/* VPZONE was here until Beam began relaying it. Removing it from
+   this list is what switches the platform over: our own reader is
+   gone, and Beam's copy is now allowed through instead. Emotes and
+   badges survive the relay; avatars are refilled by BeamRoom. */
 export const IGNORED_SENDER_TYPES = [
   "velora",   // direct: webhook -> ChatRoom
   "blaze",    // direct: Socket.IO in the overlay
-  "vpzone",   // direct: WebSocket in VPZoneRoom
   "arena",    // direct: polled by ArenaRoom
   "odysee",   // direct: Commentron socket in OdyseeRoom
   "bitchute", // direct: Socket.IO in BitChuteRoom
   "facebook"  // direct: live_comments SSE in FacebookRoom
 ];
+
+/* ---------------------------------------------------------
+   Hosts allowed to appear in a relayed emote's src.
+
+   Beam relays emotes as absolute urls belonging to the ORIGIN
+   platform, so this list grows as Beam adds platforms. An emote
+   from anywhere else renders as its name in text rather than
+   loading, and says so in the log.
+
+   supabase.co is VPZONE's emote storage — confirmed from a real
+   relayed frame, not guessed.
+--------------------------------------------------------- */
+const RELAYED_EMOTE_HOST =
+  /^https:\/\/(?:[a-z0-9-]+\.)*(?:supabase\.co|vpzone\.tv|beamstream\.gg|kick\.com|twitch\.tv|jtvnw\.net|ytimg\.com|pilled\.net)\/[^"'<>\s]*$/i;
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -130,6 +147,54 @@ export function deltaToHtml(ops) {
         return `<img class="beam-emote" src="${escapeAttr(
           beamEmoteUrl(insert.src)
         )}" alt="${alt}">`;
+      }
+
+      /* -----------------------------------------------------
+         RELAYED emote — { id, name, type, source, url }
+
+         A platform Beam relays sends its emotes as absolute
+         urls rather than Beam's own UUIDs:
+
+           { type: "emote", name: "dealwithit", source: "vpzone",
+             url: "https://….supabase.co/…/dealwithit.png" }
+
+         These were rendering only by accident, via the
+         unhandled-embed fallback at the bottom of this function
+         — which worked, but logged a warning per emote and put
+         an unchecked third-party url straight into a src.
+
+         Handled properly here, behind a host allowlist. The
+         class carries the source so each platform's emotes can
+         be sized independently, the way vpzone-emote already is.
+      ----------------------------------------------------- */
+      if (insert.type === "emote" && insert.url) {
+        if (!RELAYED_EMOTE_HOST.test(insert.url)) {
+          console.warn(
+            "[BEAM] relayed emote from an unexpected host:",
+            String(insert.url).slice(0, 120)
+          );
+          return sanitizeHtml(cleanName(insert.name) || "");
+        }
+
+        const source = String(insert.source || "beam")
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "");
+
+        const alt = escapeAttr(cleanName(insert.name));
+
+        /* NOT beam-emote. A relayed emote belongs to the origin
+           platform, and .beam-emote is 84px against VPZONE's
+           34px — tagging them as Beam's would have silently
+           rendered every VPZONE emote two and a half times
+           bigger, because beam.css loads after styles.css.
+
+           .relayed-emote is the shared default; the source class
+           overrides it per platform, exactly as .vpzone-emote
+           already does. */
+        return (
+          `<img class="relayed-emote ${source}-emote" ` +
+          `src="${escapeAttr(insert.url)}" alt="${alt}" title="${alt}">`
+        );
       }
 
       // Sticker — { id, name, type, asset: { src, animated, ... } }

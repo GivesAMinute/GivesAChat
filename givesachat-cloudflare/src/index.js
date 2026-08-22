@@ -4,6 +4,12 @@ import { ChatRoom } from "./chatRoom.js";
 import { PopupRoom } from "./popupRoom.js";
 import { BeamRoom } from "./beamRoom.js";
 import { ArenaRoom } from "./arenaRoom.js";
+/* VPZONE now arrives through Beam's relay, so nothing addresses
+   this object any more — no wake, no route, no idle fanout. It is
+   still exported only because deleting a Durable Object class
+   requires a `deleted_classes` migration, and that is worth doing
+   deliberately rather than bundled into a behaviour change. An
+   object nobody addresses is never resident and costs nothing. */
 import { VPZoneRoom } from "./vpzoneRoom.js";
 import { OdyseeRoom } from "./odyseeRoom.js";
 import { BitChuteRoom } from "./bitchuteRoom.js";
@@ -52,16 +58,6 @@ export {
    the time the first message arrives. Cheap and idempotent —
    the object ignores the call if it is already reading.
 --------------------------------------------------------- */
-async function wakeVpzone(env) {
-  try {
-    const id = env.VPZoneRoom.idFromName("vpzone-live-chat");
-    const stub = env.VPZoneRoom.get(id);
-    await stub.fetch("https://do/start");
-  } catch (err) {
-    console.error("VPZONE wake failed:", err);
-  }
-}
-
 async function wakeOdysee(env) {
   try {
     const id = env.OdyseeRoom.idFromName("odysee-live-chat");
@@ -322,21 +318,6 @@ export default {
         target.searchParams.set("key", env.VIEWER_KEY);
         target.searchParams.set("mode", "persistent");
 
-        /* ---------------------------------------------------
-           A BACKGROUND, unlike the OBS overlay.
-
-           The overlay itself is transparent, because that is
-           what a compositor needs. This link is the opposite
-           case: it is read by a person in a browser tab, on a
-           second monitor or a phone, where transparent renders
-           as white and the chat is unreadable.
-
-           Overridable, so ?bg=black or ?bg=1e1e1e still work
-           for anyone who wants something different.
-        --------------------------------------------------- */
-        const bg = (url.searchParams.get("bg") || "").trim();
-        target.searchParams.set("bg", bg || "dark");
-
         // Header on by default, so viewers get the logo, date and
         // GIVERS Watching Now. ?header=no strips it back to bubbles.
         const header = (url.searchParams.get("header") || "").toLowerCase();
@@ -409,14 +390,12 @@ export default {
         if (ctx?.waitUntil) {
           ctx.waitUntil(wakeBeam(env));
           ctx.waitUntil(wakeArena(env));
-          ctx.waitUntil(wakeVpzone(env));
           ctx.waitUntil(wakeOdysee(env));
           ctx.waitUntil(wakeBitchute(env));
           ctx.waitUntil(wakeFacebook(env));
         } else {
           await wakeBeam(env);
           await wakeArena(env);
-          await wakeVpzone(env);
           await wakeOdysee(env);
           await wakeBitchute(env);
           await wakeFacebook(env);
@@ -654,6 +633,84 @@ export default {
        accepted, because a read-only pop-out has to render
        emotes too.
     --------------------------------------------------------- */
+    /* ---------------------------------------------------------
+       Velora reward sounds — proxied, because of CORS
+
+       The overlay used to fetch this straight from
+       api.velora.tv. That stopped working when Velora removed
+       the Access-Control-Allow-Origin header:
+
+         blocked by CORS policy: No 'Access-Control-Allow-Origin'
+         header is present on the requested resource
+
+       Every channel-point sound silently vanished — in OBS, on
+       the iPad, everywhere — because the map was empty and an
+       empty map looks exactly like a missing sound.
+
+       CORS is a BROWSER rule. A worker fetching the same URL
+       server-side is unaffected, so proxying it restores the
+       sounds and makes us immune to them changing that header
+       again in either direction.
+    --------------------------------------------------------- */
+    if (url.pathname === "/api/velora/reward-sounds" && request.method === "GET") {
+      const auth = checkKey(request, url, env.OVERLAY_KEY);
+
+      if (!auth.ok) {
+        const viewer = checkKey(request, url, env.VIEWER_KEY);
+        if (!viewer.ok || viewer.unconfigured) return unauthorized();
+      }
+
+      const channel = env.VELORA_CHANNEL_ID || "4f1cb975-eace-4650-8246-053007bd0036";
+
+      try {
+        const res = await fetch(
+          `https://api.velora.tv/api/channel-points/${channel}/items/with-built-in`,
+          {
+            headers: { Accept: "application/json" },
+            signal: AbortSignal.timeout(8000)
+          }
+        );
+
+        if (!res.ok) {
+          return json({ ok: false, error: `velora -> ${res.status}`, items: [] }, 200);
+        }
+
+        const data = await res.json();
+        const items = Array.isArray(data?.items) ? data.items : [];
+
+        /* Only what the overlay needs: an id and a sound url.
+           Relaying the whole 80 KB payload would put a lot of
+           unrelated channel-point config through our worker on
+           every overlay load. */
+        const sounds = items
+          .filter((i) => i?.id && (i.alertSoundUrl || i.soundUrl))
+          .map((i) => ({
+            id: i.id,
+            url: i.alertSoundUrl || i.soundUrl,
+            volume: Number(i.itemSoundVolume) || 1
+          }));
+
+        return new Response(
+          JSON.stringify({ ok: true, count: sounds.length, sounds }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "public, max-age=300"
+            }
+          }
+        );
+      } catch (err) {
+        /* Never fail hard: the overlay treats an empty list as
+           "no sounds", which is exactly right, and chat keeps
+           working. */
+        return json(
+          { ok: false, error: String(err?.message || err), sounds: [] },
+          200
+        );
+      }
+    }
+
     if (url.pathname === "/api/blaze/emotes" && request.method === "GET") {
       const auth = checkKey(request, url, env.OVERLAY_KEY);
 
@@ -690,21 +747,6 @@ export default {
       }
     }
 
-    /* ---------------------------------------------------------
-       7d-b. VPZONE gateway control (/vpzone/status|start|stop)
-    --------------------------------------------------------- */
-    if (url.pathname.startsWith("/vpzone/")) {
-      const auth = checkKey(request, url, env.INGEST_KEY);
-      if (!auth.ok) return unauthorized();
-
-      const action = url.pathname.split("/")[2];
-      if (!["start", "stop", "status"].includes(action)) {
-        return new Response("Not found", { status: 404 });
-      }
-
-      const id = env.VPZoneRoom.idFromName("vpzone-live-chat");
-      return env.VPZoneRoom.get(id).fetch(`https://do/${action}`);
-    }
 
     /* ---------------------------------------------------------
        7d-c. Odysee control (/odysee/status|start|stop|resolve)

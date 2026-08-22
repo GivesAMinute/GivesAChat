@@ -2,6 +2,7 @@
 
 import { transformBeamMessage } from "./beamTransform.js";
 import { resolveKickAvatar } from "./kickAvatars.js";
+import { resolveVpzoneAvatar, vpzoneUsernameFrom } from "./vpzoneAvatars.js";
 
 /* ---------------------------------------------------------
    BeamRoom
@@ -65,6 +66,7 @@ export class BeamRoom {
     // slug -> { url, expiresAt }. Lives as long as this object;
     // repopulates by itself after an eviction.
     this.kickAvatarCache = new Map();
+    this.vpzoneAvatarCache = new Map();
 
     // Diagnostics, surfaced by /beam/status
     this.connectedAt = null;
@@ -330,6 +332,22 @@ export class BeamRoom {
         payload.avatar = await resolveKickAvatar(
           payload.profileUrl,
           this.kickAvatarCache
+        );
+      }
+
+      /* VPZONE has the same gap: Beam relays it with
+         avatarUrl: null. This is what lets us delete our own
+         VPZONE reader without the overlay losing pictures. */
+      if (payload.platform === "vpzone" && !payload.avatar) {
+        const username = vpzoneUsernameFrom({
+          senderId: item?.senderId,
+          profileUrl: payload.profileUrl
+        });
+
+        payload.avatar = await resolveVpzoneAvatar(
+          username,
+          this.vpzoneAvatarCache,
+          this.env
         );
       }
 

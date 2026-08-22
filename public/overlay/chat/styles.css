@@ -1,32 +1,8 @@
 /* ---------------------------------------------------------
    ⭐ BASE OVERLAY BACKGROUND (Desktop + iOS/iPad)
 --------------------------------------------------------- */
-/* ---------------------------------------------------------
-   ⭐ TRANSPARENT BY DEFAULT
-
-   This used to be `background-color: #131313`, and it looked
-   fine for a year because OBS injects its own custom CSS into
-   every browser source:
-
-     body { background-color: rgba(0,0,0,0); margin: 0px auto;
-            overflow: hidden; }
-
-   OBS was making the overlay transparent for us. Nothing else
-   does — GoLightStream renders the page as written, so the grey
-   showed up as a full-screen rectangle covering the video and
-   every layer beneath it.
-
-   Transparent is the correct default for ANY compositor. When
-   the overlay is opened as an ordinary web page — the iPad, or
-   the public pop-out viewers use — a background is wanted
-   instead, so it is opt-in via ?bg= (see chatMode.js).
---------------------------------------------------------- */
-html,
 body {
-  background: transparent;
-}
-
-body {
+  background-color: #131313;
   margin: 0;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   overflow: hidden;
@@ -408,6 +384,28 @@ body.header-off #messages {
    Sent per-message in the frame's emoteMap, so there is no
    catalogue to maintain. Sized inline with the 26px bubble.
 --------------------------------------------------------- */
+/* ---------------------------------------------------------
+   ⭐ RELAYED EMOTES
+
+   Emotes from a platform Beam relays for us. They arrive as
+   absolute urls belonging to the origin platform, and carry
+   both this class and a per-source one (.vpzone-emote etc).
+
+   Declared BEFORE the per-source rules so those override it —
+   same specificity, so order is what decides.
+
+   Deliberately not .beam-emote, which is 84px: that is the size
+   of Beam's own emotes, and applying it to a relayed emote
+   would resize every platform's to match Beam's.
+--------------------------------------------------------- */
+.relayed-emote {
+  height: 34px;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 2px;
+  display: inline-block;
+}
+
 .vpzone-emote {
   height: 34px;
   width: auto;

@@ -16,7 +16,7 @@ import { loadCurrentDate } from "./modules/currentDate.js";
 import { setupHeader } from "./modules/header.js";
 
 // ⭐ Header on/off via ?header=no
-import { showHeader, applyBackground } from "./modules/chatMode.js";
+import { showHeader } from "./modules/chatMode.js";
 
 // ⭐ Scroll-back in the browser / iPad (never OBS)
 import { initChatScroll } from "./modules/chatScroll.js";
@@ -28,10 +28,6 @@ async function initOverlay() {
   --------------------------------------------------------- */
   const headerOn = showHeader();
   if (!headerOn) document.body.classList.add("header-off");
-
-  /* Transparent unless ?bg= asks otherwise. Applied before
-     anything paints so a browser tab never flashes white. */
-  applyBackground();
 
   /* ---------------------------------------------------------
      ⭐ Scroll-back. Set up before any message can arrive, so
