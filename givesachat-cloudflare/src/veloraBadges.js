@@ -224,6 +224,29 @@ async function loadSubBadges(env) {
 export async function resolveSubscriptionBadge(msg, env) {
   const slugs = Array.isArray(msg?.badges) ? msg.badges : [];
 
+  /* ---------------------------------------------------------
+     The broadcaster never gets a subscriber badge.
+
+     Velora tags the channel owner as a subscriber in their own
+     chat, which is not something you can be — you cannot
+     subscribe to yourself. It shows up as a permanent, slightly
+     silly badge next to your own messages.
+
+     Derived from the broadcaster badge rather than hardcoding a
+     name, so it keeps working if the channel is ever renamed,
+     with the configured channel name as a second check in case
+     Velora ever stops sending the role.
+  --------------------------------------------------------- */
+  const channel = String(env?.VELORA_CHANNEL || "").toLowerCase();
+  const author = String(msg?.username || msg?.displayName || "").toLowerCase();
+
+  const isBroadcaster =
+    slugs.includes("broadcaster") ||
+    msg?.isBroadcaster === true ||
+    (!!channel && author === channel);
+
+  if (isBroadcaster) return null;
+
   const isSub =
     slugs.some((s) => SUBSCRIBER_SLUGS.has(s)) ||
     msg?.isSub === true ||
