@@ -29,6 +29,13 @@ import { setupPopupSocket } from "/overlay/popups/modules/websocketPopups.js?v=9
 // ⭐ ?opacity=none — see overlayTransparency.js
 import { applyTransparency } from "/overlay/shared/overlayTransparency.js?v=9";
 
+/* TEMPORARY — the same beacon the chat overlay sends. This
+   overlay's audio DOES work in GoLightStream, so it is the
+   control: if this reports and chat does not, the difference is
+   not the audio code at all, it is that the chat layer is not
+   running. */
+import { reportToWorker } from "/overlay/chat/modules/rewardSounds.js?v=9";
+
 document.addEventListener("DOMContentLoaded", () => {
   // ⭐ CRITICAL: scale the popups overlay just like chat overlay
   // Without this, the popup renders off‑screen on non‑1920×1080 canvases
@@ -45,6 +52,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (applyTransparency() === true) {
     window.gacCompositorMode = true;
   }
+
+  reportToWorker("POPUPS overlay loaded");
 
   /* ---------------------------------------------------------
      ⭐ Brave/iOS Fix — Delay WebSocket startup
