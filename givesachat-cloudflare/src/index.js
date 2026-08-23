@@ -625,29 +625,6 @@ export default {
        accepted, because a read-only pop-out has to render
        emotes too.
     --------------------------------------------------------- */
-    /* ---------------------------------------------------------
-       Overlay → worker log relay (diagnostic)
-
-       GoLightStream renders the overlay in a browser we cannot
-       open a console on, so a failure there is invisible in a
-       way it never is in OBS or Chrome. This lets the page say
-       what happened, and `wrangler tail` shows it.
-
-       Deliberately dumb: it logs a string and returns. Delete
-       once the GoLightStream audio question is settled.
-    --------------------------------------------------------- */
-    if (url.pathname === "/api/overlay-log" && request.method === "POST") {
-      const auth = checkKey(request, url, env.OVERLAY_KEY);
-      if (!auth.ok) return unauthorized();
-
-      const text = (await request.text()).slice(0, 500);
-      console.log("[OVERLAY]", text);
-
-      return new Response("ok", {
-        status: 200,
-        headers: { "Cache-Control": "no-store" }
-      });
-    }
 
     /* ---------------------------------------------------------
        Velora reward sounds — proxied, because of CORS

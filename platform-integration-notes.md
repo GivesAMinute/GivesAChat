@@ -195,6 +195,86 @@ Don't spend a day making the elegant path work when a plain one is
 available. Polling the comments edge is slower, costs rate limit and
 adds ~15s latency — and it shipped working chat the same hour.
 
+## 4e. The overlay runs in renderers you cannot open a console on
+
+OBS's CEF, GoLightStream's compositor and an iPad are all
+"browsers", and they are not the same browser. Three lessons, all
+from one afternoon of chasing missing audio in GoLightStream.
+
+### A caught error is an invisible error
+
+`fetchRewardSounds()` called `AbortSignal.timeout(8000)`. That API
+is recent, and on an older Chromium it is `undefined` — so calling
+it threw a `TypeError` **before `fetch` was reached**, and the
+surrounding `try/catch` turned that into a console warning nobody
+could see. Result: no request, an empty sound map, and every
+reward sound dropped in silence, while chat, Blaze and the viewer
+count all worked because they are separate code.
+
+The `try/catch` was right — it stops a third-party outage taking
+the overlay down. But **resilient and invisible are the same thing
+unless the failure is reported somewhere you will actually look.**
+
+Feature-detect anything newer than about 2020 before using it in
+overlay code:
+
+```js
+const options = {};
+if (typeof AbortSignal?.timeout === "function") {
+  options.signal = AbortSignal.timeout(8000);
+}
+```
+
+### Read the boot sequence, not the symptom
+
+What solved it was `wrangler tail` during a layer reload. Every
+startup step made its request except one, and that one was not
+*failing* — it was never sent:
+
+```
+/ws/chat              ✓
+/api/blaze/emotes     ✓
+/api/viewers          ✓
+/api/velora/reward-sounds   ← absent
+```
+
+An absent request is much stronger evidence than a failed one: it
+means the code never got that far. Two hours of theorising about
+autoplay policies, codecs and iframes were beaten by reading which
+requests arrived, in order.
+
+### A module's identity is its URL
+
+Trying to defeat a stale cached module, I put `?v=N` on imports in
+`main.js`. But `rewardRenderer.js` imported the same file without
+it — so the browser loaded `rewardSounds.js` **twice**, as two
+instances with separate state. `fetchRewardSounds()` filled the map
+in one; `playRewardSound()` read an empty map in the other. The
+console said `loaded 155 sounds` and `pool=0` in the same breath,
+which is a contradiction, not two facts.
+
+Never version one importer's specifier unless you version every
+importer's. Cache freshness belongs in `public/_headers`, which
+already sets `no-cache, must-revalidate` on `/overlay/*`.
+
+## 4f. Compare against the thing that works
+
+The popups overlay's audio worked in GoLightStream while the chat
+overlay's did not — a controlled experiment sitting in plain sight.
+Benon suggested using it; I spent three rounds on my own hypotheses
+first, and twice broke working audio doing it.
+
+When one variant works and another doesn't, **diff them before
+theorising.** And when a diagnostic stops paying for itself, revert
+it immediately — instrumentation that risks working functionality
+has to earn its place every round.
+
+The minimal-reproduction page (`/overlay/audiotest/`, since
+deleted) was the other thing that helped: fifty lines, no sockets,
+no imports, no keys, one sound on a timer. It proved in one test
+that the platform, the format and autoplay were all fine — which
+eliminated every theory I had been chasing.
+
 ## 5. Things that have bitten us more than once
 
 - Cloudflare `fetch` needs `http(s)` for a WS upgrade, never `wss://`
