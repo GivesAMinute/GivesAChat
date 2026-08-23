@@ -54,10 +54,35 @@ async function fetchRewardSounds() {
   const url = `/api/velora/reward-sounds?key=${encodeURIComponent(key)}`;
 
   try {
-    /* Bounded, so a hanging connection can't stall startup
-       either — a request that never settles is just as bad as
-       one that throws. */
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    /* ---------------------------------------------------------
+       Bounded, so a hanging connection can't stall startup —
+       a request that never settles is as bad as one that throws.
+
+       BUT AbortSignal.timeout() IS NOT EVERYWHERE.
+
+       It is recent, and on an older Chromium it is undefined, so
+       calling it throws a TypeError BEFORE fetch is reached. The
+       catch below then turns that into a console warning, and
+       the result is no request, an empty sound map, and every
+       reward sound dropped in total silence.
+
+       That is exactly what happened in GoLightStream: chat,
+       Blaze and the viewer count all worked, while
+       /api/velora/reward-sounds never appeared in the logs at
+       all — not failing, simply never sent.
+
+       So the timeout is used when available and skipped when it
+       is not. Losing the timeout on an old renderer is a far
+       smaller problem than losing every sound.
+    --------------------------------------------------------- */
+    const options = {};
+
+    if (typeof AbortSignal !== "undefined" &&
+        typeof AbortSignal.timeout === "function") {
+      options.signal = AbortSignal.timeout(8000);
+    }
+
+    const res = await fetch(url, options);
 
     if (!res.ok) {
       console.warn(`[RewardSounds] proxy returned ${res.status} — no sounds loaded`);
