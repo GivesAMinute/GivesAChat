@@ -280,3 +280,63 @@
 .viewer-pop {
   animation: viewerPop 0.18s ease-out;
 }
+
+/* ---------------------------------------------------------
+   ⭐ COMPOSITOR ONLY  (?opacity=none — GoLightStream)
+
+   Scoped to html.opacity-none, which overlayTransparency.js
+   adds ONLY for that one URL. OBS, the iPad and the public
+   pop-out never match this selector and are untouched.
+
+   THE DATE DRIFTING LEFT IN GOLIGHTSTREAM
+
+   #current-date is anchored with `right: 1297px` and no width,
+   so it shrink-wraps its text: the RIGHT edge is nailed down
+   and the box grows leftward as the text gets wider. Nothing
+   can move the right edge — which is exactly what the two
+   screenshots show, and why it reads as "shifted left" rather
+   than "shifted".
+
+   So the date only moves if the text renders wider. Measuring
+   the two screenshots, normalised against the logo so the
+   different crop zooms cancel out:
+
+     glyph aspect (width per unit height)   OBS 7.9   GLS 9.8
+     total date width vs logo cap height    OBS 3.25  GLS 4.54
+
+   About 20% wider per unit height, and ~40% wider overall once
+   the slightly larger cap height is included. That is a
+   different typeface, not a layout bug.
+
+   AND THESE THREE RULES ASK FOR ONE. font-family: sans-serif is
+   a GENERIC KEYWORD, not a font — each renderer substitutes
+   whatever it considers its default. macOS Chromium resolves it
+   to Helvetica; a Linux-based renderer typically resolves it to
+   DejaVu Sans, which is markedly wider at the same size.
+
+   #date-output, #viewer-label and #viewer-count are the only
+   three declarations in the entire overlay using the bare
+   keyword — everything else inherits the explicit stack on
+   body — so the header is the one part exposed to this.
+
+   Naming real families pins it. Liberation Sans and Nimbus Sans
+   are the metric-compatible clones a Linux renderer maps
+   Helvetica/Arial onto, so the widths match what OBS draws even
+   when Helvetica itself is absent.
+
+   Only the date is pinned here, because it is the only
+   right-anchored element and so the only one where extra width
+   moves the text instead of just widening a box. #viewer-label
+   and #viewer-count sit in a left-anchored flex box and grow
+   rightward. Say the word and they get the same one-line
+   treatment.
+
+   IF THIS IS NOT ENOUGH — i.e. the renderer has none of these
+   families — the fallback is to anchor from the left instead:
+   replace `right: 1297px` with `left: 334px` under this same
+   scope, so wider text grows rightward from a fixed start
+   rather than backwards into the logo.
+--------------------------------------------------------- */
+html.opacity-none #date-output {
+  font-family: Helvetica, Arial, "Liberation Sans", "Nimbus Sans", sans-serif;
+}

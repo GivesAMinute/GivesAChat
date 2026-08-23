@@ -5,13 +5,19 @@
   <title>GivesAChat Overlay</title>
 
   <!-- ⭐ Global chat + layout styles -->
-  <!-- v31: outline on the header text. Only the stylesheet is
-       bumped — main.js is untouched, and its version stays put so
-       nothing about module loading changes. -->
   <link rel="stylesheet" href="/overlay/chat/styles.css?v=31" />
 
-  <!-- ⭐ Official header styles -->
-  <link rel="stylesheet" href="/overlay/chat/styles/header.css?v=2" />
+  <!-- ⭐ Official header styles
+
+       EACH STYLESHEET CARRIES ITS OWN VERSION. Bumping
+       styles.css does nothing for a change made in here — that
+       mistake was made once already, when the header outline
+       landed in header.css and only styles.css was bumped, so
+       the change would have been served from cache.
+
+       v3: text outline for legibility over a bright sky, and the
+       compositor-only font pin for the date. -->
+  <link rel="stylesheet" href="/overlay/chat/styles/header.css?v=3" />
 
   <!-- ⭐ Velora reward card + message effects + galaxy + glow + rainbow -->
   <link rel="stylesheet" href="/overlay/chat/styles/velora/velora.css?v=4" />
