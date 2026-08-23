@@ -117,9 +117,14 @@
   font-size: 24px;
   font-weight: 440;
   color: white;
-  text-shadow: 2px 2px 5px black;
 
-  opacity: 0.85;
+  /* Same outline treatment as the viewer box — a soft shadow
+     alone was not enough against a bright sky. */
+  -webkit-text-stroke: 1.2px rgba(0, 0, 0, 0.92);
+  paint-order: stroke fill;
+  text-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.85),
+    0 0 2px rgba(0, 0, 0, 0.9);
 
   /* ⭐ Combined animations (OBS/desktop only) */
   animation:
@@ -188,26 +193,58 @@
 #viewer-label {
   font-family: sans-serif;
   font-size: 20px;
-  font-weight: 500;
+  font-weight: 600;
   color: white;
 
   /* ⭐ Perfect vertical alignment with Beam logo */
   line-height: 32px;
 
-  opacity: 0.85;
+  /* ---------------------------------------------------------
+     ⭐ LEGIBILITY OVER ANY BACKGROUND
+
+     This text sits over whatever the camera is pointing at. On
+     an IRL stream against a bright sky, plain white was
+     effectively invisible.
+
+     A dark outline fixes it on light AND dark backgrounds,
+     unlike a shadow alone.
+
+     paint-order: stroke fill draws the outline BEHIND the
+     glyph. Without it the stroke paints over the letterform and
+     eats into it from both sides, which thins the text and
+     makes it look broken at this size.
+
+     Opacity removed deliberately: fading white text is exactly
+     what made it disappear. The outline provides the contrast
+     that the transparency was costing us.
+  --------------------------------------------------------- */
+  -webkit-text-stroke: 1.2px rgba(0, 0, 0, 0.92);
+  paint-order: stroke fill;
+  text-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.85),
+    0 0 2px rgba(0, 0, 0, 0.9);
 }
 
 /* Count */
 #viewer-count {
   font-family: sans-serif;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 700;
   color: white;
 
   /* ⭐ Same alignment */
   line-height: 32px;
 
-  opacity: 0.75;
+  /* Same outline as the label above — see the note there.
+     Note the matching dark shadow inside @keyframes viewerPop:
+     that animation re-declares text-shadow, so without it the
+     count would lose its shadow every time it ticked up. The
+     stroke is not animated and survives on its own. */
+  -webkit-text-stroke: 1.2px rgba(0, 0, 0, 0.92);
+  paint-order: stroke fill;
+  text-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.85),
+    0 0 2px rgba(0, 0, 0, 0.9);
 }
 
 /* ---------------------------------------------------------
@@ -225,17 +262,17 @@
   0% {
     transform: scale(1);
     color: white;
-    text-shadow: 0 0 6px rgba(255, 0, 255, 0.4);
+    text-shadow: 0 2px 5px rgba(0,0,0,0.85), 0 0 6px rgba(255, 0, 255, 0.4);
   }
   50% {
     transform: scale(1.25);
     color: #ffb3ff;
-    text-shadow: 0 0 12px rgba(255, 0, 255, 0.8);
+    text-shadow: 0 2px 5px rgba(0,0,0,0.85), 0 0 12px rgba(255, 0, 255, 0.8);
   }
   100% {
     transform: scale(1);
     color: white;
-    text-shadow: 0 0 6px rgba(255, 0, 255, 0.4);
+    text-shadow: 0 2px 5px rgba(0,0,0,0.85), 0 0 6px rgba(255, 0, 255, 0.4);
   }
 }
 
