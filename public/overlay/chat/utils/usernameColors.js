@@ -129,12 +129,45 @@ export function colorForUsername(name, platform) {
       "#FF1408","#FF1408","#DD1207",
       "#FC443A",
     ],
+    /* ---------------------------------------------------------
+       Facebook — sampled UP from the brand blue, not around it.
+
+       The first version of this palette followed the pattern used
+       for the others: take the brand colour and add lighter and
+       darker variants for variety. For a blue that does not work.
+       Facebook blue is already dark, so the darker variants fell
+       off a cliff against the near-black bubble.
+
+       Measured as contrast against the bubble (rgba(0,0,0,0.90)
+       over a bright sky ≈ #191919):
+
+         #0866FF  3.65:1     the brand blue itself
+         #1B62B8  2.92:1
+         #0A4DA6  2.20:1
+         #00337A  1.47:1     listed twice
+         #0D2E5C  1.31:1     effectively invisible
+
+       Seven of the fifteen entries were under 4.5:1 and the floor
+       was 1.31:1 — the worst of any platform here, and weighted
+       repetition meant a dark one came up nearly half the time.
+
+       So this palette starts at the brand blue and only goes
+       lighter. Everything is 6.5:1 or better, and because the
+       shades are close together it reads as one colour with a
+       little variation rather than a lucky dip.
+
+       nimotv (floor 2.23:1) and pilled (1.47:1) have the same
+       shape of problem for the same reason — dark brand colour,
+       darker variants. Not touched, since nobody has complained
+       about them on stream yet.
+    --------------------------------------------------------- */
     facebook: [
-      "#0866FF","#0866FF","#0866FF",
-      "#1877F2","#1877F2","#0653CC",
-      "#4293FF","#3B8BF5","#3B8BF5",
-      "#63A8FF","#0A4DA6","#00337A",
-      "#00337A","#1B62B8","#0D2E5C",
+      "#7DB8FF","#7DB8FF","#7DB8FF","#7DB8FF",   //  8.52:1  primary
+      "#63A8FF","#63A8FF","#63A8FF",             //  7.18:1
+      "#8AC0FF","#8AC0FF","#8AC0FF",             //  9.26:1
+      "#9CCAFF","#9CCAFF",                       // 10.30:1
+      "#5C9EFF","#5C9EFF",                       //  6.52:1  closest to brand
+      "#A8D4FF",                                 // 11.32:1
     ],
     nimotv: [
       "#622CF6","#622CF6","#622CF6",
