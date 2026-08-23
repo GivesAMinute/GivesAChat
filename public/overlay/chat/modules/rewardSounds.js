@@ -142,78 +142,6 @@ function playRewardSoundImmediateBrowser(rewardId) {
 /* ---------------------------------------------------------
    ⭐ OBS MODE — use fresh Audio() for guaranteed playback
 --------------------------------------------------------- */
-/* ---------------------------------------------------------
-   TEMPORARY — report to the worker, for GoLightStream only.
-
-   That renderer has no console we can open, so a playback
-   failure there is invisible. In compositor mode only, each
-   outcome is POSTed to /api/overlay-log and shows up in
-   `wrangler tail`.
-
-   Never awaited and never allowed to throw: a diagnostic must
-   not be able to break the thing it is diagnosing.
---------------------------------------------------------- */
-/* ---------------------------------------------------------
-   WHERE is this page running?
-
-   Two very different things produce an identical
-   NotAllowedError:
-
-     a Chrome tab you have not clicked yet
-     a cross-origin iframe with no allow="autoplay"
-
-   GoLightStream renders browser sources in an IFRAME — their
-   developer guidelines are entirely about frame-ancestors — so
-   this one flag separates "our overlay in your browser" from
-   "our overlay inside Lightstream", and the two need completely
-   different answers.
---------------------------------------------------------- */
-function frameContext() {
-  try {
-    if (window.top === window.self) return "top-level (a normal tab)";
-
-    const parents = location.ancestorOrigins
-      ? Array.from(location.ancestorOrigins).join(",")
-      : "(origins hidden)";
-
-    return `IFRAME inside ${parents}`;
-  } catch {
-    /* Throwing on window.top is itself evidence: a cross-origin
-       parent blocks the access. */
-    return "IFRAME (cross-origin parent)";
-  }
-}
-
-export function reportToWorker(line) {
-  /* ---------------------------------------------------------
-     TEMPORARY — deliberately NOT gated on compositor mode.
-
-     It was, and that made silence ambiguous: a layer without
-     ?opacity=none stayed quiet whether or not it was running.
-     Two overlays reported nothing while one of them was audibly
-     working, which told us about the gate rather than the
-     problem.
-
-     So every overlay reports now — OBS, iPad, viewers, all of
-     them. Noisy for a few minutes, and the point is precisely to
-     see WHICH pages are alive. Each line carries its own path
-     and query so they can be told apart.
-  --------------------------------------------------------- */
-  try {
-    const key = new URLSearchParams(location.search).get("key") || "";
-
-    const who =
-      `${location.pathname}${location.search}` +
-      ` | compositor=${!!window.gacCompositorMode}` +
-      ` | ${frameContext()}`;
-
-    fetch(`/api/overlay-log?key=${encodeURIComponent(key)}`, {
-      method: "POST",
-      body: `${line} | ${who}`
-    }).catch(() => {});
-  } catch {}
-}
-
 function playRewardSoundImmediateOBS(rewardId) {
   const url = rewardSounds.get(rewardId);
   if (!url) return;
@@ -221,36 +149,9 @@ function playRewardSoundImmediateOBS(rewardId) {
   try {
     const audio = new Audio(url);
     audio.volume = 1.0;
-
-    /* canPlayType answers the codec question directly: "" means
-       the browser will not even attempt this format. Every Velora
-       reward sound is .ogg, and Ogg is exactly the format a
-       WebKit-based renderer refuses. */
-    const oggSupport = audio.canPlayType("audio/ogg") || "(no)";
-    const mp3Support = audio.canPlayType("audio/mpeg") || "(no)";
-
-    audio.play()
-      .then(() =>
-        reportToWorker(
-          `audio OK | ${url.split("/").pop()} | ogg=${oggSupport} mp3=${mp3Support}`
-        )
-      )
-      .catch((err) =>
-        reportToWorker(
-          `audio FAILED | ${err?.name || err} | ${url.split("/").pop()} | ` +
-            `ogg=${oggSupport} mp3=${mp3Support} | ua=${navigator.userAgent.slice(0, 80)}`
-        )
-      );
-
-    audio.addEventListener("error", () =>
-      reportToWorker(
-        `audio ELEMENT ERROR | code=${audio.error?.code} | ` +
-          `${url.split("/").pop()} | ogg=${oggSupport}`
-      )
-    );
+    audio.play().catch(() => {});
   } catch (err) {
     console.warn("[OBS] Failed to play reward sound:", err);
-    reportToWorker(`audio THREW | ${err?.message || err}`);
   }
 }
 
@@ -267,13 +168,8 @@ function playRewardSound(rewardId) {
     `loaded=${rewardSounds.size} pool=${window.rewardAudioPool?.length ?? 0}`
   );
 
-  /* ?opacity=none marks a broadcast compositor — see
-     overlayTransparency.js. Treated exactly like OBS below:
-     no unlock needed, and no audio pool required. */
-  const compositor = !!window.obsBrowserSource || !!window.gacCompositorMode;
-
-  if (!audioUnlocked && !compositor) {
-    console.warn("[RewardSounds] BAILED: not unlocked and not a compositor");
+  if (!audioUnlocked && !window.obsBrowserSource) {
+    console.warn("[RewardSounds] BAILED: not unlocked and not OBS");
     return;
   }
 
@@ -286,13 +182,9 @@ function playRewardSound(rewardId) {
   }
 
   /* ---------------------------------------------------------
-     ⭐ COMPOSITOR MODE — always play immediately, always overlap
-
-     A fresh Audio() per sound, no pool, no unlock. This is the
-     path the popups overlay effectively uses, and the one we
-     have now confirmed works in GoLightStream.
+     ⭐ OBS MODE — always play immediately, always overlap
   --------------------------------------------------------- */
-  if (compositor) {
+  if (window.obsBrowserSource) {
     playRewardSoundImmediateOBS(rewardId);
     return;
   }

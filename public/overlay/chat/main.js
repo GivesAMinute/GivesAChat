@@ -1,7 +1,7 @@
 // public/overlay/chat/main.js
 
 /* ---------------------------------------------------------
-   EVERY IMPORT CARRIES ?v=25.
+   EVERY IMPORT CARRIES ?v=27.
 
    Only this file's <script src> is version-busted by
    index.html. Its imports are plain paths, so a browser is free
@@ -20,30 +20,30 @@
    So bump this number with the one in index.html, together.
 --------------------------------------------------------- */
 
-import { scaleOverlay } from "./modules/scale.js?v=26";
-import { isIOSDevice, createAudioUnlockButtons, unlockAudioOnly } from "./modules/audio.js?v=26";
-import { showVoiceSelector } from "./modules/tts.js?v=26";
-import { fetchRewardSounds, reportToWorker } from "./modules/rewardSounds.js?v=26";
-import { setupSocket } from "./modules/websocket.js?v=26";
+import { scaleOverlay } from "./modules/scale.js?v=27";
+import { isIOSDevice, createAudioUnlockButtons, unlockAudioOnly } from "./modules/audio.js?v=27";
+import { showVoiceSelector } from "./modules/tts.js?v=27";
+import { fetchRewardSounds } from "./modules/rewardSounds.js?v=27";
+import { setupSocket } from "./modules/websocket.js?v=27";
 
 // ⭐ Blaze chat (own Socket.IO connection — see modules/blaze.js)
-import { setupBlazeChat } from "./modules/blaze.js?v=26";
+import { setupBlazeChat } from "./modules/blaze.js?v=27";
 
 // ⭐ Load date into header (OBS-only)
-import { loadCurrentDate } from "./modules/currentDate.js?v=26";
+import { loadCurrentDate } from "./modules/currentDate.js?v=27";
 
 // ⭐ Viewer count + header initializer
-import { setupHeader } from "./modules/header.js?v=26";
+import { setupHeader } from "./modules/header.js?v=27";
 
 // ⭐ Header on/off via ?header=no
-import { showHeader } from "./modules/chatMode.js?v=26";
+import { showHeader } from "./modules/chatMode.js?v=27";
 
 // ⭐ ?opacity=none — transparency for compositors that, unlike
 //    OBS, do not inject a transparent background themselves.
-import { applyTransparency } from "/overlay/shared/overlayTransparency.js?v=26";
+import { applyTransparency } from "/overlay/shared/overlayTransparency.js?v=27";
 
 // ⭐ Scroll-back in the browser / iPad (never OBS)
-import { initChatScroll } from "./modules/chatScroll.js?v=26";
+import { initChatScroll } from "./modules/chatScroll.js?v=27";
 
 async function initOverlay() {
   /* ---------------------------------------------------------
@@ -59,7 +59,7 @@ async function initOverlay() {
      THE FLAG IS SET HERE, NOT IN THE MODULE, because only this
      file's URL carries a version:
 
-       <script src="main.js?v=26">      busts the cache
+       <script src="main.js?v=27">      busts the cache
        import "./modules/foo.js"        does NOT
 
      So a browser can run a brand-new main.js against a cached
@@ -75,11 +75,6 @@ async function initOverlay() {
     window.gacCompositorMode = true;
   }
 
-  /* TEMPORARY — one beacon on load, so we can tell whether the
-     GoLightStream layer is reaching this code at all. Without
-     it, silence in the tail is ambiguous: no sound played, or
-     the page never ran. */
-  reportToWorker("overlay loaded");
 
   /* ---------------------------------------------------------
      ⭐ Scroll-back. Set up before any message can arrive, so
