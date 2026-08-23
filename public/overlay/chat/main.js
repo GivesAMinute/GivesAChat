@@ -18,6 +18,10 @@ import { setupHeader } from "./modules/header.js";
 // ⭐ Header on/off via ?header=no
 import { showHeader } from "./modules/chatMode.js";
 
+// ⭐ ?opacity=none — transparency for compositors that, unlike
+//    OBS, do not inject a transparent background themselves.
+import { applyTransparency } from "/overlay/shared/overlayTransparency.js";
+
 // ⭐ Scroll-back in the browser / iPad (never OBS)
 import { initChatScroll } from "./modules/chatScroll.js";
 
@@ -28,6 +32,10 @@ async function initOverlay() {
   --------------------------------------------------------- */
   const headerOn = showHeader();
   if (!headerOn) document.body.classList.add("header-off");
+
+  /* Before anything paints, so a source never flashes its
+     background colour and then goes transparent. */
+  applyTransparency();
 
   /* ---------------------------------------------------------
      ⭐ Scroll-back. Set up before any message can arrive, so

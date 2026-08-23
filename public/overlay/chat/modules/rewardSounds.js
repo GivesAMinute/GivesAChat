@@ -168,8 +168,13 @@ function playRewardSound(rewardId) {
     `loaded=${rewardSounds.size} pool=${window.rewardAudioPool?.length ?? 0}`
   );
 
-  if (!audioUnlocked && !window.obsBrowserSource) {
-    console.warn("[RewardSounds] BAILED: not unlocked and not OBS");
+  /* ?opacity=none marks a broadcast compositor — see
+     overlayTransparency.js. Treated exactly like OBS below:
+     no unlock needed, and no audio pool required. */
+  const compositor = !!window.obsBrowserSource || !!window.gacCompositorMode;
+
+  if (!audioUnlocked && !compositor) {
+    console.warn("[RewardSounds] BAILED: not unlocked and not a compositor");
     return;
   }
 
@@ -182,9 +187,13 @@ function playRewardSound(rewardId) {
   }
 
   /* ---------------------------------------------------------
-     ⭐ OBS MODE — always play immediately, always overlap
+     ⭐ COMPOSITOR MODE — always play immediately, always overlap
+
+     A fresh Audio() per sound, no pool, no unlock. This is the
+     path the popups overlay effectively uses, and the one we
+     have now confirmed works in GoLightStream.
   --------------------------------------------------------- */
-  if (window.obsBrowserSource) {
+  if (compositor) {
     playRewardSoundImmediateOBS(rewardId);
     return;
   }
