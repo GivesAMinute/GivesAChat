@@ -185,14 +185,31 @@ function frameContext() {
 }
 
 export function reportToWorker(line) {
-  if (!window.gacCompositorMode) return;
+  /* ---------------------------------------------------------
+     TEMPORARY — deliberately NOT gated on compositor mode.
 
+     It was, and that made silence ambiguous: a layer without
+     ?opacity=none stayed quiet whether or not it was running.
+     Two overlays reported nothing while one of them was audibly
+     working, which told us about the gate rather than the
+     problem.
+
+     So every overlay reports now — OBS, iPad, viewers, all of
+     them. Noisy for a few minutes, and the point is precisely to
+     see WHICH pages are alive. Each line carries its own path
+     and query so they can be told apart.
+  --------------------------------------------------------- */
   try {
     const key = new URLSearchParams(location.search).get("key") || "";
 
+    const who =
+      `${location.pathname}${location.search}` +
+      ` | compositor=${!!window.gacCompositorMode}` +
+      ` | ${frameContext()}`;
+
     fetch(`/api/overlay-log?key=${encodeURIComponent(key)}`, {
       method: "POST",
-      body: `${line} | ctx=${frameContext()}`
+      body: `${line} | ${who}`
     }).catch(() => {});
   } catch {}
 }

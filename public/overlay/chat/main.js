@@ -20,30 +20,30 @@
    So bump this number with the one in index.html, together.
 --------------------------------------------------------- */
 
-import { scaleOverlay } from "./modules/scale.js?v=25";
-import { isIOSDevice, createAudioUnlockButtons, unlockAudioOnly } from "./modules/audio.js?v=25";
-import { showVoiceSelector } from "./modules/tts.js?v=25";
-import { fetchRewardSounds, reportToWorker } from "./modules/rewardSounds.js?v=25";
-import { setupSocket } from "./modules/websocket.js?v=25";
+import { scaleOverlay } from "./modules/scale.js?v=26";
+import { isIOSDevice, createAudioUnlockButtons, unlockAudioOnly } from "./modules/audio.js?v=26";
+import { showVoiceSelector } from "./modules/tts.js?v=26";
+import { fetchRewardSounds, reportToWorker } from "./modules/rewardSounds.js?v=26";
+import { setupSocket } from "./modules/websocket.js?v=26";
 
 // ⭐ Blaze chat (own Socket.IO connection — see modules/blaze.js)
-import { setupBlazeChat } from "./modules/blaze.js?v=25";
+import { setupBlazeChat } from "./modules/blaze.js?v=26";
 
 // ⭐ Load date into header (OBS-only)
-import { loadCurrentDate } from "./modules/currentDate.js?v=25";
+import { loadCurrentDate } from "./modules/currentDate.js?v=26";
 
 // ⭐ Viewer count + header initializer
-import { setupHeader } from "./modules/header.js?v=25";
+import { setupHeader } from "./modules/header.js?v=26";
 
 // ⭐ Header on/off via ?header=no
-import { showHeader } from "./modules/chatMode.js?v=25";
+import { showHeader } from "./modules/chatMode.js?v=26";
 
 // ⭐ ?opacity=none — transparency for compositors that, unlike
 //    OBS, do not inject a transparent background themselves.
-import { applyTransparency } from "/overlay/shared/overlayTransparency.js?v=25";
+import { applyTransparency } from "/overlay/shared/overlayTransparency.js?v=26";
 
 // ⭐ Scroll-back in the browser / iPad (never OBS)
-import { initChatScroll } from "./modules/chatScroll.js?v=25";
+import { initChatScroll } from "./modules/chatScroll.js?v=26";
 
 async function initOverlay() {
   /* ---------------------------------------------------------
@@ -59,7 +59,7 @@ async function initOverlay() {
      THE FLAG IS SET HERE, NOT IN THE MODULE, because only this
      file's URL carries a version:
 
-       <script src="main.js?v=25">      busts the cache
+       <script src="main.js?v=26">      busts the cache
        import "./modules/foo.js"        does NOT
 
      So a browser can run a brand-new main.js against a cached

@@ -20,21 +20,21 @@
    So bump this number with the one in index.html, together.
 --------------------------------------------------------- */
 
-import _sharedPopups from "/overlay/shared/_sharedPopups.js?v=9";
-import { scaleOverlay } from "/overlay/chat/modules/scale.js?v=9";
+import _sharedPopups from "/overlay/shared/_sharedPopups.js?v=10";
+import { scaleOverlay } from "/overlay/chat/modules/scale.js?v=10";
 
 // ⭐ Unified initializer (DO WebSocket + Velora Events API)
-import { setupPopupSocket } from "/overlay/popups/modules/websocketPopups.js?v=9";
+import { setupPopupSocket } from "/overlay/popups/modules/websocketPopups.js?v=10";
 
 // ⭐ ?opacity=none — see overlayTransparency.js
-import { applyTransparency } from "/overlay/shared/overlayTransparency.js?v=9";
+import { applyTransparency } from "/overlay/shared/overlayTransparency.js?v=10";
 
 /* TEMPORARY — the same beacon the chat overlay sends. This
    overlay's audio DOES work in GoLightStream, so it is the
    control: if this reports and chat does not, the difference is
    not the audio code at all, it is that the chat layer is not
    running. */
-import { reportToWorker } from "/overlay/chat/modules/rewardSounds.js?v=9";
+import { reportToWorker } from "/overlay/chat/modules/rewardSounds.js?v=10";
 
 document.addEventListener("DOMContentLoaded", () => {
   // ⭐ CRITICAL: scale the popups overlay just like chat overlay
