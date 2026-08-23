@@ -142,6 +142,30 @@ function playRewardSoundImmediateBrowser(rewardId) {
 /* ---------------------------------------------------------
    ⭐ OBS MODE — use fresh Audio() for guaranteed playback
 --------------------------------------------------------- */
+/* ---------------------------------------------------------
+   TEMPORARY — report to the worker, for GoLightStream only.
+
+   That renderer has no console we can open, so a playback
+   failure there is invisible. In compositor mode only, each
+   outcome is POSTed to /api/overlay-log and shows up in
+   `wrangler tail`.
+
+   Never awaited and never allowed to throw: a diagnostic must
+   not be able to break the thing it is diagnosing.
+--------------------------------------------------------- */
+function reportToWorker(line) {
+  if (!window.gacCompositorMode) return;
+
+  try {
+    const key = new URLSearchParams(location.search).get("key") || "";
+
+    fetch(`/api/overlay-log?key=${encodeURIComponent(key)}`, {
+      method: "POST",
+      body: line
+    }).catch(() => {});
+  } catch {}
+}
+
 function playRewardSoundImmediateOBS(rewardId) {
   const url = rewardSounds.get(rewardId);
   if (!url) return;
@@ -149,9 +173,36 @@ function playRewardSoundImmediateOBS(rewardId) {
   try {
     const audio = new Audio(url);
     audio.volume = 1.0;
-    audio.play().catch(() => {});
+
+    /* canPlayType answers the codec question directly: "" means
+       the browser will not even attempt this format. Every Velora
+       reward sound is .ogg, and Ogg is exactly the format a
+       WebKit-based renderer refuses. */
+    const oggSupport = audio.canPlayType("audio/ogg") || "(no)";
+    const mp3Support = audio.canPlayType("audio/mpeg") || "(no)";
+
+    audio.play()
+      .then(() =>
+        reportToWorker(
+          `audio OK | ${url.split("/").pop()} | ogg=${oggSupport} mp3=${mp3Support}`
+        )
+      )
+      .catch((err) =>
+        reportToWorker(
+          `audio FAILED | ${err?.name || err} | ${url.split("/").pop()} | ` +
+            `ogg=${oggSupport} mp3=${mp3Support} | ua=${navigator.userAgent.slice(0, 80)}`
+        )
+      );
+
+    audio.addEventListener("error", () =>
+      reportToWorker(
+        `audio ELEMENT ERROR | code=${audio.error?.code} | ` +
+          `${url.split("/").pop()} | ogg=${oggSupport}`
+      )
+    );
   } catch (err) {
     console.warn("[OBS] Failed to play reward sound:", err);
+    reportToWorker(`audio THREW | ${err?.message || err}`);
   }
 }
 
