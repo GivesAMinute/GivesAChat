@@ -3,7 +3,7 @@
 import { scaleOverlay } from "./modules/scale.js";
 import { isIOSDevice, createAudioUnlockButtons, unlockAudioOnly } from "./modules/audio.js";
 import { showVoiceSelector } from "./modules/tts.js";
-import { fetchRewardSounds } from "./modules/rewardSounds.js";
+import { fetchRewardSounds, reportToWorker } from "./modules/rewardSounds.js";
 import { setupSocket } from "./modules/websocket.js";
 
 // ⭐ Blaze chat (own Socket.IO connection — see modules/blaze.js)
@@ -36,6 +36,12 @@ async function initOverlay() {
   /* Before anything paints, so a source never flashes its
      background colour and then goes transparent. */
   applyTransparency();
+
+  /* TEMPORARY — one beacon on load, so we can tell whether the
+     GoLightStream layer is reaching this code at all. Without
+     it, silence in the tail is ambiguous: no sound played, or
+     the page never ran. */
+  reportToWorker("overlay loaded");
 
   /* ---------------------------------------------------------
      ⭐ Scroll-back. Set up before any message can arrive, so

@@ -153,7 +153,38 @@ function playRewardSoundImmediateBrowser(rewardId) {
    Never awaited and never allowed to throw: a diagnostic must
    not be able to break the thing it is diagnosing.
 --------------------------------------------------------- */
-function reportToWorker(line) {
+/* ---------------------------------------------------------
+   WHERE is this page running?
+
+   Two very different things produce an identical
+   NotAllowedError:
+
+     a Chrome tab you have not clicked yet
+     a cross-origin iframe with no allow="autoplay"
+
+   GoLightStream renders browser sources in an IFRAME — their
+   developer guidelines are entirely about frame-ancestors — so
+   this one flag separates "our overlay in your browser" from
+   "our overlay inside Lightstream", and the two need completely
+   different answers.
+--------------------------------------------------------- */
+function frameContext() {
+  try {
+    if (window.top === window.self) return "top-level (a normal tab)";
+
+    const parents = location.ancestorOrigins
+      ? Array.from(location.ancestorOrigins).join(",")
+      : "(origins hidden)";
+
+    return `IFRAME inside ${parents}`;
+  } catch {
+    /* Throwing on window.top is itself evidence: a cross-origin
+       parent blocks the access. */
+    return "IFRAME (cross-origin parent)";
+  }
+}
+
+export function reportToWorker(line) {
   if (!window.gacCompositorMode) return;
 
   try {
@@ -161,7 +192,7 @@ function reportToWorker(line) {
 
     fetch(`/api/overlay-log?key=${encodeURIComponent(key)}`, {
       method: "POST",
-      body: line
+      body: `${line} | ctx=${frameContext()}`
     }).catch(() => {});
   } catch {}
 }
