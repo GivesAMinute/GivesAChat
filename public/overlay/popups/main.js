@@ -1,33 +1,34 @@
 // public/overlay/popups/main.js
 
 /* ---------------------------------------------------------
-   EVERY IMPORT CARRIES ?v=9.
+   DO NOT put ?v= on these imports.
 
-   Only this file's <script src> is version-busted by
-   index.html. Its imports are plain paths, so a browser is free
-   to pair a brand-new main.js with a cached copy of any module
-   it imports.
+   It was tried, to defeat a stale cached module, and it broke
+   audio completely on every URL.
 
-   That is not theoretical — it is what broke GoLightStream:
-   transparency worked because the cached module already did
-   that, while the compositor flag it was meant to set did not
-   exist in that copy. Audio stayed dead and no diagnostic
-   arrived, with the deployed code looking perfectly correct.
+   A module's identity is its URL. Importing the same file as
+   "./modules/rewardSounds.js?v=27" here and as
+   "./rewardSounds.js" from rewardRenderer.js loads it TWICE —
+   two separate instances, each with its own state. So
+   fetchRewardSounds() filled the sound map in one copy while
+   playRewardSound() read an empty map in the other, and
+   unlockAudioOnly() set audioUnlocked in one instance while
+   rewardSounds.js checked it in another.
 
-   Worse, a cached module MISSING an export named here fails the
-   whole graph and the overlay renders nothing.
-
-   So bump this number with the one in index.html, together.
+   Cache freshness is handled properly by public/_headers,
+   which sets no-cache, must-revalidate on /overlay/*. If a
+   stale module is ever suspected again, fix it there — never
+   by making one importer's URL differ from another's.
 --------------------------------------------------------- */
 
-import _sharedPopups from "/overlay/shared/_sharedPopups.js?v=10";
-import { scaleOverlay } from "/overlay/chat/modules/scale.js?v=10";
+import _sharedPopups from "/overlay/shared/_sharedPopups.js";
+import { scaleOverlay } from "/overlay/chat/modules/scale.js";
 
 // ⭐ Unified initializer (DO WebSocket + Velora Events API)
-import { setupPopupSocket } from "/overlay/popups/modules/websocketPopups.js?v=10";
+import { setupPopupSocket } from "/overlay/popups/modules/websocketPopups.js";
 
 // ⭐ ?opacity=none — see overlayTransparency.js
-import { applyTransparency } from "/overlay/shared/overlayTransparency.js?v=10";
+import { applyTransparency } from "/overlay/shared/overlayTransparency.js";
 
 
 document.addEventListener("DOMContentLoaded", () => {

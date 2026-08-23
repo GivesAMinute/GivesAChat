@@ -1,49 +1,50 @@
 // public/overlay/chat/main.js
 
 /* ---------------------------------------------------------
-   EVERY IMPORT CARRIES ?v=27.
+   DO NOT put ?v= on these imports.
 
-   Only this file's <script src> is version-busted by
-   index.html. Its imports are plain paths, so a browser is free
-   to pair a brand-new main.js with a cached copy of any module
-   it imports.
+   It was tried, to defeat a stale cached module, and it broke
+   audio completely on every URL.
 
-   That is not theoretical — it is what broke GoLightStream:
-   transparency worked because the cached module already did
-   that, while the compositor flag it was meant to set did not
-   exist in that copy. Audio stayed dead and no diagnostic
-   arrived, with the deployed code looking perfectly correct.
+   A module's identity is its URL. Importing the same file as
+   "./modules/rewardSounds.js?v=27" here and as
+   "./rewardSounds.js" from rewardRenderer.js loads it TWICE —
+   two separate instances, each with its own state. So
+   fetchRewardSounds() filled the sound map in one copy while
+   playRewardSound() read an empty map in the other, and
+   unlockAudioOnly() set audioUnlocked in one instance while
+   rewardSounds.js checked it in another.
 
-   Worse, a cached module MISSING an export named here fails the
-   whole graph and the overlay renders nothing.
-
-   So bump this number with the one in index.html, together.
+   Cache freshness is handled properly by public/_headers,
+   which sets no-cache, must-revalidate on /overlay/*. If a
+   stale module is ever suspected again, fix it there — never
+   by making one importer's URL differ from another's.
 --------------------------------------------------------- */
 
-import { scaleOverlay } from "./modules/scale.js?v=27";
-import { isIOSDevice, createAudioUnlockButtons, unlockAudioOnly } from "./modules/audio.js?v=27";
-import { showVoiceSelector } from "./modules/tts.js?v=27";
-import { fetchRewardSounds } from "./modules/rewardSounds.js?v=27";
-import { setupSocket } from "./modules/websocket.js?v=27";
+import { scaleOverlay } from "./modules/scale.js";
+import { isIOSDevice, createAudioUnlockButtons, unlockAudioOnly } from "./modules/audio.js";
+import { showVoiceSelector } from "./modules/tts.js";
+import { fetchRewardSounds } from "./modules/rewardSounds.js";
+import { setupSocket } from "./modules/websocket.js";
 
 // ⭐ Blaze chat (own Socket.IO connection — see modules/blaze.js)
-import { setupBlazeChat } from "./modules/blaze.js?v=27";
+import { setupBlazeChat } from "./modules/blaze.js";
 
 // ⭐ Load date into header (OBS-only)
-import { loadCurrentDate } from "./modules/currentDate.js?v=27";
+import { loadCurrentDate } from "./modules/currentDate.js";
 
 // ⭐ Viewer count + header initializer
-import { setupHeader } from "./modules/header.js?v=27";
+import { setupHeader } from "./modules/header.js";
 
 // ⭐ Header on/off via ?header=no
-import { showHeader } from "./modules/chatMode.js?v=27";
+import { showHeader } from "./modules/chatMode.js";
 
 // ⭐ ?opacity=none — transparency for compositors that, unlike
 //    OBS, do not inject a transparent background themselves.
-import { applyTransparency } from "/overlay/shared/overlayTransparency.js?v=27";
+import { applyTransparency } from "/overlay/shared/overlayTransparency.js";
 
 // ⭐ Scroll-back in the browser / iPad (never OBS)
-import { initChatScroll } from "./modules/chatScroll.js?v=27";
+import { initChatScroll } from "./modules/chatScroll.js";
 
 async function initOverlay() {
   /* ---------------------------------------------------------
@@ -56,25 +57,13 @@ async function initOverlay() {
   /* ---------------------------------------------------------
      ⭐ Transparency, and the compositor flag it implies.
 
-     THE FLAG IS SET HERE, NOT IN THE MODULE, because only this
-     file's URL carries a version:
-
-       <script src="main.js?v=27">      busts the cache
-       import "./modules/foo.js"        does NOT
-
-     So a browser can run a brand-new main.js against a cached
-     copy of an imported module. That is exactly what happened in
-     GoLightStream: transparency worked (the old module already
-     did that) while the flag it was supposed to set did not
-     exist yet, so audio stayed broken and no beacon arrived.
-
-     applyTransparency() has always returned true when it
-     applies, so reading its result works against either copy.
+     The flag is set here rather than inside the module so that
+     an older cached copy of overlayTransparency.js still works —
+     it has always returned true when it applies.
   --------------------------------------------------------- */
   if (applyTransparency() === true) {
     window.gacCompositorMode = true;
   }
-
 
   /* ---------------------------------------------------------
      ⭐ Scroll-back. Set up before any message can arrive, so
