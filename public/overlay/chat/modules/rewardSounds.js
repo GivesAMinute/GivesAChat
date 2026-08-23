@@ -161,15 +161,31 @@ function playRewardSoundImmediateOBS(rewardId) {
    ⭐ BROWSER MODE: queue if TTS is speaking or pending
 --------------------------------------------------------- */
 function playRewardSound(rewardId) {
-  // TEMPORARY DIAGNOSTIC — remove with the others below.
-  console.log(
-    `[RewardSounds] redemption ${JSON.stringify(rewardId)} |`,
-    `unlocked=${audioUnlocked} obs=${!!window.obsBrowserSource}`,
-    `loaded=${rewardSounds.size} pool=${window.rewardAudioPool?.length ?? 0}`
-  );
+  /* ---------------------------------------------------------
+     ⭐ Compositors take the OBS path.
 
-  if (!audioUnlocked && !window.obsBrowserSource) {
-    console.warn("[RewardSounds] BAILED: not unlocked and not OBS");
+     window.gacCompositorMode is set ONLY by ?opacity=none — the
+     URL used in GoLightStream and nowhere else. Without that
+     flag this reduces to exactly the old `window.obsBrowserSource`
+     check, so OBS, the iPad and the public pop-out are bit-for-bit
+     unaffected.
+
+     WHY IT IS NEEDED. The browser path below plays through a pool
+     of six Audio elements that is only built in the OBS branch or
+     on an iOS unlock tap. GoLightStream is neither, so the pool
+     stayed empty and every sound was dropped before an Audio was
+     even constructed.
+
+     The popups overlay has no such gate — it does
+     `new Audio(url).play()` per sound — and its audio works in
+     GoLightStream. playRewardSoundImmediateOBS() is that same
+     two-line approach, so this routes a compositor to the one
+     mechanism with evidence behind it.
+  --------------------------------------------------------- */
+  const compositor = !!window.obsBrowserSource || !!window.gacCompositorMode;
+
+  if (!audioUnlocked && !compositor) {
+    console.warn("[RewardSounds] BAILED: not unlocked and not a compositor");
     return;
   }
 
@@ -182,9 +198,9 @@ function playRewardSound(rewardId) {
   }
 
   /* ---------------------------------------------------------
-     ⭐ OBS MODE — always play immediately, always overlap
+     ⭐ OBS / COMPOSITOR MODE — play immediately, always overlap
   --------------------------------------------------------- */
-  if (window.obsBrowserSource) {
+  if (compositor) {
     playRewardSoundImmediateOBS(rewardId);
     return;
   }
