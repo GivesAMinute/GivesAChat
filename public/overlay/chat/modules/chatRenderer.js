@@ -291,36 +291,38 @@ function handleChat(payload, container) {
 /* ---------------------------------------------------------
    ⭐ Who the alert is about.
 
-   Velora does not put the name in one predictable place. The
-   raid that exposed this had it in NEITHER displayName NOR
-   username — but templateData carried the viewer count, so
-   templateData is where the alert's substitution variables live
-   and the name is very likely in there too.
+   Confirmed against a real channel.stream_alert payload — the
+   name is carried in FOUR places at once:
 
-   The order matters: the top-level fields are checked first
-   because those are what Velora documents, and templateData is
-   the fallback rather than the other way round.
+     displayName                "GivesAMinute"
+     username                   "GivesAMinute"
+     templateData.displayName   "GivesAMinute"
+     templateData.username      "GivesAMinute"
 
-   Returns a readable label, never null and never the string
-   "undefined". "Someone" is deliberately vague but true — better
-   on stream than a variable name.
+   Top level is checked first because that is what Velora
+   documents, with templateData behind it. That ordering matters:
+   the raid that caused this had nothing at the top level while
+   templateData.viewers still held the count, so templateData
+   survives on payloads where the top level does not.
+
+   Returns null when nothing is found, so the caller can decide
+   how to degrade. It must never return undefined or the string
+   "undefined" — a template literal stringifies both, which is
+   how "undefined raided with 8 viewers!" reached the stream.
 --------------------------------------------------------- */
 function pickAlertName(data = {}) {
   const t = data.templateData || {};
 
   const candidates = [
     data.displayName, data.username,
-    data.user?.displayName, data.user?.username,
-    data.from?.displayName, data.from?.username,
-    data.raider?.displayName, data.raider?.username,
-    t.displayName, t.username, t.user, t.name, t.User
+    t.displayName, t.username
   ];
 
   for (const c of candidates) {
     if (typeof c === "string" && c.trim()) return c.trim();
   }
 
-  return "Someone";
+  return null;
 }
 
 /* ---------------------------------------------------------
@@ -349,9 +351,36 @@ function renderVeloraSystemMessage(event, data, container) {
      A missing name should degrade to something a viewer can read,
      not print the reason it is missing.
   --------------------------------------------------------- */
-  const who = pickAlertName(data);
+  const named = pickAlertName(data);
 
-  if (data.alertType === "follow") {
+  /* ---------------------------------------------------------
+     ⭐ When we cannot name them, use Velora's own sentence.
+
+     The payload carries a fully rendered summary at the top
+     level — on the raid test it reads exactly
+
+       "GivesAMinute raided with 42 viewers!"
+
+     which is the sentence this function spends its time
+     rebuilding. So if the name is missing, Velora's version is
+     strictly better than anything assembled around a placeholder,
+     and it is what their own alert shows.
+
+     Note this is the TOP-LEVEL message, not templateData.message
+     — that one held "This is a test alert!", a different field
+     with a confusingly similar name.
+  --------------------------------------------------------- */
+  const veloraSentence =
+    typeof data.message === "string" && data.message.trim()
+      ? data.message.trim()
+      : null;
+
+  const who = named || "Someone";
+
+  if (!named && veloraSentence) {
+    text = veloraSentence;
+  }
+  else if (data.alertType === "follow") {
     text = `${who} just followed!`;
   }
   else if (data.alertType === "subscribe") {

@@ -219,12 +219,36 @@ function relayAlertToChat(alertType, name, payload) {
     if (now - at > ALERT_DEDUPE_MS) recentChatAlerts.delete(k);
   }
 
-  const key = name
-    ? `${alertType || "unknown"}|${name.toLowerCase()}`
-    : String(alertType || "unknown");
+  const type = String(alertType || "unknown");
+  const key = `${type}|${name ? name.toLowerCase() : ""}`;
+  const anonKey = `${type}|`;
 
-  if (recentChatAlerts.has(key)) {
-    console.log(`[VELORA] duplicate ${key} suppressed in the chat relay`);
+  /* ---------------------------------------------------------
+     The two messages for one raid do NOT agree on the name —
+     that is the whole problem. The stream_alert resolves to
+     "itsMsDG" and the cardAdded resolves to nothing, so keying
+     on type+name alone gives them different keys and lets both
+     through. The first version of this did exactly that, and a
+     test against the real payload caught it.
+
+     So a nameless alert matches ANY recent alert of its type,
+     and a named one matches an earlier nameless alert of its
+     type. Two genuine follows still both render, because both
+     carry names and neither is anonymous.
+
+     This assumes the richer message arrives first, which is what
+     was observed: the stream_alert came in ahead of the
+     cardAdded. If they ever swap, the nameless one wins and the
+     alert reads as Velora's own sentence — worse, but still one
+     card rather than two.
+  --------------------------------------------------------- */
+  const seen =
+    recentChatAlerts.has(key) ||
+    recentChatAlerts.has(anonKey) ||
+    (!name && [...recentChatAlerts.keys()].some((k) => k.startsWith(anonKey)));
+
+  if (seen) {
+    console.log(`[VELORA] duplicate ${type} alert suppressed in the chat relay`);
     return;
   }
 
@@ -232,21 +256,22 @@ function relayAlertToChat(alertType, name, payload) {
   sendToChatOverlay(payload);
 }
 
-/* Velora does not put the name in one predictable place — the raid
-   above had it in neither displayName nor username. templateData
-   carried the viewer count, so the substitution variables live
-   there and the name plausibly does too. Returns null rather than
-   a placeholder, so the dedupe key can tell "no name" apart from a
-   viewer actually called Someone. */
+/* Confirmed against a real channel.stream_alert payload: the name
+   is present in all four of displayName, username,
+   templateData.displayName and templateData.username.
+
+   Top level first, templateData behind it — that order matters,
+   because the raid that caused this had nothing at the top level
+   while templateData.viewers still held the count.
+
+   Returns null rather than a placeholder so the dedupe key can
+   tell "no name" apart from a viewer actually called Someone. */
 function resolveAlertName(src = {}) {
   const t = src.templateData || {};
 
   const candidates = [
     src.displayName, src.username,
-    src.user?.displayName, src.user?.username,
-    src.from?.displayName, src.from?.username,
-    src.raider?.displayName, src.raider?.username,
-    t.displayName, t.username, t.user, t.name, t.User
+    t.displayName, t.username
   ];
 
   for (const c of candidates) {
