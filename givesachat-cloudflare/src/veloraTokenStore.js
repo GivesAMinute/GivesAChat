@@ -56,6 +56,35 @@ export class VeloraTokenStore {
          complete the flow with their own account and take over
          the token store.
       ----------------------------------------------------- */
+      /* -----------------------------------------------------
+         Reward snapshot — every name and description exactly as
+         they were before a bulk rename.
+
+         Written BEFORE the first PATCH, never after. A rename
+         that fails halfway is the case this exists for, and a
+         snapshot taken at the end would record the damage rather
+         than the way back.
+      ----------------------------------------------------- */
+      if (url.pathname.endsWith("/rewards/snapshot/put")) {
+        const body = await request.json();
+        await this.storage.put("reward-snapshot", {
+          savedAt: Date.now(),
+          rewards: body?.rewards || []
+        });
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      if (url.pathname.endsWith("/rewards/snapshot/get")) {
+        const snap = await this.storage.get("reward-snapshot");
+        return new Response(JSON.stringify(snap || null), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
       if (url.pathname.endsWith("/state/put")) {
         const { state } = await request.json();
         await this.storage.put("oauth_state", {
@@ -140,4 +169,36 @@ export async function saveVeloraTokens(env, json) {
     method: "POST",
     body: JSON.stringify(json)
   });
+}
+
+/* ---------------------------------------------------------
+   Reward snapshot helpers.
+
+   The rollback for a bulk rename. Stored server-side rather than
+   handed back for someone to keep safe, because the moment it is
+   needed is mid-stream after a rename went wrong — which is
+   exactly when nobody wants to be hunting for a file.
+--------------------------------------------------------- */
+export async function saveRewardSnapshot(env, rewards) {
+  const id = env.VeloraTokenStore.idFromName("velora-tokens");
+  const stub = env.VeloraTokenStore.get(id);
+
+  const res = await stub.fetch("https://do/rewards/snapshot/put", {
+    method: "POST",
+    body: JSON.stringify({ rewards })
+  });
+
+  return res.ok;
+}
+
+export async function getRewardSnapshot(env) {
+  const id = env.VeloraTokenStore.idFromName("velora-tokens");
+  const stub = env.VeloraTokenStore.get(id);
+
+  try {
+    const res = await stub.fetch("https://do/rewards/snapshot/get");
+    return await res.json();
+  } catch {
+    return null;
+  }
 }

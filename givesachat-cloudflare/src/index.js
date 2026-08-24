@@ -23,10 +23,13 @@ import {
   getVeloraAccessToken
 } from "./veloraAuth.js";
 import { transformVeloraEvent } from "./veloraTransform.js";
+import { buildRewardPlan, DEFAULT_MAX } from "./rewardPlan.js";
 import {
   VeloraTokenStore,
   putOAuthState,
-  takeOAuthState
+  takeOAuthState,
+  saveRewardSnapshot,
+  getRewardSnapshot
 } from "./veloraTokenStore.js";
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 import { subscribeBlazeSession } from "./blazeAuth.js";
@@ -870,308 +873,182 @@ export default {
     }
 
     /* ---------------------------------------------------------
-       ⭐ RENAME PLAN — READ ONLY. STILL WRITES NOTHING.
+       ⭐ REWARD RENAMING — plan, apply, roll back.
 
-       Two entirely different kinds of change, deliberately kept
-       apart because they carry different risk.
-
-       DEPUNCTUATE is mechanical and lossless. "Hello There!" ->
-       "Hello There". It also settles a question we never got an
-       answer to: Cory said spaces are stripped but not whether
-       punctuation is, so ^HelloThere! and ^HelloThere might both
-       be right. A name with no punctuation resolves identically
-       under either rule, so the ambiguity stops mattering rather
-       than being guessed at.
-
-       SHORTEN is a judgement call and needs reviewing one by one.
-       "What A Beautiful Group Of People" -> "Beautiful" reads
-       obviously right; plenty of others will not.
-
-       Names already short and clean are LEFT ALONE. Renaming all
-       163 would churn names viewers already know for no gain, so
-       only the ones that actually cost typing time are touched.
+       Naming logic lives in rewardPlan.js and is shared by all
+       three, so the preview and the write cannot disagree.
     --------------------------------------------------------- */
-    if (url.pathname === "/api/velora/rewards/plan" && request.method === "GET") {
+    if (url.pathname.startsWith("/api/velora/rewards")) {
       const auth = checkKey(request, url, env.OVERLAY_KEY);
       if (!auth.ok) return unauthorized();
 
       const token = await getVeloraAccessToken(env);
       if (!token) return new Response("no velora token", { status: 200 });
 
-      const MAX = Number(url.searchParams.get("max") || 14);
+      const REWARDS_URL =
+        "https://api.velora.tv/api/integrations/oauth/channel-points/rewards";
+      const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
 
-      /* ---------------------------------------------------------
-         ⭐ HAND-PICKED NAMES.
-
-         The scorer optimises for distinctiveness and length. It has
-         no idea what a viewer would actually reach for, and these
-         are the ones where that showed:
-
-           Purrrrrrrrrrrfect  nobody can count the r's
-           Precipipitation    15 chars; the joke lives in the
-                              description either way
-           I Wrote That Script -> Tribbles, because that is what it
-                              actually is, and it stops the two
-                              Script rewards fighting
-           The Dark Heart of EV's -> ^heart would read as Richard
-                              Heart, who is also on this channel
-           I Don't Know What's Gonna Work -> "Whats" means nothing
-           the three anthems  were inconsistent with each other:
-                              ^usa, ^canational, ^aunational
-
-         Keyed on the exact current name. Anything listed here
-         bypasses the scorer entirely and claims its trigger first.
-      --------------------------------------------------------- */
-      const OVERRIDES = new Map(Object.entries({
-        "Purrrrrrrrrrrfect": "Purrfect",
-        "Precipipitation": "Precip",
-        "I'm Not Like Some Madman": "Madman",
-        "I'm Not Like Some Madman (Full)": "Madman Full",
-        "Grab Your Baby": "Baby",
-        "Grab Your Baby (Full)": "Baby Full",
-        "I Wrote That Script": "Tribbles",
-        "USA National Anthem": "USA Anthem",
-        "CA National Anthem": "CA Anthem",
-        "AU National Anthem": "AU Anthem",
-        "I Don't Know What's Gonna Work": "Gonna Work",
-        "The Dark Heart of EV's": "Dark Heart",
-        "I Did Not Hit Her (Full)": "Did Not Hit"
-      }));
-
-      const res = await fetch(
-        "https://api.velora.tv/api/integrations/oauth/channel-points/rewards",
-        { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
-      );
-      if (!res.ok) {
-        return new Response(`rewards -> ${res.status}`, { status: 200 });
-      }
-
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : data?.rewards || data?.items || [];
-
-      const clean = (n) => String(n || "").replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
-      const trig = (n) => clean(n).replace(/ /g, "");
-
-      /* Words that carry no identity. A name made only of these
-         falls through to the scorer anyway — the penalty is a
-         score adjustment, not a filter, so nothing can end up
-         with no candidates at all. */
-      const STOP = new Set(("a an the of is it its to and i you we they he she that this my me be in on for with was " +
-        "are all at but do so not no yes very just really gonna wanna some out up im dont thats what when why how who " +
-        "if as by from or am been being have has had will would could should can cant there here then than too also " +
-        "about into over under again more most much many get got go going gone like one us him her them their our your " +
-        "his ok okay know now say said see").split(" "));
-
-      // How many OTHER names use each word — a word shared with
-      // five other rewards is a poor handle for any of them.
-      const df = new Map();
-      for (const r of list) {
-        for (const w of new Set(clean(r?.name).toLowerCase().split(" ").filter(Boolean))) {
-          df.set(w, (df.get(w) || 0) + 1);
-        }
-      }
-
-      const speakerOf = (d) => {
-        const m = String(d || "").match(/Plays\s+(?:the\s+)?([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)?)/);
-        return m ? m[1].replace(/\s+/g, "") : "";
+      const fetchRewards = async () => {
+        const res = await fetch(REWARDS_URL, { headers });
+        if (!res.ok) throw new Error(`rewards -> ${res.status}`);
+        const data = await res.json();
+        return Array.isArray(data) ? data : data?.rewards || data?.items || [];
       };
 
-      const rows = list.map((r) => {
-        const name = String(r?.name || "");
-        const cleaned = clean(name);
-        const desc = String(r?.description || "");
+      /* ⭐ PLAN — writes nothing. */
+      if (url.pathname === "/api/velora/rewards/plan" && request.method === "GET") {
+        const max = Number(url.searchParams.get("max") || DEFAULT_MAX);
+        let list;
+        try { list = await fetchRewards(); }
+        catch (err) { return new Response(String(err.message), { status: 200 }); }
 
-        /* ---------------------------------------------------------
-           Does the description still carry the original phrase?
+        const { rows, clashes } = buildRewardPlan(list, { max });
+        const pick = (a) => rows.filter((r) => r.action === a);
 
-           Shortening "What A Beautiful Group Of People" to
-           "Beautiful" is only free because the description already
-           reads: Plays Trump saying "What A Beautiful Group Of
-           People". The phrase survives, just somewhere else.
+        const line = (r) =>
+          `  ${r.name}\n      -> ${r.finalName}   ^${r.finalTrigger}  (${r.finalTrigger.length})` +
+          (r.finalDescription ? "   << phrase appended to description" : "");
 
-           Where it does NOT — "It's Going, It's Hovering... It's
-           Gone!" is described only as "the Aussie backyard rocket
-           launch fail" — shortening genuinely destroys the wording,
-           and nothing on the channel would record it again.
-
-           Compared with punctuation and case removed from both
-           sides, so quoting style cannot produce a false miss.
-        --------------------------------------------------------- */
-        const flat = (x) => clean(x).toLowerCase();
-
-        return {
-          id: r?.id, name, cleaned, desc,
-          speaker: speakerOf(desc),
-          len: trig(name).length,
-          punct: cleaned !== name.replace(/\s+/g, " ").trim(),
-          phraseSafe: flat(desc).includes(flat(name))
-        };
-      });
-
-      /* Reserved BEFORE any proposal is made, so a generated name
-         can never be handed something already spoken for.
-
-         Overrides go first — they are deliberate choices and must
-         win any contest with the scorer. Names staying as they are
-         come next, since they already own their trigger. Only then
-         does anything get generated. */
-      const taken = new Set();
-
-      for (const r of rows) {
-        const o = OVERRIDES.get(r.name);
-        if (o) {
-          r.proposed = o;
-          r.manual = true;
-          taken.add(trig(o).toLowerCase());
-        }
-      }
-
-      for (const r of rows) {
-        if (!r.manual && r.len <= MAX) taken.add(trig(r.cleaned).toLowerCase());
-      }
-
-      const claim = (cand) => {
-        const t = cand.replace(/\s+/g, "").toLowerCase();
-        if (!t || t.length < 3 || taken.has(t)) return null;
-        taken.add(t);
-        return cand;
-      };
-
-      /* ---------------------------------------------------------
-         BASE NAMES BEFORE THEIR VARIANTS.
-
-         Sorting purely by length put this exactly backwards. A
-         "(Full)" suffix makes a name LONGER, so the variant sorted
-         first and claimed the plain word:
-
-           "...Madman (Full)"    took ^madman
-           "I'm Not Like Some Madman"  was left with ^madmansome
-           "Grab Your Baby (Full)"     took ^baby
-
-         The base recording is the one people mean, so it should
-         own the plain word and the variant should carry the
-         suffix. A reward counts as a variant when stripping a
-         trailing "full" leaves the name of another reward that
-         really exists — inferred from the list rather than from
-         guessing at the punctuation someone used.
-
-         Within each group it is still worst-first, so the longest
-         names get the best remaining word.
-      --------------------------------------------------------- */
-      const allTriggers = new Set(rows.map((r) => trig(r.cleaned).toLowerCase()));
-
-      const isVariant = (r) => {
-        const t = trig(r.cleaned).toLowerCase();
-        const base = t.replace(/full$/, "");
-        return base !== t && allTriggers.has(base);
-      };
-
-      const toShorten = rows
-        .filter((r) => !r.manual && r.len > MAX)
-        .sort((a, b) => (isVariant(a) - isVariant(b)) || b.len - a.len);
-
-      for (const r of toShorten) {
-        const words = r.cleaned.split(" ").filter(Boolean);
-        const scored = words
-          .map((w) => {
-            let s = Math.min(w.length, 12);
-            if (STOP.has(w.toLowerCase())) s -= 20;
-            s -= ((df.get(w.toLowerCase()) || 1) - 1) * 3;
-            if (/^\d+$/.test(w)) s -= 6;
-            return { w, s };
-          })
-          .sort((a, b) => b.s - a.s);
-
-        r.proposed =
-          claim(scored[0]?.w || "") ||
-          claim([scored[0]?.w, scored[1]?.w].filter(Boolean).join("")) ||
-          claim((scored[0]?.w || "") + r.speaker) ||
-          claim([scored[0]?.w, scored[1]?.w, scored[2]?.w].filter(Boolean).join("")) ||
-          claim(words.slice(0, 3).join("")) ||
-          null;
-      }
-
-      const manual = rows.filter((r) => r.manual);
-      const depunct = rows.filter((r) => !r.manual && r.len <= MAX && r.punct);
-      const shortened = toShorten.filter((r) => r.proposed);
-      const failed = toShorten.filter((r) => !r.proposed);
-      const untouched = rows.filter((r) => !r.manual && r.len <= MAX && !r.punct);
-
-      const line = (r, to) => {
-        /* Lowercased in the preview because that is how it will be
-           typed. The stored NAME keeps its capitals — Velora
-           matches case-insensitively, so the list stays readable
-           while viewers type in lower case. */
-        const cmd = trig(to).toLowerCase();
-        const warn = r.phraseSafe === false ? "   << phrase NOT in description" : "";
-        return `  ${r.name}\n      -> ${to}   ^${cmd}  (${cmd.length})${warn}`;
-      };
-
-      /* ---------------------------------------------------------
-         ⭐ THE CHECK THAT ACTUALLY MATTERS.
-
-         Four buckets each decide a final name by different rules —
-         overrides, depunctuation, the scorer, and leaving things
-         alone. Each avoids collisions within itself. Nothing so far
-         proves they agree with EACH OTHER.
-
-         Two rewards sharing a trigger is the one failure that
-         cannot be seen by reading the output: both look perfectly
-         reasonable on their own line, and the damage only shows up
-         on stream when a viewer types the word and the wrong sound
-         plays. Velora matches case-insensitively, so the comparison
-         is lower-cased.
-
-         Computed across every final name at once, after all four
-         have had their say.
-      --------------------------------------------------------- */
-      const finalName = (r) =>
-        r.proposed || (r.len <= MAX ? r.cleaned : r.name);
-
-      const byTrigger = new Map();
-      for (const r of rows) {
-        const t = trig(finalName(r)).toLowerCase();
-        if (!byTrigger.has(t)) byTrigger.set(t, []);
-        byTrigger.get(t).push(finalName(r));
-      }
-      const clashes = [...byTrigger.entries()].filter(([, v]) => v.length > 1);
-
-      return new Response(
-        [
+        return new Response([
           `REWARD RENAME PLAN — nothing has been written.`,
           clashes.length
             ? `\n!! ${clashes.length} DUPLICATE TRIGGER(S) — DO NOT APPLY:\n` +
-              clashes.map(([t, v]) => `   ^${t}  <- ${v.join("  |  ")}`).join("\n") + `\n`
+              clashes.map((c) => `   ^${c.trigger}  <- ${c.names.join("  |  ")}`).join("\n")
             : `All ${rows.length} final triggers are unique.`,
-          `${rows.length} rewards, threshold ${MAX} characters.`,
+          `${rows.length} rewards, threshold ${max} characters.`,
           ``,
-          `Commands are shown lower case because matching is`,
-          `case-insensitive — a reward named "Beautiful" answers to`,
-          `^beautiful. Stored names keep their capitals so the`,
-          `rewards list stays readable.`,
+          `M. HAND-PICKED (${pick("manual").length})`,
+          ...pick("manual").map(line),
           ``,
-          `Lines marked "phrase NOT in description" are the only`,
-          `ones where shortening actually loses the wording. Every`,
-          `other description already repeats the full phrase, so the`,
-          `words survive the rename. ${rows.filter((r) => r.len > MAX && !r.phraseSafe).length} to look at.`,
+          `A. DEPUNCTUATE ONLY (${pick("depunctuate").length}) — lossless`,
+          ...pick("depunctuate").map(line),
           ``,
-          `M. HAND-PICKED (${manual.length}) — chosen by name, not by the scorer`,
-          ...manual.map((r) => line(r, r.proposed)),
+          `B. SHORTENED (${pick("shorten").length}) — review individually`,
+          ...pick("shorten").map(line),
           ``,
-          `A. DEPUNCTUATE ONLY (${depunct.length}) — lossless, safe to accept wholesale`,
-          ...depunct.map((r) => line(r, r.cleaned)),
+          `D. UNCHANGED (${pick("none").length})`,
+          ...pick("none").map((r) => `  ${r.name}  ^${r.finalTrigger}`),
           ``,
-          `B. SHORTENED (${shortened.length}) — review these individually`,
-          ...shortened.map((r) => line(r, r.proposed)),
+          `${rows.filter((r) => r.changed).length} rewards would change.`,
+          `To apply:  POST /api/velora/rewards/apply?key=...&confirm=RENAME`
+        ].join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+      }
+
+      /* ---------------------------------------------------------
+         ⭐ APPLY — the first thing here that touches the channel.
+
+         POST, and a literal confirm=RENAME, so it cannot be fired
+         by pasting a URL into a browser the way every read-only
+         route in this file can.
+
+         Order is the whole safety story:
+           1. read every reward
+           2. refuse outright on any duplicate trigger
+           3. SNAPSHOT names and descriptions
+           4. only then patch
+
+         Sequential rather than parallel. 163 writes fired at once
+         invite a 429 partway through, and a partial rename with an
+         unknown boundary is far worse than a slow one. Each failure
+         is recorded and the run continues, so one bad reward cannot
+         strand the other 162.
+      --------------------------------------------------------- */
+      if (url.pathname === "/api/velora/rewards/apply" && request.method === "POST") {
+        if (url.searchParams.get("confirm") !== "RENAME") {
+          return new Response("refused: add &confirm=RENAME", { status: 400 });
+        }
+
+        const max = Number(url.searchParams.get("max") || DEFAULT_MAX);
+        let list;
+        try { list = await fetchRewards(); }
+        catch (err) { return new Response(String(err.message), { status: 200 }); }
+
+        const { rows, clashes } = buildRewardPlan(list, { max });
+
+        if (clashes.length) {
+          return new Response(
+            `refused: ${clashes.length} duplicate trigger(s)\n` +
+            clashes.map((c) => `  ^${c.trigger} <- ${c.names.join(" | ")}`).join("\n"),
+            { status: 409 }
+          );
+        }
+
+        const saved = await saveRewardSnapshot(
+          env,
+          list.map((r) => ({ id: r.id, name: r.name, description: r.description || "" }))
+        );
+        if (!saved) {
+          return new Response("refused: could not save rollback snapshot", { status: 500 });
+        }
+
+        const changed = rows.filter((r) => r.changed && r.id);
+        const done = [];
+        const failed = [];
+
+        for (const r of changed) {
+          const body = { name: r.finalName };
+          if (r.finalDescription) body.description = r.finalDescription;
+
+          try {
+            const res = await fetch(`${REWARDS_URL}/${r.id}`, {
+              method: "PATCH",
+              headers: { ...headers, "Content-Type": "application/json" },
+              body: JSON.stringify(body)
+            });
+            res.ok
+              ? done.push(`${r.name} -> ${r.finalName}`)
+              : failed.push(`${r.name}: HTTP ${res.status}`);
+          } catch (err) {
+            failed.push(`${r.name}: ${err?.message || err}`);
+          }
+        }
+
+        return new Response([
+          `Renamed ${done.length} of ${changed.length}.`,
+          failed.length ? `FAILED ${failed.length}:` : `No failures.`,
+          ...failed.map((f) => `  ${f}`),
           ``,
-          failed.length ? `C. NO SAFE PROPOSAL (${failed.length}) — name these by hand` : `C. none`,
-          ...failed.map((r) => `  ${r.name}  (^${trig(r.name)})`),
+          `Rollback snapshot saved for all ${list.length}.`,
+          `To undo:  POST /api/velora/rewards/rollback?key=...&confirm=ROLLBACK`,
           ``,
-          `D. UNCHANGED (${untouched.length}) — already short and clean`,
-          ...untouched.map((r) => `  ${r.name}  ^${trig(r.name)}`)
-        ].join("\n"),
-        { headers: { "Content-Type": "text/plain; charset=utf-8" } }
-      );
+          ...done.map((d) => `  ${d}`)
+        ].join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+      }
+
+      /* ⭐ ROLLBACK — restore names and descriptions verbatim. */
+      if (url.pathname === "/api/velora/rewards/rollback" && request.method === "POST") {
+        if (url.searchParams.get("confirm") !== "ROLLBACK") {
+          return new Response("refused: add &confirm=ROLLBACK", { status: 400 });
+        }
+
+        const snap = await getRewardSnapshot(env);
+        if (!snap?.rewards?.length) {
+          return new Response("no snapshot stored", { status: 404 });
+        }
+
+        const done = [];
+        const failed = [];
+
+        for (const r of snap.rewards) {
+          try {
+            const res = await fetch(`${REWARDS_URL}/${r.id}`, {
+              method: "PATCH",
+              headers: { ...headers, "Content-Type": "application/json" },
+              body: JSON.stringify({ name: r.name, description: r.description })
+            });
+            res.ok ? done.push(r.name) : failed.push(`${r.name}: HTTP ${res.status}`);
+          } catch (err) {
+            failed.push(`${r.name}: ${err?.message || err}`);
+          }
+        }
+
+        return new Response([
+          `Restored ${done.length} of ${snap.rewards.length}`,
+          `from the snapshot taken ${new Date(snap.savedAt).toISOString()}.`,
+          ...failed.map((f) => `  FAILED ${f}`)
+        ].join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+      }
     }
 
     if (url.pathname === "/api/velora/fonts" && request.method === "GET") {
