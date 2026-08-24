@@ -10,12 +10,34 @@ export function generateAuthorizationUrl(env, state = crypto.randomUUID()) {
     client_id: env.VELORA_CLIENT_ID,
     redirect_uri: env.VELORA_REDIRECT_URI,
     response_type: "code",
+    /* ---------------------------------------------------------
+       Checked against GET /api/developer/oauth/scopes. Every name
+       here is in the live registry.
+
+       FETCH THAT ENDPOINT WITH A CACHE BUSTER IF YOU EVER CHECK
+       IT AGAIN. The plain URL is served from a CDN cache that was
+       months stale, and it listed a completely different set —
+       points:read / points:write instead of the channel:points:*
+       family. Reading it produced the confident and entirely
+       wrong conclusion that nine of these scopes did not exist.
+       ?cb=anything returned the real registry.
+
+       channel:points:write added for the reward renaming: the ^
+       trigger IS the reward name with spaces stripped, so short
+       names are the only way to get a short command, and PATCH
+       /channel-points/rewards/:rewardId is what sets them.
+
+       Scopes are stamped into a token when it is issued, so
+       adding one here does nothing until /velora/login is run
+       again. An existing token keeps the grants it was born with.
+    --------------------------------------------------------- */
     scope:
       "user:read user:write " +
       "stream:read stream:write stream:key " +
       "chat:read chat:write chat:moderate " +
       "bot:connect bot:write bot:commands bot:manage " +
       "channel:read channel:points:read channel:points:redeem " +
+      "channel:points:write " +
       "emotes:read followers:read subscriptions:read " +
       "webhooks:manage",
     state
@@ -55,9 +77,73 @@ export async function exchangeAuthCode(code, env) {
 
   const json = await res.json();
 
+  /* ---------------------------------------------------------
+     ⭐ VERIFY WHO JUST AUTHORISED, BEFORE STORING ANYTHING.
+
+     /velora/login is deliberately unauthenticated — it has to be
+     reachable from a browser to start the flow. The state check
+     stops a request being forged on someone else's behalf, but it
+     does NOT stop a stranger walking the flow themselves: hit
+     /velora/login, get issued a state, approve with their own
+     Velora account, and land back here with a valid code.
+
+     The token saved would then be theirs. The store holds one
+     set, so ours would be gone and every Velora feature in the
+     overlay would go quiet with nothing obviously broken.
+
+     The Facebook flow already guards this with FACEBOOK_OWNER_ID.
+     This one had nothing.
+
+     Checked BEFORE saveVeloraTokens, so a wrong account cannot
+     overwrite a working token even briefly.
+  --------------------------------------------------------- */
+  const expected = String(env.VELORA_CHANNEL || "").toLowerCase();
+
+  if (expected) {
+    let who = null;
+
+    try {
+      const meRes = await fetch("https://api.velora.tv/api/users/me", {
+        headers: {
+          Authorization: `Bearer ${json.access_token}`,
+          Accept: "application/json"
+        }
+      });
+
+      if (meRes.ok) {
+        const me = await meRes.json();
+        who = me?.username || me?.user?.username || null;
+      } else {
+        console.error("[VELORA] /users/me returned", meRes.status);
+      }
+    } catch (err) {
+      console.error("[VELORA] owner check failed:", err?.message || err);
+    }
+
+    /* An unreadable identity is a refusal, not a pass. Failing
+       open would defeat the entire check. */
+    if (!who || who.toLowerCase() !== expected) {
+      console.warn(
+        `[VELORA] refusing token for "${who || "unknown"}" — expected "${expected}"`
+      );
+      const err = new Error("Not the channel owner");
+      err.notOwner = true;
+      throw err;
+    }
+  } else {
+    console.warn("[VELORA] VELORA_CHANNEL unset — owner check skipped");
+  }
+
   await saveVeloraTokens(env, json);
 
-  return json.access_token;
+  /* Granted scopes come back on the token response. Returned so
+     the callback can display them — a scope silently dropped is
+     otherwise only discovered later, as a 403 from whichever call
+     needed it. */
+  return {
+    accessToken: json.access_token,
+    scope: json.scope || ""
+  };
 }
 
 /**

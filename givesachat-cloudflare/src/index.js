@@ -519,12 +519,51 @@ export default {
         return new Response("Invalid or expired OAuth state", { status: 400 });
       }
 
-      const accessToken = await exchangeAuthCode(code, env);
-      if (!accessToken) {
+      let result;
+
+      try {
+        result = await exchangeAuthCode(code, env);
+      } catch (err) {
+        /* A stranger completing the flow gets a plain refusal and
+           no detail. The existing token is untouched — the owner
+           check runs before anything is written. */
+        if (err?.notOwner) {
+          return new Response(
+            "This overlay is linked to a different Velora channel. Nothing was changed.",
+            { status: 403, headers: { "Content-Type": "text/plain" } }
+          );
+        }
+        throw err;
+      }
+
+      if (!result?.accessToken) {
         return new Response("Failed to authorize Velora", { status: 500 });
       }
 
-      return new Response("Velora authorized. You can close this window.");
+      /* ---------------------------------------------------------
+         The granted scopes are shown back, because a scope that
+         was requested and quietly not granted is otherwise only
+         discovered much later as a 403 from whichever call needed
+         it. This page is only ever seen by whoever just authorised
+         — and it deliberately prints the scopes, never the token.
+      --------------------------------------------------------- */
+      const granted = String(result.scope || "").split(/\s+/).filter(Boolean);
+      const wanted = ["channel:points:redeem", "channel:points:write"];
+      const missing = wanted.filter((s) => !granted.includes(s));
+
+      return new Response(
+        [
+          "Velora authorized. You can close this window.",
+          "",
+          `Scopes granted (${granted.length}):`,
+          ...granted.map((s) => `  ${s}`),
+          "",
+          missing.length
+            ? `NOT GRANTED: ${missing.join(", ")}`
+            : "Both channel:points scopes are present."
+        ].join("\n"),
+        { headers: { "Content-Type": "text/plain; charset=utf-8" } }
+      );
     }
 
     /* ---------------------------------------------------------
