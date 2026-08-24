@@ -900,6 +900,44 @@ export default {
 
       const MAX = Number(url.searchParams.get("max") || 14);
 
+      /* ---------------------------------------------------------
+         ⭐ HAND-PICKED NAMES.
+
+         The scorer optimises for distinctiveness and length. It has
+         no idea what a viewer would actually reach for, and these
+         are the ones where that showed:
+
+           Purrrrrrrrrrrfect  nobody can count the r's
+           Precipipitation    15 chars; the joke lives in the
+                              description either way
+           I Wrote That Script -> Tribbles, because that is what it
+                              actually is, and it stops the two
+                              Script rewards fighting
+           The Dark Heart of EV's -> ^heart would read as Richard
+                              Heart, who is also on this channel
+           I Don't Know What's Gonna Work -> "Whats" means nothing
+           the three anthems  were inconsistent with each other:
+                              ^usa, ^canational, ^aunational
+
+         Keyed on the exact current name. Anything listed here
+         bypasses the scorer entirely and claims its trigger first.
+      --------------------------------------------------------- */
+      const OVERRIDES = new Map(Object.entries({
+        "Purrrrrrrrrrrfect": "Purrfect",
+        "Precipipitation": "Precip",
+        "I'm Not Like Some Madman": "Madman",
+        "I'm Not Like Some Madman (Full)": "Madman Full",
+        "Grab Your Baby": "Baby",
+        "Grab Your Baby (Full)": "Baby Full",
+        "I Wrote That Script": "Tribbles",
+        "USA National Anthem": "USA Anthem",
+        "CA National Anthem": "CA Anthem",
+        "AU National Anthem": "AU Anthem",
+        "I Don't Know What's Gonna Work": "Gonna Work",
+        "The Dark Heart of EV's": "Dark Heart",
+        "I Did Not Hit Her (Full)": "Did Not Hit"
+      }));
+
       const res = await fetch(
         "https://api.velora.tv/api/integrations/oauth/channel-points/rewards",
         { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
@@ -970,12 +1008,26 @@ export default {
         };
       });
 
-      /* Reserved BEFORE any proposal is made: every name staying
-         as it is owns its trigger, so a shortened name can never
-         be handed something already spoken for. */
+      /* Reserved BEFORE any proposal is made, so a generated name
+         can never be handed something already spoken for.
+
+         Overrides go first — they are deliberate choices and must
+         win any contest with the scorer. Names staying as they are
+         come next, since they already own their trigger. Only then
+         does anything get generated. */
       const taken = new Set();
+
       for (const r of rows) {
-        if (r.len <= MAX) taken.add(trig(r.cleaned).toLowerCase());
+        const o = OVERRIDES.get(r.name);
+        if (o) {
+          r.proposed = o;
+          r.manual = true;
+          taken.add(trig(o).toLowerCase());
+        }
+      }
+
+      for (const r of rows) {
+        if (!r.manual && r.len <= MAX) taken.add(trig(r.cleaned).toLowerCase());
       }
 
       const claim = (cand) => {
@@ -985,8 +1037,38 @@ export default {
         return cand;
       };
 
-      // Worst first, so the longest names get the best word left.
-      const toShorten = rows.filter((r) => r.len > MAX).sort((a, b) => b.len - a.len);
+      /* ---------------------------------------------------------
+         BASE NAMES BEFORE THEIR VARIANTS.
+
+         Sorting purely by length put this exactly backwards. A
+         "(Full)" suffix makes a name LONGER, so the variant sorted
+         first and claimed the plain word:
+
+           "...Madman (Full)"    took ^madman
+           "I'm Not Like Some Madman"  was left with ^madmansome
+           "Grab Your Baby (Full)"     took ^baby
+
+         The base recording is the one people mean, so it should
+         own the plain word and the variant should carry the
+         suffix. A reward counts as a variant when stripping a
+         trailing "full" leaves the name of another reward that
+         really exists — inferred from the list rather than from
+         guessing at the punctuation someone used.
+
+         Within each group it is still worst-first, so the longest
+         names get the best remaining word.
+      --------------------------------------------------------- */
+      const allTriggers = new Set(rows.map((r) => trig(r.cleaned).toLowerCase()));
+
+      const isVariant = (r) => {
+        const t = trig(r.cleaned).toLowerCase();
+        const base = t.replace(/full$/, "");
+        return base !== t && allTriggers.has(base);
+      };
+
+      const toShorten = rows
+        .filter((r) => !r.manual && r.len > MAX)
+        .sort((a, b) => (isVariant(a) - isVariant(b)) || b.len - a.len);
 
       for (const r of toShorten) {
         const words = r.cleaned.split(" ").filter(Boolean);
@@ -1009,10 +1091,11 @@ export default {
           null;
       }
 
-      const depunct = rows.filter((r) => r.len <= MAX && r.punct);
+      const manual = rows.filter((r) => r.manual);
+      const depunct = rows.filter((r) => !r.manual && r.len <= MAX && r.punct);
       const shortened = toShorten.filter((r) => r.proposed);
       const failed = toShorten.filter((r) => !r.proposed);
-      const untouched = rows.filter((r) => r.len <= MAX && !r.punct);
+      const untouched = rows.filter((r) => !r.manual && r.len <= MAX && !r.punct);
 
       const line = (r, to) => {
         /* Lowercased in the preview because that is how it will be
@@ -1024,9 +1107,42 @@ export default {
         return `  ${r.name}\n      -> ${to}   ^${cmd}  (${cmd.length})${warn}`;
       };
 
+      /* ---------------------------------------------------------
+         ⭐ THE CHECK THAT ACTUALLY MATTERS.
+
+         Four buckets each decide a final name by different rules —
+         overrides, depunctuation, the scorer, and leaving things
+         alone. Each avoids collisions within itself. Nothing so far
+         proves they agree with EACH OTHER.
+
+         Two rewards sharing a trigger is the one failure that
+         cannot be seen by reading the output: both look perfectly
+         reasonable on their own line, and the damage only shows up
+         on stream when a viewer types the word and the wrong sound
+         plays. Velora matches case-insensitively, so the comparison
+         is lower-cased.
+
+         Computed across every final name at once, after all four
+         have had their say.
+      --------------------------------------------------------- */
+      const finalName = (r) =>
+        r.proposed || (r.len <= MAX ? r.cleaned : r.name);
+
+      const byTrigger = new Map();
+      for (const r of rows) {
+        const t = trig(finalName(r)).toLowerCase();
+        if (!byTrigger.has(t)) byTrigger.set(t, []);
+        byTrigger.get(t).push(finalName(r));
+      }
+      const clashes = [...byTrigger.entries()].filter(([, v]) => v.length > 1);
+
       return new Response(
         [
           `REWARD RENAME PLAN — nothing has been written.`,
+          clashes.length
+            ? `\n!! ${clashes.length} DUPLICATE TRIGGER(S) — DO NOT APPLY:\n` +
+              clashes.map(([t, v]) => `   ^${t}  <- ${v.join("  |  ")}`).join("\n") + `\n`
+            : `All ${rows.length} final triggers are unique.`,
           `${rows.length} rewards, threshold ${MAX} characters.`,
           ``,
           `Commands are shown lower case because matching is`,
@@ -1038,6 +1154,9 @@ export default {
           `ones where shortening actually loses the wording. Every`,
           `other description already repeats the full phrase, so the`,
           `words survive the rename. ${rows.filter((r) => r.len > MAX && !r.phraseSafe).length} to look at.`,
+          ``,
+          `M. HAND-PICKED (${manual.length}) — chosen by name, not by the scorer`,
+          ...manual.map((r) => line(r, r.proposed)),
           ``,
           `A. DEPUNCTUATE ONLY (${depunct.length}) — lossless, safe to accept wholesale`,
           ...depunct.map((r) => line(r, r.cleaned)),
