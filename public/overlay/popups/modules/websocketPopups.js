@@ -183,6 +183,80 @@ function handlePopupBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
+   ⭐ ONE ALERT, TWO MESSAGES.
+
+   A real raid produced two cards in the chat lane:
+
+     "undefined raided with 8 viewers!"
+     "null raided with viewers!"
+
+   They came from the two branches below, which are mutually
+   exclusive per message — so Velora sent the same raid TWICE, once
+   as a channel.stream_alert (carrying templateData.viewers = 8)
+   and once as a cardAdded (carrying neither name nor count). Each
+   branch relayed its own version to chat.
+
+   The popup itself is fine; it is only the relay that doubles up.
+   So the relay gets a short memory: the first version of an alert
+   wins and anything matching within the window is dropped.
+
+   First-wins is deliberate rather than incidental. The
+   stream_alert arrives first and is the richer payload — it is the
+   one with templateData on it — so preferring the earlier message
+   also keeps the better one.
+
+   Keyed on type AND name so two genuine follows seconds apart both
+   still render. When the name is missing the key falls back to the
+   type alone, which is what makes the raid case collapse correctly.
+--------------------------------------------------------- */
+const ALERT_DEDUPE_MS = 6000;
+const recentChatAlerts = new Map();
+
+function relayAlertToChat(alertType, name, payload) {
+  const now = Date.now();
+
+  for (const [k, at] of recentChatAlerts) {
+    if (now - at > ALERT_DEDUPE_MS) recentChatAlerts.delete(k);
+  }
+
+  const key = name
+    ? `${alertType || "unknown"}|${name.toLowerCase()}`
+    : String(alertType || "unknown");
+
+  if (recentChatAlerts.has(key)) {
+    console.log(`[VELORA] duplicate ${key} suppressed in the chat relay`);
+    return;
+  }
+
+  recentChatAlerts.set(key, now);
+  sendToChatOverlay(payload);
+}
+
+/* Velora does not put the name in one predictable place — the raid
+   above had it in neither displayName nor username. templateData
+   carried the viewer count, so the substitution variables live
+   there and the name plausibly does too. Returns null rather than
+   a placeholder, so the dedupe key can tell "no name" apart from a
+   viewer actually called Someone. */
+function resolveAlertName(src = {}) {
+  const t = src.templateData || {};
+
+  const candidates = [
+    src.displayName, src.username,
+    src.user?.displayName, src.user?.username,
+    src.from?.displayName, src.from?.username,
+    src.raider?.displayName, src.raider?.username,
+    t.displayName, t.username, t.user, t.name, t.User
+  ];
+
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) return c.trim();
+  }
+
+  return null;
+}
+
+/* ---------------------------------------------------------
    ⭐ Velora Event Handler
 --------------------------------------------------------- */
 function handleVeloraEvent({ event, data, timestamp }) {
@@ -203,21 +277,27 @@ function handleVeloraEvent({ event, data, timestamp }) {
     });
 
     const t = data.templateData || {};
+    const name = resolveAlertName(data);
 
-    sendToChatOverlay({
+    relayAlertToChat(data.alertType, name, {
       type: "velora_system",
       event: "channel.stream_alert",
       data: {
         alertType: data.alertType,
-        displayName: data.displayName,
-        username: data.username,
+        displayName: name,
+        username: name,
         count: t.amount || null,
         viewers: t.viewers || null,
         volts: t.amount || null,
         tier: t.tier || null,
         months: t.months || null,
         message: data.message || null,
-        customSoundUrl: data.customSoundUrl || null
+        customSoundUrl: data.customSoundUrl || null,
+
+        /* Passed through so the renderer can dig for anything we
+           have not learned the name of yet. Cheap, and it means a
+           new Velora field does not need a deploy on both sides. */
+        templateData: t
       }
     });
 
@@ -263,15 +343,19 @@ function handleVeloraEvent({ event, data, timestamp }) {
       duration: payload.duration || null
     });
 
-    sendToChatOverlay({
+    const cardName = resolveAlertName(payload);
+    const cardType = payload.alertType || payload.type;
+
+    relayAlertToChat(cardType, cardName, {
       type: "velora_system",
       event: "channel.stream_alert",
       data: {
-        alertType: payload.alertType || payload.type,
-        displayName: payload.displayName || payload.username,
-        username: payload.username || payload.displayName,
+        alertType: cardType,
+        displayName: cardName,
+        username: cardName,
         message: payload.message || null,
-        customSoundUrl: payload.customSoundUrl || null
+        customSoundUrl: payload.customSoundUrl || null,
+        templateData: payload.templateData || {}
       }
     });
   }

@@ -289,7 +289,42 @@ function handleChat(payload, container) {
 }
 
 /* ---------------------------------------------------------
-   Velora System Alerts (unchanged)
+   ⭐ Who the alert is about.
+
+   Velora does not put the name in one predictable place. The
+   raid that exposed this had it in NEITHER displayName NOR
+   username — but templateData carried the viewer count, so
+   templateData is where the alert's substitution variables live
+   and the name is very likely in there too.
+
+   The order matters: the top-level fields are checked first
+   because those are what Velora documents, and templateData is
+   the fallback rather than the other way round.
+
+   Returns a readable label, never null and never the string
+   "undefined". "Someone" is deliberately vague but true — better
+   on stream than a variable name.
+--------------------------------------------------------- */
+function pickAlertName(data = {}) {
+  const t = data.templateData || {};
+
+  const candidates = [
+    data.displayName, data.username,
+    data.user?.displayName, data.user?.username,
+    data.from?.displayName, data.from?.username,
+    data.raider?.displayName, data.raider?.username,
+    t.displayName, t.username, t.user, t.name, t.User
+  ];
+
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) return c.trim();
+  }
+
+  return "Someone";
+}
+
+/* ---------------------------------------------------------
+   Velora System Alerts
 --------------------------------------------------------- */
 function renderVeloraSystemMessage(event, data, container) {
   if (!container) return;
@@ -297,17 +332,43 @@ function renderVeloraSystemMessage(event, data, container) {
 
   let text = "";
 
+  /* ---------------------------------------------------------
+     ⭐ NEVER INTERPOLATE A NAME THAT MIGHT NOT BE THERE.
+
+     Every branch below used to read `data.displayName ||
+     data.username` with no final fallback. When Velora sends an
+     alert without those fields, `undefined || undefined` is
+     undefined and `null || null` is null — and template literals
+     stringify both, so the overlay cheerfully rendered
+
+       "undefined raided with 8 viewers!"
+       "null raided with viewers!"
+
+     on stream during a real raid.
+
+     A missing name should degrade to something a viewer can read,
+     not print the reason it is missing.
+  --------------------------------------------------------- */
+  const who = pickAlertName(data);
+
   if (data.alertType === "follow") {
-    text = `${data.displayName || data.username} just followed!`;
+    text = `${who} just followed!`;
   }
   else if (data.alertType === "subscribe") {
-    text = `${data.displayName || data.username} subscribed at Tier 1!`;
+    text = `${who} subscribed at Tier 1!`;
   }
   else if (data.alertType === "gift") {
-    text = `${data.displayName || data.username} gifted ${data.count || ""} sub(s)!`;
+    /* Same trap on the count: "gifted  sub(s)!" reads as broken.
+       Without a number, say the thing that is still true. */
+    text = data.count
+      ? `${who} gifted ${data.count} sub(s)!`
+      : `${who} gifted a sub!`;
   }
   else if (data.alertType === "raid") {
-    text = `${data.displayName || data.username} raided with ${data.viewers || ""} viewers!`;
+    const viewers = data.viewers ?? data.count ?? data.templateData?.viewers;
+    text = viewers
+      ? `${who} raided with ${viewers} viewers!`
+      : `${who} raided!`;
   }
   else if (data.alertType === "volts") {
     const amount =
@@ -316,10 +377,10 @@ function renderVeloraSystemMessage(event, data, container) {
       data.templateData?.amount ??
       0;
 
-    text = `${data.displayName || data.username} sent ${amount} Volts!`;
+    text = `${who} sent ${amount} Volts!`;
   }
   else {
-    text = data.message || `${data.displayName || data.username}`;
+    text = data.message || who;
   }
 
   const wrapper = document.createElement("div");
