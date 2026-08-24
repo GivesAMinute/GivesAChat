@@ -766,6 +766,109 @@ export default {
        Both are fetched together because the renderer needs both
        before it can draw, and one round trip beats two.
     --------------------------------------------------------- */
+    /* ---------------------------------------------------------
+       ⭐ REWARD AUDIT — READ ONLY. WRITES NOTHING.
+
+       Velora resolves ^commands natively, and the trigger is the
+       reward NAME with spaces stripped. There is no slug field,
+       so the name is the only lever on how long a command is:
+
+         "What A Beautiful Group Of People"
+           -> ^WhatABeautifulGroupOfPeople   (28 characters)
+
+       Which is slower to type than searching the list, defeating
+       the point. This lists what every current reward actually
+       resolves to, so the renaming is decided against real data
+       rather than the two examples we happened to look at.
+
+       TWO TRIGGERS ARE COMPUTED ON PURPOSE. Cory said "spaces
+       stripped"; whether punctuation also goes is unconfirmed.
+       "This Is Reality (Russell Brand)" is either
+       ^ThisIsReality(RussellBrand) or ^ThisIsRealityRussellBrand
+       depending on the answer, and the two disagree about
+       collisions. Any name carrying punctuation is flagged rather
+       than guessed at.
+    --------------------------------------------------------- */
+    if (url.pathname === "/api/velora/rewards" && request.method === "GET") {
+      const auth = checkKey(request, url, env.OVERLAY_KEY);
+      if (!auth.ok) return unauthorized();
+
+      const token = await getVeloraAccessToken(env);
+      if (!token) return json({ ok: false, error: "no velora token" }, 200);
+
+      try {
+        const res = await fetch(
+          "https://api.velora.tv/api/integrations/oauth/channel-points/rewards",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: "application/json"
+            },
+            signal: AbortSignal.timeout(8000)
+          }
+        );
+
+        if (!res.ok) {
+          const body = await res.text();
+          return json(
+            { ok: false, status: res.status, error: body.slice(0, 300) },
+            200
+          );
+        }
+
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : data?.rewards || data?.items || [];
+
+        const rows = list.map((r) => {
+          const name = String(r?.name || "");
+          const spacesOnly = name.replace(/\s+/g, "");
+          const alnumOnly = name.replace(/[^a-zA-Z0-9]/g, "");
+
+          return {
+            id: r?.id || null,
+            name,
+            cost: r?.cost ?? null,
+            enabled: r?.enabled !== false,
+            trigger: `^${spacesOnly}`,
+            length: spacesOnly.length,
+            /* Only meaningful where the two differ — i.e. the name
+               contains something that is neither letter nor digit. */
+            ifPunctuationStripped:
+              spacesOnly === alnumOnly ? null : `^${alnumOnly}`,
+            description: String(r?.description || "").slice(0, 120)
+          };
+        });
+
+        /* Case-insensitive, because that is how Velora matches.
+           Two rewards whose names differ only in capitalisation
+           are one command, and one of them can never fire. */
+        const seen = new Map();
+        for (const r of rows) {
+          const k = r.trigger.toLowerCase();
+          seen.set(k, (seen.get(k) || 0) + 1);
+        }
+        for (const r of rows) {
+          r.collides = seen.get(r.trigger.toLowerCase()) > 1;
+        }
+
+        rows.sort((a, b) => b.length - a.length);
+
+        return json(
+          {
+            ok: true,
+            total: rows.length,
+            collisions: rows.filter((r) => r.collides).length,
+            over15chars: rows.filter((r) => r.length > 15).length,
+            withPunctuation: rows.filter((r) => r.ifPunctuationStripped).length,
+            rewards: rows
+          },
+          200
+        );
+      } catch (err) {
+        return json({ ok: false, error: String(err?.message || err) }, 200);
+      }
+    }
+
     if (url.pathname === "/api/velora/fonts" && request.method === "GET") {
       const auth = checkKey(request, url, env.OVERLAY_KEY);
 
