@@ -941,11 +941,32 @@ export default {
       const rows = list.map((r) => {
         const name = String(r?.name || "");
         const cleaned = clean(name);
+        const desc = String(r?.description || "");
+
+        /* ---------------------------------------------------------
+           Does the description still carry the original phrase?
+
+           Shortening "What A Beautiful Group Of People" to
+           "Beautiful" is only free because the description already
+           reads: Plays Trump saying "What A Beautiful Group Of
+           People". The phrase survives, just somewhere else.
+
+           Where it does NOT — "It's Going, It's Hovering... It's
+           Gone!" is described only as "the Aussie backyard rocket
+           launch fail" — shortening genuinely destroys the wording,
+           and nothing on the channel would record it again.
+
+           Compared with punctuation and case removed from both
+           sides, so quoting style cannot produce a false miss.
+        --------------------------------------------------------- */
+        const flat = (x) => clean(x).toLowerCase();
+
         return {
-          id: r?.id, name, cleaned,
-          speaker: speakerOf(r?.description),
+          id: r?.id, name, cleaned, desc,
+          speaker: speakerOf(desc),
           len: trig(name).length,
-          punct: cleaned !== name.replace(/\s+/g, " ").trim()
+          punct: cleaned !== name.replace(/\s+/g, " ").trim(),
+          phraseSafe: flat(desc).includes(flat(name))
         };
       });
 
@@ -993,13 +1014,30 @@ export default {
       const failed = toShorten.filter((r) => !r.proposed);
       const untouched = rows.filter((r) => r.len <= MAX && !r.punct);
 
-      const line = (r, to) =>
-        `  ${r.name}\n      -> ${to}   ^${to.replace(/\s+/g, "")}  (${trig(to).length})`;
+      const line = (r, to) => {
+        /* Lowercased in the preview because that is how it will be
+           typed. The stored NAME keeps its capitals — Velora
+           matches case-insensitively, so the list stays readable
+           while viewers type in lower case. */
+        const cmd = trig(to).toLowerCase();
+        const warn = r.phraseSafe === false ? "   << phrase NOT in description" : "";
+        return `  ${r.name}\n      -> ${to}   ^${cmd}  (${cmd.length})${warn}`;
+      };
 
       return new Response(
         [
           `REWARD RENAME PLAN — nothing has been written.`,
           `${rows.length} rewards, threshold ${MAX} characters.`,
+          ``,
+          `Commands are shown lower case because matching is`,
+          `case-insensitive — a reward named "Beautiful" answers to`,
+          `^beautiful. Stored names keep their capitals so the`,
+          `rewards list stays readable.`,
+          ``,
+          `Lines marked "phrase NOT in description" are the only`,
+          `ones where shortening actually loses the wording. Every`,
+          `other description already repeats the full phrase, so the`,
+          `words survive the rename. ${rows.filter((r) => r.len > MAX && !r.phraseSafe).length} to look at.`,
           ``,
           `A. DEPUNCTUATE ONLY (${depunct.length}) — lossless, safe to accept wholesale`,
           ...depunct.map((r) => line(r, r.cleaned)),
