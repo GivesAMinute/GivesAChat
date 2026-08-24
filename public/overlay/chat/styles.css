@@ -546,30 +546,3 @@ body.scrollback #messages::-webkit-scrollbar {
   margin-right: 6px;
   vertical-align: middle;
 }
-
-
-/* ---------------------------------------------------------
-   ⭐ COMPOSITOR ONLY  (?opacity=none — GoLightStream)
-
-   backdrop-filter is the single most expensive property in this
-   stylesheet. It forces the renderer to copy the pixels behind
-   every element it is applied to, blur them, and recomposite —
-   per element, per frame. OBS runs on the machine's GPU and
-   absorbs it. A cloud renderer without GPU acceleration does not.
-
-   It also buys almost nothing here: the surface in front of the
-   blur is already 90% opaque, so at most a few percent of
-   the blurred backdrop is ever visible.
-
-   Dropped in the compositor build only. OBS, the iPad and the
-   public pop-out keep the blur exactly as it is.
-
-   NOTE: this is a cost reduction, not a diagnosis. See
-   /overlay/blank/ — if an empty page also trips Stream
-   Protection then the trigger is not our rendering cost at all,
-   and this change is merely harmless rather than helpful.
---------------------------------------------------------- */
-html.opacity-none .bubble {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
