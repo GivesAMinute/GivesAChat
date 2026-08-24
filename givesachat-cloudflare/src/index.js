@@ -869,6 +869,154 @@ export default {
       }
     }
 
+    /* ---------------------------------------------------------
+       ⭐ RENAME PLAN — READ ONLY. STILL WRITES NOTHING.
+
+       Two entirely different kinds of change, deliberately kept
+       apart because they carry different risk.
+
+       DEPUNCTUATE is mechanical and lossless. "Hello There!" ->
+       "Hello There". It also settles a question we never got an
+       answer to: Cory said spaces are stripped but not whether
+       punctuation is, so ^HelloThere! and ^HelloThere might both
+       be right. A name with no punctuation resolves identically
+       under either rule, so the ambiguity stops mattering rather
+       than being guessed at.
+
+       SHORTEN is a judgement call and needs reviewing one by one.
+       "What A Beautiful Group Of People" -> "Beautiful" reads
+       obviously right; plenty of others will not.
+
+       Names already short and clean are LEFT ALONE. Renaming all
+       163 would churn names viewers already know for no gain, so
+       only the ones that actually cost typing time are touched.
+    --------------------------------------------------------- */
+    if (url.pathname === "/api/velora/rewards/plan" && request.method === "GET") {
+      const auth = checkKey(request, url, env.OVERLAY_KEY);
+      if (!auth.ok) return unauthorized();
+
+      const token = await getVeloraAccessToken(env);
+      if (!token) return new Response("no velora token", { status: 200 });
+
+      const MAX = Number(url.searchParams.get("max") || 14);
+
+      const res = await fetch(
+        "https://api.velora.tv/api/integrations/oauth/channel-points/rewards",
+        { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
+      );
+      if (!res.ok) {
+        return new Response(`rewards -> ${res.status}`, { status: 200 });
+      }
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : data?.rewards || data?.items || [];
+
+      const clean = (n) => String(n || "").replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+      const trig = (n) => clean(n).replace(/ /g, "");
+
+      /* Words that carry no identity. A name made only of these
+         falls through to the scorer anyway — the penalty is a
+         score adjustment, not a filter, so nothing can end up
+         with no candidates at all. */
+      const STOP = new Set(("a an the of is it its to and i you we they he she that this my me be in on for with was " +
+        "are all at but do so not no yes very just really gonna wanna some out up im dont thats what when why how who " +
+        "if as by from or am been being have has had will would could should can cant there here then than too also " +
+        "about into over under again more most much many get got go going gone like one us him her them their our your " +
+        "his ok okay know now say said see").split(" "));
+
+      // How many OTHER names use each word — a word shared with
+      // five other rewards is a poor handle for any of them.
+      const df = new Map();
+      for (const r of list) {
+        for (const w of new Set(clean(r?.name).toLowerCase().split(" ").filter(Boolean))) {
+          df.set(w, (df.get(w) || 0) + 1);
+        }
+      }
+
+      const speakerOf = (d) => {
+        const m = String(d || "").match(/Plays\s+(?:the\s+)?([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)?)/);
+        return m ? m[1].replace(/\s+/g, "") : "";
+      };
+
+      const rows = list.map((r) => {
+        const name = String(r?.name || "");
+        const cleaned = clean(name);
+        return {
+          id: r?.id, name, cleaned,
+          speaker: speakerOf(r?.description),
+          len: trig(name).length,
+          punct: cleaned !== name.replace(/\s+/g, " ").trim()
+        };
+      });
+
+      /* Reserved BEFORE any proposal is made: every name staying
+         as it is owns its trigger, so a shortened name can never
+         be handed something already spoken for. */
+      const taken = new Set();
+      for (const r of rows) {
+        if (r.len <= MAX) taken.add(trig(r.cleaned).toLowerCase());
+      }
+
+      const claim = (cand) => {
+        const t = cand.replace(/\s+/g, "").toLowerCase();
+        if (!t || t.length < 3 || taken.has(t)) return null;
+        taken.add(t);
+        return cand;
+      };
+
+      // Worst first, so the longest names get the best word left.
+      const toShorten = rows.filter((r) => r.len > MAX).sort((a, b) => b.len - a.len);
+
+      for (const r of toShorten) {
+        const words = r.cleaned.split(" ").filter(Boolean);
+        const scored = words
+          .map((w) => {
+            let s = Math.min(w.length, 12);
+            if (STOP.has(w.toLowerCase())) s -= 20;
+            s -= ((df.get(w.toLowerCase()) || 1) - 1) * 3;
+            if (/^\d+$/.test(w)) s -= 6;
+            return { w, s };
+          })
+          .sort((a, b) => b.s - a.s);
+
+        r.proposed =
+          claim(scored[0]?.w || "") ||
+          claim([scored[0]?.w, scored[1]?.w].filter(Boolean).join("")) ||
+          claim((scored[0]?.w || "") + r.speaker) ||
+          claim([scored[0]?.w, scored[1]?.w, scored[2]?.w].filter(Boolean).join("")) ||
+          claim(words.slice(0, 3).join("")) ||
+          null;
+      }
+
+      const depunct = rows.filter((r) => r.len <= MAX && r.punct);
+      const shortened = toShorten.filter((r) => r.proposed);
+      const failed = toShorten.filter((r) => !r.proposed);
+      const untouched = rows.filter((r) => r.len <= MAX && !r.punct);
+
+      const line = (r, to) =>
+        `  ${r.name}\n      -> ${to}   ^${to.replace(/\s+/g, "")}  (${trig(to).length})`;
+
+      return new Response(
+        [
+          `REWARD RENAME PLAN — nothing has been written.`,
+          `${rows.length} rewards, threshold ${MAX} characters.`,
+          ``,
+          `A. DEPUNCTUATE ONLY (${depunct.length}) — lossless, safe to accept wholesale`,
+          ...depunct.map((r) => line(r, r.cleaned)),
+          ``,
+          `B. SHORTENED (${shortened.length}) — review these individually`,
+          ...shortened.map((r) => line(r, r.proposed)),
+          ``,
+          failed.length ? `C. NO SAFE PROPOSAL (${failed.length}) — name these by hand` : `C. none`,
+          ...failed.map((r) => `  ${r.name}  (^${trig(r.name)})`),
+          ``,
+          `D. UNCHANGED (${untouched.length}) — already short and clean`,
+          ...untouched.map((r) => `  ${r.name}  ^${trig(r.name)}`)
+        ].join("\n"),
+        { headers: { "Content-Type": "text/plain; charset=utf-8" } }
+      );
+    }
+
     if (url.pathname === "/api/velora/fonts" && request.method === "GET") {
       const auth = checkKey(request, url, env.OVERLAY_KEY);
 
