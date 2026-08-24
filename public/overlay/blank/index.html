@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GivesAChat — blank control layer</title>
+
+  <!-- ---------------------------------------------------------
+       A DELIBERATELY INERT PAGE. IT IS A CONTROL, NOT A FEATURE.
+
+       GoLightStream's Stream Protection disables the RTMP layer
+       and reveals whatever sits behind it. Something about having
+       our overlays loaded as browser layers is making that fire
+       while the connection is fine.
+
+       The two overlays have almost nothing in common — one is
+       heavy and always animating, the other is two empty divs
+       when idle — so "what is expensive in our CSS" is the wrong
+       question until we know whether the CONTENT matters at all.
+
+       This page answers that. It has no script, no stylesheet, no
+       network request, no animation, no font, no socket. It draws
+       literally nothing. If Stream Protection still fires with
+       this as a layer, the trigger is GoLightStream's handling of
+       browser layers as such, and no amount of optimising our
+       pages will help.
+
+       A probe needs a control that must fail. This is the control
+       that must PASS — if it doesn't, we've learned more than any
+       amount of reading our own CSS would have taught us.
+  --------------------------------------------------------- */ -->
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body></body>
+</html>

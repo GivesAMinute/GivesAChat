@@ -612,3 +612,29 @@
 
 
 
+
+
+/* ---------------------------------------------------------
+   ⭐ COMPOSITOR ONLY  (?opacity=none — GoLightStream)
+
+   backdrop-filter forces the renderer to copy the pixels behind
+   the element, blur them, and recomposite — per element, per
+   frame. OBS hands that to the machine's GPU. A cloud renderer
+   without GPU acceleration pays for it in software.
+
+   It cannot simply be deleted here the way it can on the chat
+   bubble. That surface is 90% opaque and the blur behind it is
+   barely visible; THIS one sits on rgba(255,255,255,0.04), so
+   the frosted glass IS the background. Dropping the blur alone
+   would leave a near-invisible card.
+
+   So the blur is replaced with what it was approximating: a
+   flat dark fill. Same legibility, none of the per-frame cost.
+
+   OBS, the iPad and the public pop-out keep the real blur.
+--------------------------------------------------------- */
+html.opacity-none .velora-system-bubble {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(18, 18, 18, 0.72);
+}
