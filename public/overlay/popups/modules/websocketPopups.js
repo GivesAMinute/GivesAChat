@@ -16,17 +16,19 @@ import { io } from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
      WE have two live sockets      -> fix the reconnect, and
                                       deduping would only hide it
 
-   Socket.IO already reconnects on its own (reconnection: true,
-   reconnectionAttempts: Infinity) and scheduleReconnect() layers
-   a second mechanism over the top, building a NEW io() each time.
-   If a disconnected socket is ever revived by Socket.IO's own
-   retry while we have already replaced it, both stay subscribed
-   and every event arrives twice, forever.
+   Socket.IO used to reconnect on its own while scheduleReconnect()
+   layered a second mechanism over the top, each building a fresh
+   io(). Two owners for one socket: if a connection we had already
+   replaced was revived, both stayed subscribed and every event
+   arrived twice for the rest of the session.
 
-   So each manager carries an identity, and every event says which
-   socket and which connection attempt it came in on. One test
-   alert now answers the question outright: the same tag twice is
-   Velora repeating itself, two different tags is our leak.
+   Its built-in reconnect is now off and ours is the only one, for
+   the token reason written on the options object. Sockets are also
+   generation-stamped so a superseded one cannot deliver anything.
+
+   The tag stays regardless, because it is what tells the two
+   causes apart: the same tag twice is Velora repeating itself,
+   two different tags is a leak on our side.
 --------------------------------------------------------- */
 let managerSeq = 0;
 
@@ -35,7 +37,7 @@ const isIOS =
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 /* ---------------------------------------------------------
-   ⭐ Popups Socket Manager — Velora Reconnect Enabled
+   ⭐ Popups Socket Manager
 --------------------------------------------------------- */
 class PopupsSocketManager {
   /**
@@ -54,7 +56,8 @@ class PopupsSocketManager {
     this.onEvent = onEvent;
 
     this.instance = ++managerSeq;
-    this.connects = 0;
+    this.gen = 0;
+    this.connecting = false;
 
     this.socket = null;
     this.ready = false;
@@ -65,9 +68,58 @@ class PopupsSocketManager {
     setTimeout(() => this.connect(), 100);
   }
 
+  /* ---------------------------------------------------------
+     ⭐ EVERY SOCKET CARRIES THE GENERATION THAT CREATED IT.
+
+     connect() awaits getToken(). If the socket drops during that
+     await, scheduleReconnect() fires and calls connect() again —
+     and now two connects are in flight, each about to build its
+     own io(). Both would subscribe, and every event would arrive
+     twice for the rest of the session.
+
+     Three guards, because one is not enough:
+
+       connecting   single-flight, so overlapping calls collapse
+       teardown()   the previous socket is killed before a new one
+       gen          any handler from a superseded socket no-ops
+
+     The generation stamp is the one that cannot be defeated. Even
+     if a socket we thought was dead is revived by machinery we do
+     not control, its listeners compare their generation against
+     the current one and return.
+  --------------------------------------------------------- */
   async connect() {
     clearTimeout(this.reconnectTimer);
-    this.connects++;
+
+    if (this.connecting) return;
+    this.connecting = true;
+
+    try {
+      await this._connect();
+    } finally {
+      this.connecting = false;
+    }
+  }
+
+  teardown() {
+    const s = this.socket;
+    if (!s) return;
+    this.socket = null;
+
+    try {
+      if (this.type === "velora") {
+        s.removeAllListeners();
+        s.disconnect();
+      } else {
+        s.close();
+      }
+    } catch {}
+  }
+
+  async _connect() {
+    this.teardown();
+    const myGen = ++this.gen;
+    const tag = `${this.type}#${this.instance}.g${myGen}`;
 
     // Always fetch a fresh token — the previous one may have expired
     // while we were disconnected.
@@ -90,10 +142,16 @@ class PopupsSocketManager {
         ? {
             auth: { token: this.token },
             transports: ["websocket"],
-            reconnection: true,
-            reconnectionAttempts: Infinity,
-            reconnectionDelay: 500,
-            reconnectionDelayMax: 8000,
+            /* ⭐ OFF ON PURPOSE. Socket.IO's own reconnect reuses
+               the auth object it was constructed with — and Velora
+               tokens die after an hour, so every silent retry after
+               that reconnects with a dead token.
+
+               That is why the custom reconnect below exists: it
+               refetches the token first. Running both meant two
+               mechanisms racing to replace the same socket, which
+               is how a duplicate could survive. One owner now. */
+            reconnection: false,
             timeout: 5000
           }
         : undefined;
@@ -104,27 +162,30 @@ class PopupsSocketManager {
         : new WebSocket(this.url);
 
     /* ---------------------------------------------------------
-       ⭐ SOCKET.IO (Velora) — RECONNECT ENABLED
+       ⭐ SOCKET.IO (Velora) — reconnect owned by scheduleReconnect
 --------------------------------------------------------- */
     if (this.type === "velora") {
       this.socket.on("connect", () => {
+        if (myGen !== this.gen) return;
         this.ready = true;
         this.backoff = 500;
       });
 
       this.socket.on("disconnect", () => {
+        if (myGen !== this.gen) return;
         this.ready = false;
         this.scheduleReconnect();
       });
 
       this.socket.on("connect_error", () => {
+        if (myGen !== this.gen) return;
         this.ready = false;
         this.scheduleReconnect();
       });
 
       this.socket.on("event", (payload) => {
+        if (myGen !== this.gen) return;   // superseded socket
         this.ready = true;
-        const tag = `${this.type}#${this.instance}.c${this.connects}`;
 
         // ⭐ WAKE POPUPS OVERLAY
         sharedPopups.wake();
@@ -143,21 +204,25 @@ class PopupsSocketManager {
        ANY message is a valid wake event.
 --------------------------------------------------------- */
     this.socket.addEventListener("open", () => {
+      if (myGen !== this.gen) return;
       this.ready = true;
       this.backoff = 500;
     });
 
     this.socket.addEventListener("close", () => {
+      if (myGen !== this.gen) return;
       this.ready = false;
       this.scheduleReconnect();
     });
 
     this.socket.addEventListener("error", () => {
+      if (myGen !== this.gen) return;
       this.ready = false;
       this.scheduleReconnect();
     });
 
     this.socket.addEventListener("message", (event) => {
+      if (myGen !== this.gen) return;
       try {
         const payload = JSON.parse(event.data);
 
@@ -167,7 +232,7 @@ class PopupsSocketManager {
         // ⭐ MARK ACTIVITY
         sharedPopups.markPopupEvent();
 
-        this.onEvent(payload);
+        this.onEvent(payload, tag);
       } catch {
         // Non‑JSON messages still wake the overlay
         sharedPopups.wake();
@@ -430,10 +495,14 @@ export async function setupPopupSocket() {
     // would be stale within the hour and every reconnect would
     // fail silently.
     getToken: loadVeloraAccessToken,
-    onEvent: (payload) => {
+    /* Both parameters, deliberately. The first version of this
+       took only (payload) and dropped the socket tag on the floor,
+       so every event logged "via ?" and the diagnostic answered
+       nothing. */
+    onEvent: (payload, tag) => {
       sharedPopups.wake();           // ⭐ WAKE POPUPS
       sharedPopups.markPopupEvent(); // ⭐ MARK ACTIVITY
-      handleVeloraEvent(payload);
+      handleVeloraEvent(payload, tag);
     }
   });
 }
