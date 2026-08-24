@@ -284,59 +284,87 @@
 /* ---------------------------------------------------------
    ⭐ COMPOSITOR ONLY  (?opacity=none — GoLightStream)
 
-   Scoped to html.opacity-none, which overlayTransparency.js
-   adds ONLY for that one URL. OBS, the iPad and the public
-   pop-out never match this selector and are untouched.
+   Scoped to html.opacity-none, which overlayTransparency.js adds
+   ONLY for that URL. OBS, the iPad and the public pop-out never
+   match these selectors.
 
-   THE DATE DRIFTING LEFT IN GOLIGHTSTREAM
+   WHAT WAS MEASURED
 
-   #current-date is anchored with `right: 1297px` and no width,
-   so it shrink-wraps its text: the RIGHT edge is nailed down
-   and the box grows leftward as the text gets wider. Nothing
-   can move the right edge — which is exactly what the two
-   screenshots show, and why it reads as "shifted left" rather
-   than "shifted".
+   Both screenshots were converted into canvas pixels using the
+   logo as a ruler — it is a 428px-wide asset displayed at 760px,
+   so "MINUTE" is a known 252 canvas px and cancels out the
+   different capture scales:
 
-   So the date only moves if the text renders wider. Measuring
-   the two screenshots, normalised against the logo so the
-   different crop zooms cancel out:
+                    browser   GoLightStream
+     date left        436          408
+     date right       619          621
+     width            184          213   (1.16x)
 
-     glyph aspect (width per unit height)   OBS 7.9   GLS 9.8
-     total date width vs logo cap height    OBS 3.25  GLS 4.54
+   The right edge holds in both, exactly as `right: 1297px`
+   dictates — the box shrink-wraps and grows leftward. ONLY the
+   width differs, which means the text is being drawn in a wider
+   font, which means the previous fix did not take.
 
-   About 20% wider per unit height, and ~40% wider overall once
-   the slightly larger cap height is included. That is a
-   different typeface, not a layout bug.
+   That fix named Helvetica, Arial, Liberation Sans and Nimbus
+   Sans. Getting the generic fallback anyway means the renderer
+   has NONE of them — a minimal container with little more than
+   DejaVu Sans, which is exactly the wide font this predicted.
 
-   AND THESE THREE RULES ASK FOR ONE. font-family: sans-serif is
-   a GENERIC KEYWORD, not a font — each renderer substitutes
-   whatever it considers its default. macOS Chromium resolves it
-   to Helvetica; a Linux-based renderer typically resolves it to
-   DejaVu Sans, which is markedly wider at the same size.
+   So naming families is not enough. You cannot pin a font by
+   asking for one; you can only pin it by SHIPPING one.
 
-   #date-output, #viewer-label and #viewer-count are the only
-   three declarations in the entire overlay using the bare
-   keyword — everything else inherits the explicit stack on
-   body — so the header is the one part exposed to this.
+   TWO INDEPENDENT FIXES, because either can fail alone.
 
-   Naming real families pins it. Liberation Sans and Nimbus Sans
-   are the metric-compatible clones a Linux renderer maps
-   Helvetica/Arial onto, so the widths match what OBS draws even
-   when Helvetica itself is absent.
+   1. Arimo, loaded as a webfont in index.html. It is metric
+      compatible with Arial, which is metric compatible with the
+      Helvetica that macOS resolves `sans-serif` to — so the text
+      is the same width as OBS draws it no matter what the
+      renderer has installed locally.
 
-   Only the date is pinned here, because it is the only
-   right-anchored element and so the only one where extra width
-   moves the text instead of just widening a box. #viewer-label
-   and #viewer-count sit in a left-anchored flex box and grow
-   rightward. Say the word and they get the same one-line
-   treatment.
+   2. Anchored from the LEFT instead of the right. This is the
+      belt to the webfont's braces: if the font is ever blocked
+      or slow, a wider fallback now grows RIGHTWARD into empty
+      sky instead of backwards across the logo. The failure mode
+      becomes a slightly long date rather than an unreadable one.
 
-   IF THIS IS NOT ENOUGH — i.e. the renderer has none of these
-   families — the fallback is to anchor from the left instead:
-   replace `right: 1297px` with `left: 334px` under this same
-   scope, so wider text grows rightward from a fixed start
-   rather than backwards into the logo.
+      436px is the measured left edge in the browser, so with the
+      webfont loaded this lands in the same place the right
+      anchor did.
+
+   The stroke is also dropped here. In the GoLightStream capture
+   the date renders hollow — a dark outline with the fill eaten
+   out of it — while the heavier viewer-box text survives. That
+   is what -webkit-text-stroke does when `paint-order` is not
+   honoured: it paints over the glyph from both sides, and a
+   440-weight stem at this size has little left to give. Layered
+   shadows draw the same outline without ever touching the fill,
+   and work in every renderer.
 --------------------------------------------------------- */
+html.opacity-none #current-date {
+  right: auto;
+  left: 436px;
+}
+
 html.opacity-none #date-output {
-  font-family: Helvetica, Arial, "Liberation Sans", "Nimbus Sans", sans-serif;
+  font-family: "Arimo", Helvetica, Arial, "Liberation Sans", "Nimbus Sans", sans-serif;
+
+  /* Pinned to 400. The base rule asks for 440, which Helvetica
+     has no cut for and quietly renders as 400 — but Arimo is a
+     variable font and would honour 440 literally, coming out
+     heavier and wider than OBS draws it and reintroducing the
+     drift this is meant to remove. Only 400 is requested from
+     Google Fonts for the same reason. */
+  font-weight: 400;
+
+  -webkit-text-stroke: 0;
+  text-shadow:
+    -2px -2px 0 rgba(0, 0, 0, 0.95),
+     2px -2px 0 rgba(0, 0, 0, 0.95),
+    -2px  2px 0 rgba(0, 0, 0, 0.95),
+     2px  2px 0 rgba(0, 0, 0, 0.95),
+     0px -2px 0 rgba(0, 0, 0, 0.95),
+     0px  2px 0 rgba(0, 0, 0, 0.95),
+    -2px  0px 0 rgba(0, 0, 0, 0.95),
+     2px  0px 0 rgba(0, 0, 0, 0.95),
+     0    3px 6px rgba(0, 0, 0, 0.8);
 }

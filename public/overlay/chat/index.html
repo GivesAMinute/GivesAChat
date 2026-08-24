@@ -15,9 +15,31 @@
        landed in header.css and only styles.css was bumped, so
        the change would have been served from cache.
 
-       v3: text outline for legibility over a bright sky, and the
-       compositor-only font pin for the date. -->
-  <link rel="stylesheet" href="/overlay/chat/styles/header.css?v=3" />
+       v4: compositor date fixes — webfont, left anchor, shadow
+       outline. -->
+  <link rel="stylesheet" href="/overlay/chat/styles/header.css?v=4" />
+
+  <!-- ⭐ Arimo — for the compositor build's date only.
+
+       GoLightStream's renderer turned out to have none of
+       Helvetica, Arial, Liberation Sans or Nimbus Sans, so naming
+       them in a font stack fell through to its own wide default
+       and the date drifted left across the logo. A font you SHIP
+       cannot fall through.
+
+       Arimo is metric compatible with Arial, which is metric
+       compatible with the Helvetica macOS resolves `sans-serif`
+       to — so the date measures the same as it does in OBS.
+
+       Loaded for every viewer but USED only by the
+       html.opacity-none rule in header.css, so OBS and the iPad
+       still draw the date in the system font exactly as before.
+       A plain stylesheet link cannot throw, and display=swap
+       means a blocked or slow response degrades to the current
+       behaviour rather than blocking the render. -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Arimo:wght@400&display=swap" />
 
   <!-- ⭐ Velora reward card + message effects + galaxy + glow + rainbow -->
   <link rel="stylesheet" href="/overlay/chat/styles/velora/velora.css?v=4" />
