@@ -149,9 +149,14 @@
 #viewer-box {
   position: absolute;
 
-  /* ⭐ Your exact values — unchanged */
+  /* ⭐ Tuned by eye on stream. 195 -> 190: nudged 5px left.
+
+     One value moves the whole thing. Everything inside is laid
+     out by the flex row and the border and glow are drawn on this
+     element, so the box, its outline, the Beam logo and both text
+     spans all travel together. */
   top: 127px;
-  left: 195px;
+  left: 190px;
 
   background: transparent;
 
