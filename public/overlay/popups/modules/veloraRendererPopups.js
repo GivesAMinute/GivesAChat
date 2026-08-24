@@ -12,13 +12,50 @@ let VELORA_CUSTOM_FONTS = {};
  * Fetch Velora built-in + custom fonts once at startup
  */
 export async function loadVeloraFonts() {
-  try {
-    const builtinRes = await fetch("https://api.velora.tv/fonts");
-    const builtinJson = await builtinRes.json();
+  /* ---------------------------------------------------------
+     ⭐ FETCHED THROUGH OUR OWN WORKER, NOT FROM VELORA DIRECTLY.
 
-    const builtinList = Array.isArray(builtinJson)
-      ? builtinJson
-      : builtinJson.fonts || builtinJson.data || [];
+     These two endpoints used to be called straight from the
+     browser. Velora removed their Access-Control-Allow-Origin
+     header and both started failing:
+
+       [Popups] Failed to load Velora fonts: TypeError: Failed to fetch
+
+     The catch below swallows it, so nothing looked broken — alert
+     cards just quietly rendered in a fallback face instead of the
+     Russo One / Bangers / Poppins their design asks for.
+
+     This is the third time a Velora endpoint has been pulled out
+     from under the browser (reward sounds, channel points, now
+     fonts). CORS binds browsers, not servers, so it goes through
+     /api/velora/fonts and their headers cannot reach us again.
+  --------------------------------------------------------- */
+  const key = new URLSearchParams(location.search).get("key") || "";
+  const url = `/api/velora/fonts?key=${encodeURIComponent(key)}`;
+
+  try {
+    /* AbortSignal.timeout is not everywhere — it is undefined on
+       older Chromium and throws BEFORE fetch is reached, which is
+       what silently killed the reward sounds in GoLightStream.
+       Feature-detected for the same reason. */
+    const options = {};
+    if (typeof AbortSignal !== "undefined" &&
+        typeof AbortSignal.timeout === "function") {
+      options.signal = AbortSignal.timeout(8000);
+    }
+
+    const res = await fetch(url, options);
+
+    if (!res.ok) {
+      console.warn(`[Popups] font proxy returned ${res.status} — using fallbacks`);
+      return;
+    }
+
+    const { builtin, custom } = await res.json();
+
+    const builtinList = Array.isArray(builtin)
+      ? builtin
+      : builtin?.fonts || builtin?.data || [];
 
     if (Array.isArray(builtinList)) {
       builtinList.forEach(font => {
@@ -28,19 +65,20 @@ export async function loadVeloraFonts() {
       });
     }
 
-    const customRes = await fetch("https://api.velora.tv/api/fonts/custom");
-    const customJson = await customRes.json();
-
-    if (customJson.fonts) {
-      customJson.fonts.forEach(font => {
+    if (custom?.fonts) {
+      custom.fonts.forEach(font => {
         if (font.files && font.files.regular) {
           VELORA_CUSTOM_FONTS[font.family] = font.files.regular;
         }
       });
     }
 
+    console.log(
+      `[Popups] Velora fonts: ${Object.keys(VELORA_FONTS).length} built-in, ` +
+      `${Object.keys(VELORA_CUSTOM_FONTS).length} custom`
+    );
   } catch (err) {
-    console.error("[Popups] Failed to load Velora fonts:", err);
+    console.warn("[Popups] Failed to load Velora fonts:", err?.message || err);
   }
 }
 

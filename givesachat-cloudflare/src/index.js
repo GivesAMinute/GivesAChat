@@ -704,6 +704,77 @@ export default {
       }
     }
 
+    /* ---------------------------------------------------------
+       ⭐ VELORA FONTS — PROXIED, FOR THE SAME REASON AS THE SOUNDS
+
+       veloraRendererPopups.js fetched api.velora.tv/fonts and
+       /api/fonts/custom straight from the browser. Velora removed
+       their Access-Control-Allow-Origin header, so both now fail:
+
+         [Popups] Failed to load Velora fonts: TypeError: Failed to fetch
+
+       The catch swallows it, so the only symptom is alert cards
+       silently rendering in a fallback face instead of the Russo
+       One / Bangers / Poppins the card design asks for. This was
+       flagged as a risk when the reward sounds broke the same way;
+       it has now happened.
+
+       CORS binds browsers, not servers. Fetching the same two
+       endpoints here and serving them from our own origin puts
+       them out of reach of any further header changes at their
+       end.
+
+       Both are fetched together because the renderer needs both
+       before it can draw, and one round trip beats two.
+    --------------------------------------------------------- */
+    if (url.pathname === "/api/velora/fonts" && request.method === "GET") {
+      const auth = checkKey(request, url, env.OVERLAY_KEY);
+
+      if (!auth.ok) {
+        const viewer = checkKey(request, url, env.VIEWER_KEY);
+        if (!viewer.ok || viewer.unconfigured) return unauthorized();
+      }
+
+      const grab = async (endpoint) => {
+        try {
+          const res = await fetch(endpoint, {
+            headers: { Accept: "application/json" },
+            signal: AbortSignal.timeout(8000)
+          });
+          if (!res.ok) {
+            console.warn(`[VELORA] fonts ${endpoint} -> ${res.status}`);
+            return null;
+          }
+          return await res.json();
+        } catch (err) {
+          console.warn(`[VELORA] fonts ${endpoint} failed:`, err?.message || err);
+          return null;
+        }
+      };
+
+      /* Settled, not raced: if the custom fonts are down the
+         built-ins should still arrive, and vice versa. Losing one
+         face is a cosmetic problem; losing both because one
+         endpoint was slow is an avoidable one. */
+      const [builtin, custom] = await Promise.all([
+        grab("https://api.velora.tv/fonts"),
+        grab("https://api.velora.tv/api/fonts/custom")
+      ]);
+
+      return new Response(
+        JSON.stringify({ ok: true, builtin, custom }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            /* Fonts change about never. An hour keeps this off
+               Velora's back and off our request count. */
+            "Cache-Control": "public, max-age=3600"
+          }
+        }
+      );
+    }
+
     if (url.pathname === "/api/blaze/emotes" && request.method === "GET") {
       const auth = checkKey(request, url, env.OVERLAY_KEY);
 

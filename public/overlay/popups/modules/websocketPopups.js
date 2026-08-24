@@ -6,6 +6,30 @@ import { renderVeloraAlertCard, loadVeloraFonts } from "./veloraRendererPopups.j
 import { isClaimRedemption, renderClaimAlert } from "./claimAlerts.js";
 import { io } from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
 
+/* ---------------------------------------------------------
+   ⭐ WHICH SOCKET DELIVERED THIS?
+
+   A test alert logged twice (Chrome's "2" badge). Two very
+   different causes produce that, and they need opposite fixes:
+
+     Velora sends the event twice  -> dedupe on our side
+     WE have two live sockets      -> fix the reconnect, and
+                                      deduping would only hide it
+
+   Socket.IO already reconnects on its own (reconnection: true,
+   reconnectionAttempts: Infinity) and scheduleReconnect() layers
+   a second mechanism over the top, building a NEW io() each time.
+   If a disconnected socket is ever revived by Socket.IO's own
+   retry while we have already replaced it, both stay subscribed
+   and every event arrives twice, forever.
+
+   So each manager carries an identity, and every event says which
+   socket and which connection attempt it came in on. One test
+   alert now answers the question outright: the same tag twice is
+   Velora repeating itself, two different tags is our leak.
+--------------------------------------------------------- */
+let managerSeq = 0;
+
 const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -29,6 +53,9 @@ class PopupsSocketManager {
     this.token = null;
     this.onEvent = onEvent;
 
+    this.instance = ++managerSeq;
+    this.connects = 0;
+
     this.socket = null;
     this.ready = false;
 
@@ -40,6 +67,7 @@ class PopupsSocketManager {
 
   async connect() {
     clearTimeout(this.reconnectTimer);
+    this.connects++;
 
     // Always fetch a fresh token — the previous one may have expired
     // while we were disconnected.
@@ -96,6 +124,7 @@ class PopupsSocketManager {
 
       this.socket.on("event", (payload) => {
         this.ready = true;
+        const tag = `${this.type}#${this.instance}.c${this.connects}`;
 
         // ⭐ WAKE POPUPS OVERLAY
         sharedPopups.wake();
@@ -103,7 +132,7 @@ class PopupsSocketManager {
         // ⭐ MARK ACTIVITY (Zombie detector)
         sharedPopups.markPopupEvent();
 
-        this.onEvent(payload);
+        this.onEvent(payload, tag);
       });
 
       return;
@@ -183,36 +212,33 @@ function handlePopupBroadcast(payload) {
 }
 
 /* ---------------------------------------------------------
-   ⭐ ONE ALERT, TWO MESSAGES.
+   ⭐ ONE ALERT, TWO DELIVERIES.
 
    A real raid produced two cards in the chat lane:
 
      "undefined raided with 8 viewers!"
      "null raided with viewers!"
 
-   They came from the two branches below, which are mutually
-   exclusive per message — so Velora sent the same raid TWICE, once
-   as a channel.stream_alert (carrying templateData.viewers = 8)
-   and once as a cardAdded (carrying neither name nor count). Each
-   branch relayed its own version to chat.
+   An earlier version of this comment claimed "the popup itself is
+   fine; it is only the relay that doubles up." That was an
+   assumption, and it was wrong. A test alert logged twice, and the
+   log sits ABOVE both the popup render and the relay — so whatever
+   is duplicating, it duplicates both.
 
-   The popup itself is fine; it is only the relay that doubles up.
-   So the relay gets a short memory: the first version of an alert
-   wins and anything matching within the window is dropped.
+   The dedupe therefore guards the whole event, not just the relay.
 
-   First-wins is deliberate rather than incidental. The
-   stream_alert arrives first and is the richer payload — it is the
-   one with templateData on it — so preferring the earlier message
-   also keeps the better one.
-
-   Keyed on type AND name so two genuine follows seconds apart both
-   still render. When the name is missing the key falls back to the
-   type alone, which is what makes the raid case collapse correctly.
+   First-wins, on a six second window. Keyed on type AND name so
+   two genuine follows seconds apart both still render — but a
+   nameless alert matches any recent alert of its type, and a named
+   one matches an earlier nameless alert of its type. That
+   asymmetry is the point: the two deliveries do not agree about
+   the name, which is exactly why keying on type+name alone let
+   both through in the first version.
 --------------------------------------------------------- */
 const ALERT_DEDUPE_MS = 6000;
 const recentChatAlerts = new Map();
 
-function relayAlertToChat(alertType, name, payload) {
+function isDuplicateAlert(alertType, name) {
   const now = Date.now();
 
   for (const [k, at] of recentChatAlerts) {
@@ -223,38 +249,21 @@ function relayAlertToChat(alertType, name, payload) {
   const key = `${type}|${name ? name.toLowerCase() : ""}`;
   const anonKey = `${type}|`;
 
-  /* ---------------------------------------------------------
-     The two messages for one raid do NOT agree on the name —
-     that is the whole problem. The stream_alert resolves to
-     "itsMsDG" and the cardAdded resolves to nothing, so keying
-     on type+name alone gives them different keys and lets both
-     through. The first version of this did exactly that, and a
-     test against the real payload caught it.
-
-     So a nameless alert matches ANY recent alert of its type,
-     and a named one matches an earlier nameless alert of its
-     type. Two genuine follows still both render, because both
-     carry names and neither is anonymous.
-
-     This assumes the richer message arrives first, which is what
-     was observed: the stream_alert came in ahead of the
-     cardAdded. If they ever swap, the nameless one wins and the
-     alert reads as Velora's own sentence — worse, but still one
-     card rather than two.
-  --------------------------------------------------------- */
   const seen =
     recentChatAlerts.has(key) ||
     recentChatAlerts.has(anonKey) ||
     (!name && [...recentChatAlerts.keys()].some((k) => k.startsWith(anonKey)));
 
   if (seen) {
-    console.log(`[VELORA] duplicate ${type} alert suppressed in the chat relay`);
-    return;
+    console.log(`[VELORA] duplicate ${type} alert suppressed`);
+    return true;
   }
 
   recentChatAlerts.set(key, now);
-  sendToChatOverlay(payload);
+  return false;
 }
+
+
 
 /* Confirmed against a real channel.stream_alert payload: the name
    is present in all four of displayName, username,
@@ -284,10 +293,14 @@ function resolveAlertName(src = {}) {
 /* ---------------------------------------------------------
    ⭐ Velora Event Handler
 --------------------------------------------------------- */
-function handleVeloraEvent({ event, data, timestamp }) {
-  console.log("[VELORA RAW EVENT]", event, JSON.stringify(data, null, 2));
+function handleVeloraEvent({ event, data, timestamp }, source = "?") {
+  console.log(`[VELORA RAW EVENT via ${source}]`, event, JSON.stringify(data, null, 2));
 
   if (event === "channel.stream_alert") {
+    /* Guard sits ABOVE renderVeloraAlertCard deliberately — a
+       duplicate delivery must not draw a second popup either. */
+    if (isDuplicateAlert(data.alertType, resolveAlertName(data))) return;
+
     renderVeloraAlertCard({
       event,
       timestamp,
@@ -304,7 +317,7 @@ function handleVeloraEvent({ event, data, timestamp }) {
     const t = data.templateData || {};
     const name = resolveAlertName(data);
 
-    relayAlertToChat(data.alertType, name, {
+    sendToChatOverlay({
       type: "velora_system",
       event: "channel.stream_alert",
       data: {
@@ -355,6 +368,9 @@ function handleVeloraEvent({ event, data, timestamp }) {
     const card = data.cardAdded;
     const payload = card.payload || {};
 
+    if (isDuplicateAlert(payload.alertType || payload.type,
+                         resolveAlertName(payload))) return;
+
     renderVeloraAlertCard({
       event: card.type,
       timestamp,
@@ -371,7 +387,7 @@ function handleVeloraEvent({ event, data, timestamp }) {
     const cardName = resolveAlertName(payload);
     const cardType = payload.alertType || payload.type;
 
-    relayAlertToChat(cardType, cardName, {
+    sendToChatOverlay({
       type: "velora_system",
       event: "channel.stream_alert",
       data: {
