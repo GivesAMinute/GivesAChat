@@ -16,9 +16,31 @@ const CLAIM_REWARD_IDS = [
   "f49bd3f1-ae87-4359-b15b-7c28857d036f"    // Second (2nd)
 ];
 
+/* ---------------------------------------------------------
+   ⭐ READS BOTH PAYLOAD SHAPES, BECAUSE VELORA SENDS BOTH.
+
+   channel.channel_points_redemption carries rewardId and
+   rewardTitle. pointsCelebration carries itemId and itemName for
+   the same redemption.
+
+   This used to check only the first pair, so a claim arriving as
+   a pointsCelebration sailed past and rendered in the chat lane —
+   as a bare "Reward" card with no title, since rewardName was
+   reading data.itemName through the other branch's field names.
+
+   The popups overlay had excluded claims correctly all along,
+   which is what made this hard to see: the card came from the
+   worker, not from the overlay everyone was looking at.
+--------------------------------------------------------- */
 function isClaimReward(data = {}) {
-  if (CLAIM_REWARD_IDS.includes(data.rewardId)) return true;
-  return /\b(first|1st|second|2nd)\b/i.test(String(data.rewardTitle || ""));
+  const id = data.rewardId || data.itemId;
+  if (CLAIM_REWARD_IDS.includes(id)) return true;
+
+  /* Ids are the reliable half — they survived the great rename of
+     all 163 rewards untouched. The title match is a fallback for
+     the rewards ever being recreated with new ids. */
+  const title = String(data.rewardTitle || data.itemName || "");
+  return /\b(first|1st|second|2nd)\b/i.test(title);
 }
 
 /**
@@ -188,6 +210,11 @@ export async function transformVeloraEvent(event, payload, env) {
 
     // ⭐ REWARD: points celebration
     if (event === "pointsCelebration") {
+      /* Same exclusion as the redemption branch above. Velora
+         emits BOTH events for one redemption, so guarding only
+         one of them lets every claim through the other. */
+      if (isClaimReward(data)) return null;
+
       const cd = data.cardDesign || {};
       const bg = cd.background || {};
       const iconCfg = cd.icon || {};
