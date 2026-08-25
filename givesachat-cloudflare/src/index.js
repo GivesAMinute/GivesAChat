@@ -1127,7 +1127,9 @@ export default {
           got === code
             ? `WRITES. The API honours commandCode — the dashboard is the bug.`
             : got == null
-              ? `DISCARDED. The column exists but the API ignores writes to it.`
+              ? (patch.status === 400
+                  ? `REFUSED. The column is in the read model but not in the\nupdate DTO's whitelist — see the raw response below. An\nexplicit 400 is the good version of this: a silent 200\nwould have looked identical to success.`
+                  : `DISCARDED. The column exists but the write did not take,\nand the API did not say why.`)
               : `CHANGED. The API rewrote the value — note the difference above.`,
           ``,
           `raw PATCH response: ${patchBody.slice(0, 300)}`
