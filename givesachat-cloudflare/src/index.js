@@ -923,7 +923,54 @@ export default {
         if (!res.ok) return json({ ok: false, error: `velora -> ${res.status}` }, 200);
 
         const data = await res.json();
-        const items = Array.isArray(data) ? data : data?.items || [];
+        let items = Array.isArray(data) ? data : data?.items || [];
+
+        /* ---------------------------------------------------------
+           REDEMPTION COUNTS, IF THEY ARE THERE.
+
+           totalRedemptions is definitely on the AUTHENTICATED
+           rewards endpoint — it showed up in the key dump. Whether
+           the public items endpoint carries it too is unknown, and
+           guessing would mean a "most redeemed" sort that silently
+           ordered everything by undefined.
+
+           So: use the public list, and only if it has no counts at
+           all, fetch them from the authenticated endpoint and merge
+           by id. The public path stays the default and the token is
+           only touched when it adds something.
+
+           The token never leaves the worker either way — what goes
+           out is a name and a number.
+        --------------------------------------------------------- */
+        const hasCounts = items.some((i) => Number.isFinite(Number(i?.totalRedemptions)));
+
+        if (!hasCounts) {
+          try {
+            const token = await getVeloraAccessToken(env);
+            if (token) {
+              const authed = await fetch(
+                "https://api.velora.tv/api/integrations/oauth/channel-points/rewards",
+                {
+                  headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+                  signal: AbortSignal.timeout(8000)
+                }
+              );
+              if (authed.ok) {
+                const aData = await authed.json();
+                const aList = Array.isArray(aData) ? aData : aData?.rewards || aData?.items || [];
+                const counts = new Map(aList.map((r) => [r?.id, r?.totalRedemptions]));
+                items = items.map((i) => ({
+                  ...i,
+                  totalRedemptions: i?.totalRedemptions ?? counts.get(i?.id) ?? null
+                }));
+              }
+            }
+          } catch (err) {
+            /* Counts are a nice-to-have. Losing them costs one sort
+               option; failing the request would cost the whole page. */
+            console.warn("[COMMANDS] count merge skipped:", err?.message || err);
+          }
+        }
 
         const commands = items
           .filter((i) => i?.name && i?.enabled !== false)
@@ -935,12 +982,23 @@ export default {
             name: String(i.name),
             description: String(i.description || ""),
             cost: i.cost ?? null,
-            icon: i.itemIconUrl || i.iconUrl || null
+            icon: i.itemIconUrl || i.iconUrl || null,
+            redemptions: Number.isFinite(Number(i.totalRedemptions))
+              ? Number(i.totalRedemptions)
+              : null
           }))
           .sort((a, b) => a.trigger.localeCompare(b.trigger));
 
         return new Response(
-          JSON.stringify({ ok: true, count: commands.length, commands }),
+          JSON.stringify({
+            ok: true,
+            count: commands.length,
+            /* Lets the page decide whether to offer a popularity
+               sort, rather than showing a button that would order
+               everything by null. */
+            hasRedemptions: commands.some((c) => c.redemptions != null),
+            commands
+          }),
           {
             status: 200,
             headers: {

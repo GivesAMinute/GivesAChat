@@ -49,6 +49,18 @@
   #search:focus { outline: none; border-color: #f5c451; }
   #count { color: #7a7a82; font-size: 13px; margin: 10px 2px 0; }
 
+  .sorts { display: flex; gap: 8px; margin: 12px 0 0; }
+  .sorts button {
+    flex: 1; padding: 9px 12px; font-size: 14px; font-family: inherit;
+    background: #17171a; color: #a0a0a8;
+    border: 1px solid #2c2c32; border-radius: 8px; cursor: pointer;
+  }
+  .sorts button:hover { border-color: #3c3c44; color: #d0d0d8; }
+  .sorts button[aria-pressed="true"] {
+    background: #241f10; color: #f5c451; border-color: #f5c451;
+  }
+  .hits { color: #6a6a72; font-size: 12px; flex-shrink: 0; white-space: nowrap; }
+
   main { max-width: 760px; margin: 0 auto; }
   .row {
     display: flex; gap: 12px; align-items: flex-start;
@@ -75,6 +87,14 @@
     <code>^demon</code> and <code>^Demon</code> both work.
   </p>
   <input id="search" type="search" placeholder="Search commands…" autocomplete="off" />
+
+  <!-- aria-pressed rather than a class, so the state is announced
+       to a screen reader rather than only being visible. -->
+  <div class="sorts" id="sorts" hidden>
+    <button id="sort-az" type="button" aria-pressed="true">A–Z</button>
+    <button id="sort-top" type="button" aria-pressed="false">Most redeemed</button>
+  </div>
+
   <p id="count"></p>
 </header>
 
@@ -85,6 +105,7 @@
   const countEl = document.getElementById("count");
   const searchEl = document.getElementById("search");
   let commands = [];
+  let sortMode = "az";
 
   /* Everything from the API is inserted with textContent, never
      innerHTML. Reward names and descriptions are typed by hand in
@@ -131,7 +152,14 @@
 
       row.appendChild(body);
 
-      if (c.cost != null) {
+      /* The count earns its place only when sorting by it —
+         otherwise it is noise beside 163 rows of cost. */
+      if (sortMode === "top" && c.redemptions != null) {
+        const hits = document.createElement("div");
+        hits.className = "hits";
+        hits.textContent = c.redemptions.toLocaleString() + "x";
+        row.appendChild(hits);
+      } else if (c.cost != null) {
         const cost = document.createElement("div");
         cost.className = "cost";
         cost.textContent = c.cost;
@@ -171,17 +199,47 @@
             c.description.toLowerCase().includes(q)
         );
 
+    /* Sorted on a COPY. Sorting `commands` in place would make the
+       A-Z ordering depend on whichever button had been pressed
+       before it, which is the kind of bug that only shows up after
+       someone toggles twice. */
+    const sorted = [...rows].sort((a, b) =>
+      sortMode === "top"
+        ? (b.redemptions ?? -1) - (a.redemptions ?? -1) ||
+          a.trigger.localeCompare(b.trigger)
+        : a.trigger.localeCompare(b.trigger)
+    );
+
     countEl.textContent = `${rows.length} of ${commands.length} commands`;
-    render(rows);
+    render(sorted);
   }
 
   searchEl.addEventListener("input", filter);
+
+  const azBtn = document.getElementById("sort-az");
+  const topBtn = document.getElementById("sort-top");
+
+  function setSort(mode) {
+    sortMode = mode;
+    azBtn.setAttribute("aria-pressed", String(mode === "az"));
+    topBtn.setAttribute("aria-pressed", String(mode === "top"));
+    filter();
+  }
+
+  azBtn.addEventListener("click", () => setSort("az"));
+  topBtn.addEventListener("click", () => setSort("top"));
 
   fetch("/api/commands")
     .then((r) => r.json())
     .then((data) => {
       if (!data.ok || !Array.isArray(data.commands)) throw new Error(data.error || "bad response");
       commands = data.commands;
+
+      /* Shown only if the counts actually arrived. A popularity
+         sort with no popularity data would order everything by
+         null and look broken for no visible reason. */
+      if (data.hasRedemptions) document.getElementById("sorts").hidden = false;
+
       filter();
     })
     .catch((err) => {
