@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+  <title>GivesAMinute — Chat Commands</title>
+  <meta name="description" content="Every chat command for GivesAMinute streams. Type one in chat to redeem it.">
+
+  <!-- Shown when the link is pasted into Discord, X, etc. -->
+  <meta property="og:title" content="GivesAMinute — Chat Commands">
+  <meta property="og:description" content="Type a command in chat to redeem it instantly. No searching the rewards list.">
+  <meta property="og:type" content="website">
+
+  <style>
+    /* ---------------------------------------------------------
+       WRAPPER ONLY. The real page lives on the worker.
+
+       Same approach as bjwok.com/chat: the content is framed
+       rather than redirected to, so the URL bar stays on
+       bjwok.com. JavaScript cannot do this — browsers forbid a
+       page from displaying another origin's URL, because that is
+       exactly how phishing would work.
+
+       IT IS A FRAME AND NOT A COPY ON PURPOSE. Duplicating the
+       command list here would mean two pages to keep in step, and
+       the one nobody remembers to update is the one viewers find.
+       The worker reads the live reward list, so this file never
+       needs touching again.
+
+       Unlike the chat wrapper this page SCROLLS — a chat overlay
+       is a fixed pane, a list of 163 commands is not. The frame
+       fills the viewport and scrolls internally, so the address
+       bar still collapses normally on a phone.
+    --------------------------------------------------------- */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #0e0e10;
+    }
+
+    iframe {
+      display: block;
+      border: 0;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;   /* accounts for mobile browser chrome */
+    }
+
+    /* Shown only if the frame fails to load (blocked, offline). */
+    .fallback {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: #eee;
+      text-align: center;
+      padding: 24px;
+      z-index: -1;   /* behind the iframe unless the iframe is gone */
+    }
+
+    .fallback a { color: #6cc6ff; font-size: 18px; }
+  </style>
+</head>
+<body>
+
+  <div class="fallback">
+    <p>The command list couldn't load in this window.</p>
+    <a href="https://givesachat-cloudflare.benonkoebsch.workers.dev/commands">
+      Open it directly
+    </a>
+  </div>
+
+  <iframe
+    src="https://givesachat-cloudflare.benonkoebsch.workers.dev/commands"
+    title="GivesAMinute chat commands"
+    referrerpolicy="no-referrer-when-downgrade"
+  ></iframe>
+
+</body>
+</html>
