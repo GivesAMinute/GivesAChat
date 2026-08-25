@@ -961,6 +961,36 @@ export default {
       };
 
       /* ---------------------------------------------------------
+         ⭐ IS THE ROLLBACK SNAPSHOT STILL THERE?
+
+         Read-only. The rollback route is the only other way to
+         find out, and that one writes — which is no way to check
+         whether a safety net exists before planning around it.
+
+         Shows when it was taken and how many rewards it covers,
+         plus a few names so it is obvious at a glance whether it
+         holds the ORIGINAL long names or a second apply has
+         already overwritten it with the short ones.
+      --------------------------------------------------------- */
+      if (url.pathname === "/api/velora/rewards" && url.searchParams.get("snapshot") === "1") {
+        const snap = await getRewardSnapshot(env);
+
+        if (!snap?.rewards?.length) {
+          return new Response("No snapshot stored.", { status: 200 });
+        }
+
+        return new Response([
+          `Snapshot taken ${new Date(snap.savedAt).toISOString()}`,
+          `${snap.rewards.length} rewards recorded.`,
+          ``,
+          `First 8 names as recorded — these should be the LONG`,
+          `originals. If they are already short, a second apply has`,
+          `overwritten the snapshot and the originals are gone:`,
+          ...snap.rewards.slice(0, 8).map((r) => `  ${r.name}`)
+        ].join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+      }
+
+      /* ---------------------------------------------------------
          ⭐ WHAT FIELDS DOES A REWARD ACTUALLY HAVE?
 
          Velora shipped a "Chat Command" field in the dashboard
