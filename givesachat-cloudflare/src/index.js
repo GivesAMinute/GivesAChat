@@ -959,8 +959,9 @@ export default {
       state.last = now;
 
       const message =
-        `${name} ACTUALLY entered the command to display a carrot!! ` +
-        `What an IDIOT!!! (but I will send you some stickers to make it worth your while)`;
+        `Hahah!! ${name} ACTUALLY entered the command to display a carrot ` +
+        `in the search field!! What an IDIOT!!! (but I will send them some ` +
+        `stickers to make it worth their while).`;
 
       try {
         const id = env.ChatRoom.idFromName("givesachat-main-v4");
