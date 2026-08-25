@@ -1070,6 +1070,70 @@ export default {
         ].join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
       }
 
+      /* ---------------------------------------------------------
+         ⭐ DOES commandCode ACTUALLY WRITE?
+
+         The key exists on all 163 rewards, so the column is real.
+         The dashboard accepts a value and loses it on save, which
+         means either the UI never sends it, or the API ignores it
+         too. Those are different bugs in different places.
+
+         One reward, one field, then READ IT BACK. A PATCH that
+         returns 200 proves nothing on its own — an API ignoring an
+         unrecognised key looks exactly like an API accepting it.
+         The only evidence that counts is the value coming back out.
+
+         Deliberately scoped to a single reward passed by id. If
+         the write turns out to be silently discarded, this will
+         have changed nothing anywhere.
+      --------------------------------------------------------- */
+      if (url.pathname === "/api/velora/rewards/test-command" && request.method === "POST") {
+        if (url.searchParams.get("confirm") !== "TEST") {
+          return new Response("refused: add &confirm=TEST", { status: 400 });
+        }
+
+        const id = url.searchParams.get("id");
+        const code = url.searchParams.get("code");
+        if (!id || !code) {
+          return new Response("need &id=<rewardId>&code=<command>", { status: 400 });
+        }
+
+        const patch = await fetch(`${REWARDS_URL}/${id}`, {
+          method: "PATCH",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ commandCode: code })
+        });
+
+        const patchBody = await patch.text();
+
+        /* Read back from the list rather than trusting the PATCH
+           response — the write is only real if a subsequent read
+           can see it. */
+        let after = null;
+        try {
+          const list = await fetchRewards();
+          after = list.find((r) => r?.id === id) || null;
+        } catch (err) {
+          return new Response(`patched (${patch.status}) but re-read failed: ${err.message}`, { status: 200 });
+        }
+
+        const got = after?.commandCode ?? null;
+
+        return new Response([
+          `PATCH ${patch.status}`,
+          `sent      commandCode = ${JSON.stringify(code)}`,
+          `read back commandCode = ${JSON.stringify(got)}`,
+          ``,
+          got === code
+            ? `WRITES. The API honours commandCode — the dashboard is the bug.`
+            : got == null
+              ? `DISCARDED. The column exists but the API ignores writes to it.`
+              : `CHANGED. The API rewrote the value — note the difference above.`,
+          ``,
+          `raw PATCH response: ${patchBody.slice(0, 300)}`
+        ].join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+      }
+
       /* ⭐ PLAN — writes nothing. */
       if (url.pathname === "/api/velora/rewards/plan" && request.method === "GET") {
         const max = Number(url.searchParams.get("max") || DEFAULT_MAX);
