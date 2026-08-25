@@ -873,6 +873,70 @@ export default {
     }
 
     /* ---------------------------------------------------------
+       ⭐ PUBLIC COMMAND LIST — no key, deliberately.
+
+       This is what viewers open. It cannot require OVERLAY_KEY,
+       and it must not touch the broadcaster token: it reads the
+       PUBLIC channel-points endpoint, so there is no credential
+       anywhere in this path to leak.
+
+       Read live rather than baked into a page, so adding a reward
+       on Velora publishes its command with no deploy and nothing
+       to remember. A list viewers cannot trust is worse than no
+       list, and any list maintained by hand eventually lies.
+
+       Proxied rather than fetched from the browser for the reason
+       written on the reward sounds and the fonts: Velora has
+       removed CORS headers three times now, and each time it took
+       out whatever was calling them client-side.
+    --------------------------------------------------------- */
+    if (url.pathname === "/api/commands" && request.method === "GET") {
+      const channel = env.VELORA_CHANNEL_ID;
+      if (!channel) return json({ ok: false, error: "no channel configured" }, 200);
+
+      try {
+        const res = await fetch(
+          `https://api.velora.tv/api/channel-points/${channel}/items`,
+          { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) }
+        );
+        if (!res.ok) return json({ ok: false, error: `velora -> ${res.status}` }, 200);
+
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : data?.items || [];
+
+        const commands = items
+          .filter((i) => i?.name && i?.enabled !== false)
+          .map((i) => ({
+            /* The trigger is derived exactly as Velora derives it —
+               name, spaces out, lower case. Not stored anywhere, so
+               it cannot fall out of step with the real thing. */
+            trigger: String(i.name).replace(/\s+/g, "").toLowerCase(),
+            name: String(i.name),
+            description: String(i.description || ""),
+            cost: i.cost ?? null,
+            icon: i.itemIconUrl || i.iconUrl || null
+          }))
+          .sort((a, b) => a.trigger.localeCompare(b.trigger));
+
+        return new Response(
+          JSON.stringify({ ok: true, count: commands.length, commands }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              /* Five minutes. New rewards appear promptly without
+                 every viewer's page hammering Velora. */
+              "Cache-Control": "public, max-age=300",
+              "Access-Control-Allow-Origin": "*"
+            }
+          }
+        );
+      } catch (err) {
+        return json({ ok: false, error: String(err?.message || err) }, 200);
+      }
+    }
+
+    /* ---------------------------------------------------------
        ⭐ REWARD RENAMING — plan, apply, roll back.
 
        Naming logic lives in rewardPlan.js and is shared by all

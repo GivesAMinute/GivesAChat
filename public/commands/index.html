@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GivesAMinute — Chat Commands</title>
+
+<!-- ---------------------------------------------------------
+     THE VIEWER-FACING COMMAND LIST.
+
+     Public on purpose: no key in the URL, and nothing on this
+     page ever touches a credential. It reads /api/commands,
+     which proxies Velora's PUBLIC channel-points endpoint.
+
+     Built from the live reward list rather than a page anyone has
+     to remember to update. Velora derives the trigger from the
+     reward name, so a list maintained by hand would start lying
+     the first time a reward was renamed — and a command list
+     viewers cannot trust is worse than none at all.
+
+     Search filters as you type, and tapping a command copies it,
+     since most viewers are reading this on a phone with the
+     stream open on something else.
+--------------------------------------------------------- */ -->
+
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 20px 16px 60px;
+    background: #0e0e10;
+    color: #efefef;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
+  header { max-width: 760px; margin: 0 auto 20px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 6px; }
+  .sub { color: #a0a0a8; font-size: 14px; margin: 0 0 16px; }
+  .sub code {
+    background: #1e1e22; padding: 2px 6px; border-radius: 5px;
+    color: #f5c451; font-size: 13px;
+  }
+  #search {
+    width: 100%; padding: 12px 14px; font-size: 16px;
+    background: #17171a; color: #fff;
+    border: 1px solid #2c2c32; border-radius: 10px;
+  }
+  #search:focus { outline: none; border-color: #f5c451; }
+  #count { color: #7a7a82; font-size: 13px; margin: 10px 2px 0; }
+
+  main { max-width: 760px; margin: 0 auto; }
+  .row {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 12px 4px; border-bottom: 1px solid #1c1c20;
+    cursor: pointer;
+  }
+  .row:hover { background: #141417; }
+  .icon { width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0; object-fit: contain; background: #1c1c20; }
+  .body { min-width: 0; flex: 1; }
+  .cmd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 15px; color: #f5c451; font-weight: 600; word-break: break-all; }
+  .desc { color: #9a9aa2; font-size: 13px; margin-top: 2px; }
+  .cost { color: #6a6a72; font-size: 12px; flex-shrink: 0; }
+  .msg { color: #8a8a92; padding: 30px 4px; }
+  .copied { color: #4ade80; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Chat Commands</h1>
+  <p class="sub">
+    Type a command in chat and press enter to redeem it — no need to
+    search the rewards list. Commands are not case sensitive, so
+    <code>^demon</code> and <code>^Demon</code> both work.
+  </p>
+  <input id="search" type="search" placeholder="Search commands…" autocomplete="off" />
+  <p id="count"></p>
+</header>
+
+<main id="list"><p class="msg">Loading…</p></main>
+
+<script>
+  const listEl = document.getElementById("list");
+  const countEl = document.getElementById("count");
+  const searchEl = document.getElementById("search");
+  let commands = [];
+
+  /* Everything from the API is inserted with textContent, never
+     innerHTML. Reward names and descriptions are typed by hand in
+     a dashboard, so they are ordinary untrusted input as far as
+     this page is concerned. */
+  function render(rows) {
+    listEl.textContent = "";
+
+    if (!rows.length) {
+      const p = document.createElement("p");
+      p.className = "msg";
+      p.textContent = "Nothing matches that.";
+      listEl.appendChild(p);
+      return;
+    }
+
+    for (const c of rows) {
+      const row = document.createElement("div");
+      row.className = "row";
+
+      if (c.icon) {
+        const img = document.createElement("img");
+        img.className = "icon";
+        img.src = c.icon;
+        img.alt = "";
+        img.loading = "lazy";
+        row.appendChild(img);
+      }
+
+      const body = document.createElement("div");
+      body.className = "body";
+
+      const cmd = document.createElement("div");
+      cmd.className = "cmd";
+      cmd.textContent = "^" + c.trigger;
+      body.appendChild(cmd);
+
+      if (c.description) {
+        const d = document.createElement("div");
+        d.className = "desc";
+        d.textContent = c.description;
+        body.appendChild(d);
+      }
+
+      row.appendChild(body);
+
+      if (c.cost != null) {
+        const cost = document.createElement("div");
+        cost.className = "cost";
+        cost.textContent = c.cost;
+        row.appendChild(cost);
+      }
+
+      row.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText("^" + c.trigger);
+          const old = cmd.textContent;
+          cmd.textContent = old + "  copied";
+          cmd.classList.add("copied");
+          setTimeout(() => {
+            cmd.textContent = old;
+            cmd.classList.remove("copied");
+          }, 900);
+        } catch {
+          /* Clipboard needs permission the viewer may not have
+             granted. Failing silently is right — the command is
+             already on screen to be typed. */
+        }
+      });
+
+      listEl.appendChild(row);
+    }
+  }
+
+  function filter() {
+    const q = searchEl.value.trim().toLowerCase().replace(/^\^/, "");
+
+    const rows = !q
+      ? commands
+      : commands.filter(
+          (c) =>
+            c.trigger.includes(q) ||
+            c.name.toLowerCase().includes(q) ||
+            c.description.toLowerCase().includes(q)
+        );
+
+    countEl.textContent = `${rows.length} of ${commands.length} commands`;
+    render(rows);
+  }
+
+  searchEl.addEventListener("input", filter);
+
+  fetch("/api/commands")
+    .then((r) => r.json())
+    .then((data) => {
+      if (!data.ok || !Array.isArray(data.commands)) throw new Error(data.error || "bad response");
+      commands = data.commands;
+      filter();
+    })
+    .catch((err) => {
+      listEl.textContent = "";
+      const p = document.createElement("p");
+      p.className = "msg";
+      p.textContent = "Could not load the command list. Try again in a moment.";
+      listEl.appendChild(p);
+      console.warn("[commands]", err);
+    });
+</script>
+
+</body>
+</html>
