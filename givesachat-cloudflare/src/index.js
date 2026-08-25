@@ -792,7 +792,28 @@ export default {
        collisions. Any name carrying punctuation is flagged rather
        than guessed at.
     --------------------------------------------------------- */
-    if (url.pathname === "/api/velora/rewards" && request.method === "GET") {
+    /* ---------------------------------------------------------
+       NOTE THE QUERY GUARDS.
+
+       This route matched /api/velora/rewards on the PATH alone,
+       and it sits earlier in the file than the ?keys=1 and
+       ?snapshot=1 probes. So it answered them too, returning this
+       trimmed audit and making both probes unreachable — they
+       looked correct in the source and could never run.
+
+       The symptom was worse than a 404 would have been: a
+       perfectly plausible JSON response to a question it had not
+       been asked, twice, which read as "the field is not there"
+       rather than "you never reached the code that checks".
+
+       Any new sub-mode of this path needs adding here too.
+    --------------------------------------------------------- */
+    if (
+      url.pathname === "/api/velora/rewards" &&
+      request.method === "GET" &&
+      url.searchParams.get("keys") !== "1" &&
+      url.searchParams.get("snapshot") !== "1"
+    ) {
       const auth = checkKey(request, url, env.OVERLAY_KEY);
       if (!auth.ok) return unauthorized();
 
