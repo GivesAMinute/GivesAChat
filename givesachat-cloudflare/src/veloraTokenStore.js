@@ -65,6 +65,41 @@ export class VeloraTokenStore {
          snapshot taken at the end would record the damage rather
          than the way back.
       ----------------------------------------------------- */
+      /* -----------------------------------------------------
+         Alert sample log — the last 10 alert payloads, verbatim.
+
+         Raids happen a few times a week and cannot be summoned on
+         demand. A test alert is NOT a substitute: the test carries
+         username, displayName AND templateData.username, while the
+         two real raids we have seen carried none of them. Twice
+         now a fix has been reasoned out from the test payload and
+         twice it has missed.
+
+         So the real thing gets captured when it happens, and read
+         back afterwards. Ten entries is enough to catch a raid
+         plus whatever else fired around it.
+      ----------------------------------------------------- */
+      if (url.pathname.endsWith("/alerts/sample")) {
+        const body = await request.json();
+        const log = (await this.storage.get("alert-samples")) || [];
+
+        log.unshift({ at: Date.now(), ...body });
+        await this.storage.put("alert-samples", log.slice(0, 10));
+
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      if (url.pathname.endsWith("/alerts/log")) {
+        const log = (await this.storage.get("alert-samples")) || [];
+        return new Response(JSON.stringify(log), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
       if (url.pathname.endsWith("/rewards/snapshot/put")) {
         const body = await request.json();
         await this.storage.put("reward-snapshot", {
@@ -200,5 +235,31 @@ export async function getRewardSnapshot(env) {
     return await res.json();
   } catch {
     return null;
+  }
+}
+
+/* ---------------------------------------------------------
+   Alert sampling. Fire-and-forget: a failure to record a
+   diagnostic must never affect the alert itself.
+--------------------------------------------------------- */
+export async function sampleAlert(env, entry) {
+  try {
+    const id = env.VeloraTokenStore.idFromName("velora-tokens");
+    await env.VeloraTokenStore.get(id).fetch("https://do/alerts/sample", {
+      method: "POST",
+      body: JSON.stringify(entry)
+    });
+  } catch (err) {
+    console.warn("[ALERTS] sample failed:", err?.message || err);
+  }
+}
+
+export async function getAlertSamples(env) {
+  try {
+    const id = env.VeloraTokenStore.idFromName("velora-tokens");
+    const res = await env.VeloraTokenStore.get(id).fetch("https://do/alerts/log");
+    return await res.json();
+  } catch {
+    return [];
   }
 }

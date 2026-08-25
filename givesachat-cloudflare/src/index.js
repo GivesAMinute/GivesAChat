@@ -29,7 +29,9 @@ import {
   putOAuthState,
   takeOAuthState,
   saveRewardSnapshot,
-  getRewardSnapshot
+  getRewardSnapshot,
+  sampleAlert,
+  getAlertSamples
 } from "./veloraTokenStore.js";
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
 import { subscribeBlazeSession } from "./blazeAuth.js";
@@ -1518,6 +1520,27 @@ export default {
       }
     }
 
+    /* ⭐ Read back the captured alert payloads. */
+    if (url.pathname === "/api/velora/alert-log" && request.method === "GET") {
+      const auth = checkKey(request, url, env.OVERLAY_KEY);
+      if (!auth.ok) return unauthorized();
+
+      const samples = await getAlertSamples(env);
+
+      if (!samples.length) {
+        return new Response(
+          "No alerts captured yet.\n\n" +
+          "If a raid has happened since deploying this and nothing is\n" +
+          "here, the worker never received it - which would mean both\n" +
+          "cards in the chat lane came from the popups overlay, and the\n" +
+          "dedupe there is what needs fixing.",
+          { headers: { "Content-Type": "text/plain; charset=utf-8" } }
+        );
+      }
+
+      return json({ count: samples.length, samples }, 200);
+    }
+
     if (url.pathname === "/api/velora/fonts" && request.method === "GET") {
       const auth = checkKey(request, url, env.OVERLAY_KEY);
 
@@ -1917,6 +1940,39 @@ export default {
           "[VELORA UNMAPPED]",
           veloraEvent.event,
           JSON.stringify(veloraEvent).slice(0, 1200)
+        );
+      }
+
+      /* ---------------------------------------------------------
+         ⭐ CAPTURE EVERY ALERT, VERBATIM.
+
+         Raids happen a few times a week and cannot be summoned.
+         Twice now a raid fix has been reasoned out from a TEST
+         alert and twice it has missed, because the test carries
+         username, displayName AND templateData.username while the
+         real raids carried none of them.
+
+         So the real payload is recorded when it arrives, tagged
+         with the path it came in on, and read back afterwards at
+         /api/velora/alert-log. The next raid answers three
+         questions at once: does the worker see it at all, how many
+         events does one raid produce here, and where — if
+         anywhere — is the raider's name.
+
+         Fire-and-forget through waitUntil: recording a diagnostic
+         must never delay or break the alert itself.
+      --------------------------------------------------------- */
+      if (
+        veloraEvent.event === "channel.raid" ||
+        veloraEvent.event === "channel.stream_alert" ||
+        veloraEvent?.data?.alertType
+      ) {
+        ctx.waitUntil(
+          sampleAlert(env, {
+            source: "worker:/api/events/velora",
+            event: veloraEvent.event,
+            payload: redactTokens(veloraEvent)
+          })
         );
       }
 
