@@ -86,6 +86,42 @@ function handleBroadcast(payload) {
   }
 
   if (payload.type === "reward" && payload.platform === "velora") {
+    /* ---------------------------------------------------------
+       ⭐ A REWARD WITH NO NAME IS NOT A REWARD.
+
+       The 1st/2nd GIVER claims kept landing in the chat lane as a
+       bare "Reward" card — the literal fallback string in
+       veloraRewardCard.js when rewardTitle, rewardName and title
+       are all missing.
+
+       Claims are excluded at three points upstream now, each
+       keyed on a different field name, and one of them is still
+       letting these through. Rather than guess at a fourth field
+       name — three guesses have already missed — this refuses to
+       render the thing that cannot be rendered meaningfully.
+
+       Volts tips are exempt on purpose: they legitimately carry
+       no reward name and take the other branch in the card, where
+       the amount supplies the text.
+
+       This is a backstop, not the fix. The payload is logged so
+       the real field name can be read off a live claim and the
+       exclusion put back where it belongs.
+    --------------------------------------------------------- */
+    const rewardName = payload.rewardTitle || payload.rewardName || payload.title;
+
+    const voltsAmount =
+      payload.volts ?? payload.amount ?? payload.templateData?.amount ?? null;
+
+    if (!rewardName && typeof voltsAmount !== "number") {
+      console.warn(
+        "[Overlay] nameless reward suppressed in the chat lane. Keys:",
+        Object.keys(payload).join(", "),
+        payload
+      );
+      return;
+    }
+
     handleReward(payload, container);
     showRewardPopup(payload);
     return;

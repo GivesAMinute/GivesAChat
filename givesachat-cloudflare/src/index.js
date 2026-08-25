@@ -1965,6 +1965,8 @@ export default {
       if (
         veloraEvent.event === "channel.raid" ||
         veloraEvent.event === "channel.stream_alert" ||
+        veloraEvent.event === "pointsCelebration" ||
+        veloraEvent.event === "channel.channel_points_redemption" ||
         veloraEvent?.data?.alertType
       ) {
         ctx.waitUntil(
