@@ -894,6 +894,105 @@ export default {
     }
 
     /* ---------------------------------------------------------
+       ⭐ THE CARROT. A joke, wired to a live stream.
+
+       The command page tells viewers that ^ is a caret, not a
+       carrot, and that U+1F955 will not trigger anything. Someone
+       will try it. This puts a Velora Stream Alert on the overlay
+       when they do.
+
+       PUBLIC AND UNAUTHENTICATED, because the page that calls it
+       is. That makes it the only route in this worker where a
+       stranger can put something on a live broadcast, so three
+       things are true by construction:
+
+       1. THE TEXT IS FIXED HERE, not sent by the caller. The only
+          variable is a name.
+
+       2. THE NAME IS STRIPPED TO [A-Za-z0-9_]. This is not
+          cosmetic. renderVeloraSystemMessage builds its bubble
+          with innerHTML, so a name is injected as HTML on the
+          stream — a caller passing a <script> tag would be
+          running it in the overlay. After this filter there is no
+          character left that could open a tag or an entity.
+
+       3. RATE LIMITED per IP and globally. Without it the joke is
+          a loop that owns the overlay for as long as someone
+          finds it funny.
+
+       In-memory counters, so they reset when the isolate recycles
+       and are per-isolate rather than global. Good enough for a
+       gag; it would not be good enough for anything that mattered.
+    --------------------------------------------------------- */
+    if (url.pathname === "/api/easter-egg/carrot" && request.method === "POST") {
+      const now = Date.now();
+
+      globalThis.__carrot ||= { perIp: new Map(), last: 0 };
+      const state = globalThis.__carrot;
+
+      const PER_IP_MS = 5 * 60 * 1000;
+      const GLOBAL_MS = 30 * 1000;
+
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+
+      for (const [k, at] of state.perIp) {
+        if (now - at > PER_IP_MS) state.perIp.delete(k);
+      }
+
+      if (now - state.last < GLOBAL_MS) {
+        return json({ ok: false, reason: "too soon" }, 200);
+      }
+      if (state.perIp.has(ip)) {
+        return json({ ok: false, reason: "already" }, 200);
+      }
+
+      let name = "Someone";
+      try {
+        const body = await request.json();
+        const cleaned = String(body?.name || "").replace(/[^A-Za-z0-9_]/g, "").slice(0, 20);
+        if (cleaned.length >= 2) name = cleaned;
+      } catch {
+        /* No body is fine — the joke still works anonymously. */
+      }
+
+      state.perIp.set(ip, now);
+      state.last = now;
+
+      const message =
+        `${name} ACTUALLY entered the command to display a carrot!! ` +
+        `What an IDIOT!!! (but I will send you some stickers to make it worth your while)`;
+
+      try {
+        const id = env.ChatRoom.idFromName("givesachat-main-v4");
+        const room = env.ChatRoom.get(id);
+
+        await room.fetch(
+          new Request("https://dummy/broadcast", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "velora_system",
+              event: "channel.stream_alert",
+              platform: "velora",
+              data: {
+                alertType: "carrot",
+                displayName: name,
+                username: name,
+                message
+              }
+            })
+          })
+        );
+      } catch (err) {
+        console.error("[CARROT] broadcast failed:", err?.message || err);
+        return json({ ok: false, reason: "broadcast failed" }, 200);
+      }
+
+      console.log(`[CARROT] 🥕 ${name}`);
+      return json({ ok: true, message }, 200);
+    }
+
+    /* ---------------------------------------------------------
        ⭐ PUBLIC COMMAND LIST — no key, deliberately.
 
        This is what viewers open. It cannot require OVERLAY_KEY,

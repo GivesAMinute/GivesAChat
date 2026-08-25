@@ -76,9 +76,18 @@
     </a>
   </div>
 
+  <!-- allow="clipboard-write" IS LOAD-BEARING.
+
+       navigator.clipboard is gated by permission policy, and a
+       cross-origin iframe does not get it unless the PARENT hands
+       it over. Tapping a command to copy it worked on the
+       workers.dev URL and silently stopped working the moment this
+       wrapper framed it — no error, just a button that did
+       nothing. Removing this attribute breaks it again. -->
   <iframe
     src="https://givesachat-cloudflare.benonkoebsch.workers.dev/commands"
     title="GivesAMinute chat commands"
+    allow="clipboard-write"
     referrerpolicy="no-referrer-when-downgrade"
   ></iframe>
 

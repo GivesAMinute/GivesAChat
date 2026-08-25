@@ -75,6 +75,29 @@
   .cost { color: #6a6a72; font-size: 12px; flex-shrink: 0; }
   .msg { color: #8a8a92; padding: 30px 4px; }
   .copied { color: #4ade80; }
+  .copyfail { color: #f87171; }
+
+  /* The carrot. Normal flow, not position:fixed, so it cannot
+     strand itself off-screen on a phone. */
+  #carrot {
+    max-width: 760px; margin: 0 auto 18px;
+    background: #241f10; border: 1px solid #f5c451; border-radius: 12px;
+    padding: 16px 18px; display: none;
+  }
+  #carrot.show { display: block; }
+  #carrot h2 { margin: 0 0 6px; font-size: 17px; color: #f5c451; }
+  #carrot p { margin: 0 0 10px; font-size: 14px; color: #e8e0c8; }
+  #carrot input {
+    width: 100%; padding: 10px 12px; font-size: 16px; margin-bottom: 10px;
+    background: #17171a; color: #fff; border: 1px solid #3c3423; border-radius: 8px;
+  }
+  #carrot button {
+    padding: 9px 16px; font-size: 14px; font-family: inherit; cursor: pointer;
+    background: #f5c451; color: #241f10; border: 0; border-radius: 8px; font-weight: 600;
+  }
+  #carrot .quiet {
+    background: none; color: #a09880; text-decoration: underline; font-weight: 400;
+  }
 </style>
 </head>
 <body>
@@ -85,6 +108,13 @@
     Type a command in chat and press enter to redeem it — no need to
     search the rewards list. Commands are not case sensitive, so
     <code>^demon</code> and <code>^Demon</code> both work.
+  </p>
+  <p class="sub">
+    The "caret" symbol is Shift + 6 &rarr; <code>^</code><br>
+    Totally irrelevant information but "caret" and "carrot" are two
+    different things: if you did actually want a &#129365; you can
+    enter U+1F955 &#128516; However that will not help you trigger
+    anything (except a chuckle from me).
   </p>
   <input id="search" type="search" placeholder="Search commands…" autocomplete="off" />
 
@@ -97,6 +127,14 @@
 
   <p id="count"></p>
 </header>
+
+<div id="carrot" role="alert">
+  <h2>&#129365; You absolute legend.</h2>
+  <p>You actually did it. Want me to tell everyone on stream?</p>
+  <input id="carrot-name" type="text" placeholder="Your chat name (letters and numbers)" maxlength="20" autocomplete="off" />
+  <button id="carrot-send" type="button">Announce it &#129365;</button>
+  <button id="carrot-close" type="button" class="quiet">No thanks</button>
+</div>
 
 <main id="list"><p class="msg">Loading…</p></main>
 
@@ -166,28 +204,109 @@
         row.appendChild(cost);
       }
 
-      row.addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText("^" + c.trigger);
-          const old = cmd.textContent;
-          cmd.textContent = old + "  copied";
-          cmd.classList.add("copied");
-          setTimeout(() => {
-            cmd.textContent = old;
-            cmd.classList.remove("copied");
-          }, 900);
-        } catch {
-          /* Clipboard needs permission the viewer may not have
-             granted. Failing silently is right — the command is
-             already on screen to be typed. */
-        }
-      });
+      row.addEventListener("click", () => copyCommand("^" + c.trigger, cmd));
 
       listEl.appendChild(row);
     }
   }
 
+  /* ---------------------------------------------------------
+     COPYING, WITH A FALLBACK AND A VISIBLE FAILURE.
+
+     navigator.clipboard is permission-policy gated. Inside a
+     cross-origin iframe — which is exactly how this page is served
+     at bjwok.com/commands — it is blocked unless the PARENT passes
+     allow="clipboard-write". It worked on the workers.dev URL and
+     stopped the moment it was framed.
+
+     The wrapper now delegates the permission, but a fallback earns
+     its place anyway: older Safari, insecure contexts and stricter
+     privacy settings all refuse the modern API. The old
+     execCommand path still works in most of them.
+
+     And when both fail the row now SAYS so instead of doing
+     nothing. A button that silently does nothing reads as broken;
+     one that says "copy failed" tells you to select it by hand.
+  --------------------------------------------------------- */
+  async function copyCommand(text, labelEl) {
+    const flash = (suffix, cls) => {
+      const old = labelEl.textContent;
+      labelEl.textContent = old + suffix;
+      labelEl.classList.add(cls);
+      setTimeout(() => {
+        labelEl.textContent = old;
+        labelEl.classList.remove(cls);
+      }, 1100);
+    };
+
+    try {
+      await navigator.clipboard.writeText(text);
+      flash("  copied", "copied");
+      return;
+    } catch { /* fall through */ }
+
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      flash(ok ? "  copied" : "  copy failed", ok ? "copied" : "copyfail");
+    } catch {
+      flash("  copy failed", "copyfail");
+    }
+  }
+
+  /* ---------------------------------------------------------
+     🥕
+
+     Fires on the emoji itself or on someone typing the codepoint
+     out literally, since the blurb above prints it as text and
+     that is what a lot of people will copy.
+
+     Once per page load. It is a joke, not a klaxon.
+  --------------------------------------------------------- */
+  const CARROT = /\u{1F955}|u\+1f955/iu;
+  let carrotFired = false;
+
+  const carrotEl = document.getElementById("carrot");
+
+  function maybeCarrot(value) {
+    if (carrotFired || !CARROT.test(value)) return;
+    carrotFired = true;
+    carrotEl.classList.add("show");
+    carrotEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  document.getElementById("carrot-close").addEventListener("click", () => {
+    carrotEl.classList.remove("show");
+  });
+
+  document.getElementById("carrot-send").addEventListener("click", async () => {
+    const btn = document.getElementById("carrot-send");
+    btn.disabled = true;
+    btn.textContent = "Sending…";
+
+    try {
+      const res = await fetch("/api/easter-egg/carrot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: document.getElementById("carrot-name").value })
+      });
+      const data = await res.json();
+      btn.textContent = data.ok ? "Sent \u{1F955}" : "Already announced";
+    } catch {
+      btn.textContent = "Couldn't send";
+    }
+  });
+
   function filter() {
+    maybeCarrot(searchEl.value);
+
     const q = searchEl.value.trim().toLowerCase().replace(/^\^/, "");
 
     const rows = !q
