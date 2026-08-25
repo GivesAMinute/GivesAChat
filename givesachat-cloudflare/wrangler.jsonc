@@ -194,6 +194,14 @@
     "FACEBOOK_PAGE_IDS": "108984299449293"
   },
 
+  /* Every two minutes. Cron ticks are WORKER requests, not Durable
+     Object duration, so the supervisor itself is effectively free —
+     the whole point is that nothing expensive runs while offline.
+     Two minutes bounds how long chat can lag the start of a stream. */
+  "triggers": {
+    "crons": ["*/2 * * * *"]
+  },
+
   "assets": {
     "directory": "../public",
     "binding": "ASSETS"

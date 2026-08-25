@@ -279,6 +279,45 @@ export class OdyseeRoom {
 
        The grace period still applies from here, so a page
        refresh doesn't tear the upstream connection down. */
+    /* ---------------------------------------------------------
+       ⭐ LIVE GATE — pushed by the worker's cron.
+
+       An overlay being CONNECTED is not evidence that anyone is
+       watching a stream. A monitor tab left open in a browser on a
+       laptop that never sleeps is a connection that never ends,
+       and under the old rule that alone held this room resident
+       24 hours a day, 7 days a week — 84% of the entire monthly
+       free allowance, for one room, watching nothing.
+
+       So residency now follows the STREAM, not the socket.
+
+       Defaults to true and is only ever set false by a positive
+       "you are offline" answer. If the live check fails, errors or
+       never arrives, this room keeps running — losing chat during
+       a live stream is a far worse failure than an idle room.
+    --------------------------------------------------------- */
+    if (url.pathname.endsWith("/live")) {
+      let live = true;
+      try {
+        const body = await request.json();
+        live = body?.live !== false;
+      } catch { /* unreadable body: assume live, per above */ }
+
+      this.liveGate = live;
+
+      if (live) {
+        /* Waking here is what starts the room when the stream
+           begins, since the overlay may have been connected for
+           hours already and will not reconnect to announce it. */
+        this.clientsPresent = true;
+        this.lastClientSeenAt = Date.now();
+        this.ensureRunning?.();
+        await this.scheduleAlarm?.();
+      }
+
+      return this.json({ ok: true, live });
+    }
+
     if (url.pathname.endsWith("/idle")) {
       this.clientsPresent = false;
       this.lastClientSeenAt = Date.now();
@@ -401,7 +440,8 @@ export class OdyseeRoom {
   async alarm() {
     await this.refreshClientPresence();
 
-    if (!this.clientsPresent && Date.now() - this.lastClientSeenAt > IDLE_SHUTDOWN_MS) {
+    if (this.liveGate === false ||
+        (!this.clientsPresent && Date.now() - this.lastClientSeenAt > IDLE_SHUTDOWN_MS)) {
       this.stop("idle");
       return;   // no alarm rescheduled — object can be evicted
     }

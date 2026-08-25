@@ -258,6 +258,75 @@ function unauthorized() {
 }
 
 export default {
+  /* ---------------------------------------------------------
+     ⭐ THE SUPERVISOR.
+
+     Residency used to follow the SOCKET: a platform room ran for
+     as long as any overlay was connected. That is fine while an
+     overlay means OBS on a desk. It is ruinous the moment one is a
+     monitor tab left open on a laptop that never sleeps — which is
+     exactly what happened. Four rooms billed 24.0 hours a day for
+     four days straight, on the strength of one browser tab, and a
+     single room resident around the clock costs 84% of the entire
+     monthly free allowance while watching nothing.
+
+     Residency now follows the STREAM. This tick asks Velora
+     whether the channel is live and tells every room. Offline
+     rooms stop and are evicted no matter what is connected, so a
+     forgotten tab, a cloud-hosted layer or a viewer who never
+     closes their pop-out can never cost anything again.
+
+     FAILS TOWARDS RUNNING, deliberately. An unreachable or
+     unreadable live check leaves rooms alone rather than stopping
+     them: silence during a live stream is a much worse outcome
+     than an idle room, and the cost of being wrong is bounded by
+     the next tick two minutes later.
+  --------------------------------------------------------- */
+  async scheduled(event, env, ctx) {
+    const channel = env.VELORA_CHANNEL || "GivesAMinute";
+
+    let live = null;   // null = unknown, and unknown means leave alone
+
+    try {
+      const res = await fetch(
+        `https://api.velora.tv/api/streams/user/${encodeURIComponent(channel)}`,
+        { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        if (typeof data?.isLive === "boolean") live = data.isLive;
+      } else {
+        console.warn(`[SUPERVISOR] live check -> ${res.status}`);
+      }
+    } catch (err) {
+      console.warn("[SUPERVISOR] live check failed:", err?.message || err);
+    }
+
+    if (live === null) return;   // unknown: change nothing
+
+    const rooms = [
+      [env.BeamRoom, "beam-unified-chat"],
+      [env.ArenaRoom, "arena-live-chat"],
+      [env.OdyseeRoom, "odysee-live-chat"],
+      [env.BitChuteRoom, "bitchute-live-chat"],
+      [env.FacebookRoom, "facebook-live-chat"]
+    ];
+
+    await Promise.allSettled(
+      rooms.map(([ns, name]) => {
+        if (!ns) return Promise.resolve();
+        return ns.get(ns.idFromName(name)).fetch("https://do/live", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ live })
+        });
+      })
+    );
+
+    console.log(`[SUPERVISOR] ${channel} live=${live} — ${rooms.length} rooms notified`);
+  },
+
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     console.log("DEBUG Incoming path:", url.pathname);
