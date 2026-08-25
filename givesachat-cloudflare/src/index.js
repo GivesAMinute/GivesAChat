@@ -960,6 +960,65 @@ export default {
         return Array.isArray(data) ? data : data?.rewards || data?.items || [];
       };
 
+      /* ---------------------------------------------------------
+         ⭐ WHAT FIELDS DOES A REWARD ACTUALLY HAVE?
+
+         Velora shipped a "Chat Command" field in the dashboard
+         before documenting it — the API reference still lists only
+         name, cost, description, cooldowns, approval and
+         cardDesign. So the field exists and we do not know what it
+         is called.
+
+         Guessing at chatCommand / command / slug and PATCHing 163
+         rewards to find out is exactly the mistake this project
+         has made before: an endpoint that answers 200 while
+         quietly ignoring an unrecognised key looks identical to
+         success.
+
+         So read it instead. This returns the union of every key
+         present across the reward list, plus the value of anything
+         command-shaped. Set a command on ONE reward in the
+         dashboard, call this, and the real field name appears.
+
+         Keys only, and only from reward config — there is no
+         credential anywhere in a channel-points payload.
+      --------------------------------------------------------- */
+      if (url.pathname === "/api/velora/rewards" && url.searchParams.get("keys") === "1") {
+        let list;
+        try { list = await fetchRewards(); }
+        catch (err) { return new Response(String(err.message), { status: 200 }); }
+
+        const keys = new Set();
+        for (const r of list) for (const k of Object.keys(r || {})) keys.add(k);
+
+        /* Anything whose name hints at a command, with its value,
+           for the rewards where one is actually set. */
+        const hint = /command|slug|trigger|alias|shortcut|keyword/i;
+        const commandish = [...keys].filter((k) => hint.test(k));
+
+        const samples = [];
+        for (const r of list) {
+          for (const k of commandish) {
+            if (r?.[k]) samples.push(`  ${r.name}  ->  ${k} = ${JSON.stringify(r[k])}`);
+          }
+        }
+
+        return new Response([
+          `${list.length} rewards.`,
+          ``,
+          `ALL KEYS SEEN:`,
+          ...[...keys].sort().map((k) => `  ${k}`),
+          ``,
+          commandish.length
+            ? `COMMAND-SHAPED KEYS: ${commandish.join(", ")}`
+            : `No command-shaped key found. If you have not set a Chat`,
+          commandish.length ? `` : `Command on any reward yet, set one and re-run this.`,
+          ``,
+          samples.length ? `SET ON:` : `None have a value set yet.`,
+          ...samples
+        ].join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+      }
+
       /* ⭐ PLAN — writes nothing. */
       if (url.pathname === "/api/velora/rewards/plan" && request.method === "GET") {
         const max = Number(url.searchParams.get("max") || DEFAULT_MAX);
