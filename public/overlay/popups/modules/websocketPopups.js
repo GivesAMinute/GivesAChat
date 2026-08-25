@@ -48,12 +48,20 @@ class PopupsSocketManager {
    *   attempt — which is why the overlay needed a manual refresh
    *   before alerts would render again.
    */
-  constructor({ type, url, getToken = null, onEvent }) {
+  constructor({ type, url, getToken = null, onEvent, onSocket = null }) {
     this.type = type;
     this.url = url;
     this.getToken = getToken;
     this.token = null;
     this.onEvent = onEvent;
+
+    /* Called with every socket this manager creates.
+
+       Needed because a socket read once at setup is a socket that
+       is null forever: connect() is deferred by 100ms, and every
+       reconnect replaces it afterwards. Anything holding the
+       original reference is holding a value that was never valid. */
+    this.onSocket = onSocket;
 
     this.instance = ++managerSeq;
     this.gen = 0;
@@ -160,6 +168,8 @@ class PopupsSocketManager {
       this.type === "velora"
         ? io(this.url, opts)
         : new WebSocket(this.url);
+
+    this.onSocket?.(this.socket);
 
     /* ---------------------------------------------------------
        ⭐ SOCKET.IO (Velora) — reconnect owned by scheduleReconnect
@@ -476,6 +486,7 @@ export async function setupPopupSocket() {
   const doManager = new PopupsSocketManager({
     type: "do",
     url: sharedPopups.wsURL,
+    onSocket: (ws) => { sharedPopups.ws = ws; },
     onEvent: (payload) => {
       sharedPopups.wake();           // ⭐ WAKE POPUPS
       sharedPopups.markPopupEvent(); // ⭐ MARK ACTIVITY
@@ -483,7 +494,28 @@ export async function setupPopupSocket() {
     }
   });
 
-  sharedPopups.ws = doManager.socket;
+  /* ---------------------------------------------------------
+     ⭐ THIS USED TO READ sharedPopups.ws = doManager.socket
+
+     Which captured null. The manager sets this.socket = null in
+     its constructor and defers connect() by 100ms, so the value
+     read here had not been created yet — and every reconnect
+     replaced it afterwards anyway.
+
+     Nothing looked broken, because popups kept working: the
+     manager has its own socket and its own handlers. What broke
+     was everything in _sharedPopups.js that reads sharedPopups.ws,
+     and both of those start with `if (!ws) return`.
+
+     So the 25 second heartbeat NEVER FIRED, not once. The socket
+     had no keepalive, was dropped as idle, reconnected, and did it
+     again — which is the connect/close churn showing up as a 71%
+     error rate on PopupRoom.
+
+     Assigned on every connect now, so the reference is always the
+     live one.
+  --------------------------------------------------------- */
+  sharedPopups.reconnect = () => doManager.scheduleReconnect();
 
   sharedPopups.chatWS = new WebSocket(sharedPopups.chatWSURL);
 

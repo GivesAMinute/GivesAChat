@@ -234,11 +234,25 @@ setInterval(() => {
   const now = Date.now();
   const idle = now - lastPopupEvent;
 
-  // If idle for > 5 minutes, force reconnect
+  /* ---------------------------------------------------------
+     Force a reconnect THROUGH THE MANAGER.
+
+     This used to build its own `new WebSocket(...)` and assign it
+     here. That socket had no onmessage, no onclose, no handlers of
+     any kind — it could not deliver an event, could not mark
+     activity, and so was replaced by another orphan five minutes
+     later, forever.
+
+     The manager owns reconnection: it tears the old socket down,
+     re-attaches handlers and applies the generation guard. Asking
+     it is the only way to get a socket that actually works.
+  --------------------------------------------------------- */
   if (idle > 5 * 60 * 1000) {
-    try { ws.close(); } catch {}
-    sharedPopups.ws = new WebSocket(sharedPopups.wsURL);
     lastPopupEvent = now;
+
+    if (typeof sharedPopups.reconnect === "function") {
+      sharedPopups.reconnect();
+    }
   }
 }, 60000); // check every minute
 
