@@ -392,6 +392,32 @@ function handleVeloraEvent({ event, data, timestamp }, source = "?") {
     const t = data.templateData || {};
     const name = resolveAlertName(data);
 
+    /* ---------------------------------------------------------
+       ⭐ ONLY RELAY AN ALERT WE CAN NAME.
+
+       The chat lane is fed by two routes and the ChatRoom dedupe
+       is first-wins, so the earlier arrival takes the slot. This
+       overlay is always earlier — it hears Velora directly — and
+       its Socket.IO payload for a raid has NO raider name. The
+       worker's webhook does: data.raider.displayName.
+
+       So the overlay kept winning a race with the worse copy, and
+       every raid read "Someone raided!" while a perfectly good
+       "net-TV raided with 2 viewers!" was discarded a beat later
+       as the duplicate.
+
+       Withdrawing from the race is simpler than trying to win it
+       correctly. If this side cannot name the person, the worker's
+       version is strictly better and should be allowed through.
+
+       The POPUP still renders either way — that has always worked
+       and is untouched. This governs the chat lane only.
+    --------------------------------------------------------- */
+    if (!name) {
+      console.log("[VELORA] unnamed alert not relayed — the worker has a better copy");
+      return;
+    }
+
     sendToChatOverlay({
       type: "velora_system",
       event: "channel.stream_alert",
@@ -461,6 +487,12 @@ function handleVeloraEvent({ event, data, timestamp }, source = "?") {
 
     const cardName = resolveAlertName(payload);
     const cardType = payload.alertType || payload.type;
+
+    /* Same rule as above — an unnamed card loses to the worker's. */
+    if (!cardName) {
+      console.log("[VELORA] unnamed cardAdded not relayed");
+      return;
+    }
 
     sendToChatOverlay({
       type: "velora_system",
