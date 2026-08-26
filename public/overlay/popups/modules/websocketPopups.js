@@ -473,8 +473,33 @@ function handleVeloraEvent({ event, data, timestamp }, source = "?") {
       if (!raider) return d;
 
       console.log(`[VELORA] raid alert named from sibling: ${raider.name}`);
+
+      /* ---------------------------------------------------------
+         ⭐ THE MESSAGE HAS TO BE CORRECTED TOO, NOT JUST THE FIELDS.
+
+         veloraRendererPopups line 164 is:
+
+           if (alert.message) return alert.message;
+
+         It returns Velora's pre-rendered sentence VERBATIM and
+         never looks at displayName at all. Velora's sentence for a
+         raid is "Someone raided with 3 viewers!", so merging the
+         raider into the payload changed nothing — the message
+         short-circuited past it every time.
+
+         Rewriting Velora's own wording rather than replacing it,
+         so the card reads exactly as they intended with the right
+         name in it. Anchored to the start and case-sensitive, so a
+         viewer genuinely called Someone is not mangled.
+      --------------------------------------------------------- */
+      const fixedMessage =
+        typeof d.message === "string" && /^Someone\b/.test(d.message)
+          ? d.message.replace(/^Someone\b/, raider.name)
+          : d.message;
+
       return {
         ...d,
+        message: fixedMessage,
         displayName: raider.name,
         username: raider.name,
         templateData: {
@@ -506,6 +531,11 @@ function handleVeloraEvent({ event, data, timestamp }, source = "?") {
        duplicate delivery must not draw a second popup either. */
     if (isDuplicateAlert(data.alertType, resolveAlertName(data))) return;
 
+    /* The identity fields were missing from this whitelist, so the
+       merged raider was assembled and then thrown away one line
+       later. Anything the renderer may need has to be listed here
+       explicitly — spreading `data` would carry cardDesign twice
+       and is not worth the ambiguity. */
     renderVeloraAlertCard({
       event,
       timestamp,
@@ -516,7 +546,12 @@ function handleVeloraEvent({ event, data, timestamp }, source = "?") {
       customMediaTextScale: data.customMediaTextScale || "1.0",
       customMediaTextAlign: data.customMediaTextAlign || "center",
       message: data.message || null,
-      duration: data.duration || null
+      duration: data.duration || null,
+
+      alertType: data.alertType || null,
+      displayName: data.displayName || null,
+      username: data.username || null,
+      templateData: data.templateData || null
     });
 
     const t = data.templateData || {};
