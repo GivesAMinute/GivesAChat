@@ -192,6 +192,39 @@ export class ChatRoom {
       return;
     }
 
+    /* ---------------------------------------------------------
+       ⭐ NO CLIENT MAY CREATE A STREAM ALERT. THE WORKER OWNS IT.
+
+       Settled by the logs, not by argument. The worker builds the
+       correct card every time:
+
+         [ALERT v3] type=raid name="net-TV" viewers=2
+
+       and the lane still showed "Someone raided!". So the card on
+       screen was never the worker's — it came from the popups
+       overlay, whose Socket.IO payload has no raider name.
+
+       The overlay was supposed to stop relaying unnamed alerts.
+       That fix lives in a browser source which has not picked up
+       new code across several deploys and refreshes, and waiting
+       for a page to update is not a fix.
+
+       So the permission is removed here instead. A client socket
+       can no longer put a stream alert in the lane at all — not a
+       stale one, not a future one, not a viewer's. The worker's
+       named copy becomes the only alert that can exist.
+
+       Reward cards are untouched: those carry real names and the
+       overlay is the right place for them.
+    --------------------------------------------------------- */
+    if (parsed?.type === "velora_system") {
+      console.log(
+        `[ChatRoom] client alert refused (${parsed?.data?.alertType || "?"}) — ` +
+        `the worker is the only source of stream alerts`
+      );
+      return;
+    }
+
     this.broadcast(scrub(parsed), ws);
   }
 
