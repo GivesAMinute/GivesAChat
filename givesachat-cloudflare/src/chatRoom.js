@@ -285,7 +285,67 @@ export class ChatRoom {
      ⭐ Broadcast to all connected overlay clients
      (except sender)
   --------------------------------------------------------- */
+  /* ---------------------------------------------------------
+     ⭐ ONE ALERT, ONE CARD — WHOEVER SENT IT.
+
+     Velora alerts reach the chat lane by two independent routes:
+     the worker, from the channel.raid webhook, and the popups
+     overlay, from its own Socket.IO feed. Neither knows about the
+     other, so a raid produced two cards — and because the two
+     feeds carry DIFFERENT SHAPES, the two cards disagreed:
+
+       "Someone raided with 4 viewers!"   (overlay: count, no name)
+       "Someone raided!"                  (worker: neither)
+
+     Deduping inside either sender cannot work. The popups overlay
+     already had a dedupe and it was helpless, because the second
+     card was never its to suppress.
+
+     This is the one place both routes meet, so this is where it
+     belongs. Keyed on type and name over a short window: two
+     genuine follows seconds apart still both render, and a raid
+     that arrives twice does not.
+
+     In-memory, so it resets when the object is evicted. That is
+     fine — the window is seconds and eviction takes minutes.
+  --------------------------------------------------------- */
+  isDuplicateAlert(event) {
+    if (event?.type !== "velora_system") return false;
+
+    const d = event.data || {};
+    const type = String(d.alertType || "alert");
+    const name = String(d.displayName || d.username || "").toLowerCase();
+    const key = `${type}|${name}`;
+
+    const now = Date.now();
+    this._recentAlerts ||= new Map();
+
+    for (const [k, at] of this._recentAlerts) {
+      if (now - at > 8000) this._recentAlerts.delete(k);
+    }
+
+    /* A nameless copy matches a named one of the same type. The
+       two routes disagree about the name, so requiring both to
+       match is exactly what let the pair through before. */
+    const clash =
+      this._recentAlerts.has(key) ||
+      [...this._recentAlerts.keys()].some((k) => {
+        const [t, n] = k.split("|");
+        return t === type && (!n || !name);
+      });
+
+    if (clash) {
+      console.log(`[ChatRoom] duplicate ${type} alert suppressed`);
+      return true;
+    }
+
+    this._recentAlerts.set(key, now);
+    return false;
+  }
+
   broadcast(event, sender) {
+    if (this.isDuplicateAlert(event)) return;
+
     const sockets = this.state.getWebSockets();
     if (!sockets.length) return;
 

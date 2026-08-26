@@ -33,13 +33,33 @@ const CLAIM_REWARD_IDS = [
    worker, not from the overlay everyone was looking at.
 --------------------------------------------------------- */
 function isClaimReward(data = {}) {
-  const id = data.rewardId || data.itemId;
+  /* ---------------------------------------------------------
+     ⭐ THE REAL PAYLOAD IS NESTED. Captured from a live raid and
+     a live claim, not from a test alert:
+
+       data.reward.id    "f49bd3f1-…"   <- Second (2nd)
+       data.reward.name  null            <- always null here
+       data.user.displayName
+
+     Every previous version of this checked data.rewardId, then
+     data.itemId, then their title equivalents. None of those
+     exist on the wire, so a claim was NEVER excluded and landed
+     in the chat lane as a bare "Reward" card every single time.
+
+     Three guesses came from Velora's TEST alert, which carries a
+     completely different, flat shape. The test was never a
+     smaller version of the real thing.
+
+     The flat names are kept as fallbacks: the Socket.IO feed the
+     popups overlay listens to does use them, and this function is
+     the shared answer to "is this a claim".
+  --------------------------------------------------------- */
+  const id = data.reward?.id || data.rewardId || data.itemId;
   if (CLAIM_REWARD_IDS.includes(id)) return true;
 
-  /* Ids are the reliable half — they survived the great rename of
-     all 163 rewards untouched. The title match is a fallback for
-     the rewards ever being recreated with new ids. */
-  const title = String(data.rewardTitle || data.itemName || "");
+  const title = String(
+    data.reward?.name || data.rewardTitle || data.itemName || ""
+  );
   return /\b(first|1st|second|2nd)\b/i.test(title);
 }
 
@@ -191,20 +211,27 @@ export async function transformVeloraEvent(event, payload, env) {
       ----------------------------------------------------- */
       if (isClaimReward(data)) return null;
 
+      /* Nested first, flat as fallback — see isClaimReward. Note
+         reward.name arrives as null on every redemption observed,
+         so this card frequently has no title through this path.
+         The overlay's own relay carries the real name, and the
+         chat lane refuses to render a nameless reward. */
       return {
         type: "reward",
         platform: "velora",
         redemptionId: data.redemptionId,
-        rewardName: data.rewardTitle,
-        rewardCost: data.rewardCost,
-        rewardId: data.rewardId,
-        username: data.displayName || data.username,
-        avatar: data.avatarUrl || null,
-        userInput: data.userInput || null,
+        rewardName: data.reward?.name || data.rewardTitle || null,
+        rewardCost: data.reward?.cost ?? data.rewardCost ?? null,
+        rewardId: data.reward?.id || data.rewardId || null,
+        username:
+          data.user?.displayName || data.user?.username ||
+          data.displayName || data.username || null,
+        avatar: data.user?.avatarUrl || data.avatarUrl || null,
+        userInput: data.userMessage || data.userInput || null,
         redeemedAt: data.redeemedAt || null,
         rewardIcon: data.rewardIcon || null,
         rewardColor: data.rewardColor || null,
-        cardDesign: data.cardDesign || null
+        cardDesign: data.reward?.cardDesign || data.cardDesign || null
       };
     }
 
@@ -268,11 +295,24 @@ export async function transformVeloraEvent(event, payload, env) {
             data.type ||
             event.replace("channel.", ""),
 
-          displayName: data.displayName || data.username || null,
-          username: data.username || data.displayName || null,
+          /* ⭐ channel.raid puts the raider in data.raider and the
+             count in data.viewerCount. Neither displayName nor
+             viewers exists at the top level, which is why every
+             raid rendered as "Someone raided!" — the name was
+             never missing, we were reading the wrong place. */
+          displayName:
+            data.raider?.displayName || data.raider?.username ||
+            data.user?.displayName || data.user?.username ||
+            data.displayName || data.username || null,
+          username:
+            data.raider?.username || data.raider?.displayName ||
+            data.user?.username || data.user?.displayName ||
+            data.username || data.displayName || null,
+
+          avatar: data.raider?.avatarUrl || data.user?.avatarUrl || null,
 
           count: data.count || data.amount || data.total || null,
-          viewers: data.viewers || null,
+          viewers: data.viewerCount ?? data.viewers ?? null,
 
           message: data.message || null,
           customSoundUrl: data.customSoundUrl || null
