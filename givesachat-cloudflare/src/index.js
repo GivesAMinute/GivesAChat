@@ -1528,6 +1528,41 @@ export default {
       });
     }
 
+    /* ---------------------------------------------------------
+       ⭐ LET THE OVERLAY POST ITS OWN PAYLOAD IN.
+
+       The chat lane was fixed the moment the real webhook payload
+       was captured. The popup was then "fixed" three times against
+       a payload nobody had ever looked at, on the assumption it
+       matched. It does not — the popup resolves the viewer count
+       and not the name, which no shape we have seen would do.
+
+       The overlay's feed is Velora's Socket.IO, which never
+       touches this worker, so nothing server-side can observe it.
+       This lets the overlay hand its raw event over, tagged, into
+       the same ring buffer as the webhook copy — so the two shapes
+       can be read side by side instead of guessed at.
+    --------------------------------------------------------- */
+    if (url.pathname === "/api/velora/alert-sample" && request.method === "POST") {
+      const auth = checkKey(request, url, env.OVERLAY_KEY);
+      if (!auth.ok) return unauthorized();
+
+      try {
+        const body = await request.json();
+        ctx.waitUntil(
+          sampleAlert(env, {
+            source: "overlay:socket.io",
+            event: body?.event || "?",
+            payload: redactTokens(body?.data ?? body)
+          })
+        );
+      } catch {
+        return new Response("bad body", { status: 400 });
+      }
+
+      return json({ ok: true }, 200);
+    }
+
     /* ⭐ Read back the captured alert payloads. */
     if (url.pathname === "/api/velora/alert-log" && request.method === "GET") {
       const auth = checkKey(request, url, env.OVERLAY_KEY);

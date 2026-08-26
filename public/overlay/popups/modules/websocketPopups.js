@@ -371,6 +371,31 @@ function resolveAlertName(src = {}) {
 function handleVeloraEvent({ event, data, timestamp }, source = "?") {
   console.log(`[VELORA RAW EVENT via ${source}]`, event, JSON.stringify(data, null, 2));
 
+  /* ---------------------------------------------------------
+     ⭐ SEND THE RAW SOCKET PAYLOAD SOMEWHERE IT CAN BE READ.
+
+     This console line has existed all along and is useless in
+     practice: it lives in a browser source nobody can watch
+     mid-stream, which is why the popup has now been "fixed" three
+     times against a payload never actually inspected.
+
+     Posting it to the worker puts it in the same log as the
+     webhook copy, readable afterwards at /api/velora/alert-log.
+
+     Alerts only, fire and forget. A failed diagnostic must never
+     delay the popup it is observing.
+  --------------------------------------------------------- */
+  if (event === "channel.raid" || event === "channel.stream_alert" || data?.alertType) {
+    try {
+      const key = new URLSearchParams(location.search).get("key") || "";
+      fetch(`/api/velora/alert-sample?key=${encodeURIComponent(key)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event, data })
+      }).catch(() => {});
+    } catch {}
+  }
+
   if (event === "channel.stream_alert") {
     /* Guard sits ABOVE renderVeloraAlertCard deliberately — a
        duplicate delivery must not draw a second popup either. */
