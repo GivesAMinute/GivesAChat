@@ -449,26 +449,58 @@ function handleVeloraEvent({ event, data, timestamp }, source = "?") {
   }
 
   if (event === "channel.stream_alert") {
-    /* Fill in what Velora left out, and only that. If they ever
-       start sending the raider on the alert itself, the payload
-       already has a name and this does nothing. */
-    if (data?.alertType === "raid" && !(data.displayName || data.username)) {
+    /* ---------------------------------------------------------
+       ⭐ A RAID ALERT WAITS BRIEFLY FOR ITS SIBLING.
+
+       The previous attempt merged the raider only if channel.raid
+       had ALREADY arrived. That assumed an order which was never
+       established: both events carry the same millisecond, and the
+       ring-buffer positions I read it from were the order two
+       fire-and-forget POSTs happened to land in, not the order
+       Velora delivered them. When stream_alert arrives first the
+       merge finds nothing and does nothing — silently.
+
+       So order is no longer assumed. A raid alert with no name
+       waits a beat for the sibling, then renders regardless. If
+       channel.raid already arrived the wait never happens.
+
+       350ms against a popup that stays up for ten seconds is not
+       perceptible, and it only ever applies to a raid Velora
+       failed to name.
+    --------------------------------------------------------- */
+    const nameRaid = (d) => {
       const raider = recallRaider();
-      if (raider) {
-        data = {
-          ...data,
-          displayName: raider.name,
+      if (!raider) return d;
+
+      console.log(`[VELORA] raid alert named from sibling: ${raider.name}`);
+      return {
+        ...d,
+        displayName: raider.name,
+        username: raider.name,
+        templateData: {
+          ...(d.templateData || {}),
           username: raider.name,
-          templateData: {
-            ...(data.templateData || {}),
-            username: raider.name,
-            displayName: raider.name,
-            viewers: data.templateData?.viewers ?? raider.viewers
-          }
-        };
-        console.log(`[VELORA] raid alert named from sibling event: ${raider.name}`);
-      }
+          displayName: raider.name,
+          viewers: d.templateData?.viewers ?? raider.viewers
+        }
+      };
+    };
+
+    const needsRaider =
+      data?.alertType === "raid" && !(data.displayName || data.username);
+
+    if (needsRaider && !recallRaider()) {
+      console.log("[VELORA] raid alert unnamed — waiting for the sibling event");
+      setTimeout(() => {
+        handleVeloraEvent(
+          { event, data: nameRaid(data), timestamp },
+          source + "+waited"
+        );
+      }, 350);
+      return;
     }
+
+    if (needsRaider) data = nameRaid(data);
 
     /* Guard sits ABOVE renderVeloraAlertCard deliberately — a
        duplicate delivery must not draw a second popup either. */
