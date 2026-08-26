@@ -315,6 +315,27 @@ export class ChatRoom {
     const d = event.data || {};
 
     /* ---------------------------------------------------------
+       ⭐ EVERY ALERT THAT REACHES THIS POINT, WITH ITS VERDICT.
+
+       Five attempts have each fixed a real bug and none has fixed
+       the symptom. The reason is always the same: the reasoning
+       moved faster than the evidence. The worker's log proves it
+       builds name="Kluma" correctly, so the failure is downstream
+       of that — and this is the only place both copies converge.
+
+       So this prints EVERY copy: what it carries, and what was
+       decided about it. Two lines from one raid and there is
+       nowhere left for this to hide.
+    --------------------------------------------------------- */
+    const trace = (verdict) =>
+      console.log(
+        `[ALERT-TRACE] ${verdict} type=${d.alertType} ` +
+        `name=${JSON.stringify(d.displayName || d.username || null)} ` +
+        `viewers=${JSON.stringify(d.viewers ?? null)} ` +
+        `msg=${JSON.stringify((d.message || "").slice(0, 40))}`
+      );
+
+    /* ---------------------------------------------------------
        ⭐ A NAMELESS ALERT IS NEVER THE ONE TO SHOW.
 
        Proven on a live raid. The worker built the right card:
@@ -344,9 +365,7 @@ export class ChatRoom {
     const hasSentence = typeof d.message === "string" && d.message.trim();
 
     if (!hasName && !hasSentence) {
-      console.log(
-        `[ChatRoom] unnamed ${d.alertType || "alert"} dropped — waiting for the named copy`
-      );
+      trace("DROPPED-unnamed");
       return true;
     }
     const type = String(d.alertType || "alert");
@@ -371,11 +390,12 @@ export class ChatRoom {
       });
 
     if (clash) {
-      console.log(`[ChatRoom] duplicate ${type} alert suppressed`);
+      trace("SUPPRESSED-duplicate");
       return true;
     }
 
     this._recentAlerts.set(key, now);
+    trace("SENT");
     return false;
   }
 
