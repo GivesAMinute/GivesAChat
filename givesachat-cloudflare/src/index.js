@@ -1520,6 +1520,14 @@ export default {
       }
     }
 
+    /* Which build is actually serving? Answers the question that
+       has quietly wasted the most time tonight. */
+    if (url.pathname === "/version") {
+      return new Response(VERSION, {
+        headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" }
+      });
+    }
+
     /* ⭐ Read back the captured alert payloads. */
     if (url.pathname === "/api/velora/alert-log" && request.method === "GET") {
       const auth = checkKey(request, url, env.OVERLAY_KEY);
@@ -1984,7 +1992,33 @@ export default {
         env
       );
 
+      /* ---------------------------------------------------------
+         ⭐ ONE LINE THAT ENDS THE GUESSING.
+
+         Four attempts at the raid name have now been reasoned from
+         partial evidence. The tail shows requests but not what this
+         worker DECIDED, so "the card says Someone" has never been
+         attributable to a specific step.
+
+         This prints what came off the wire and what was built from
+         it, immediately before relaying. If displayName is null
+         here, the transform is wrong. If it holds the raider and
+         the card still says Someone, the card is not coming from
+         this worker at all — and that is a completely different
+         hunt.
+      --------------------------------------------------------- */
+      if (mapped?.type === "velora_system") {
+        const d = mapped.data || {};
+        console.log(
+          `[ALERT ${VERSION}] type=${d.alertType} name=${JSON.stringify(d.displayName)} ` +
+          `viewers=${JSON.stringify(d.viewers)} | raw.raider=` +
+          JSON.stringify(veloraEvent?.data?.raider?.displayName ?? null) +
+          ` raw.viewerCount=${JSON.stringify(veloraEvent?.data?.viewerCount ?? null)}`
+        );
+      }
+
       if (!mapped || mapped.platform === "beam") {
+        console.log(`[ALERT ${VERSION}] not relayed: mapped=${mapped ? mapped.type : "null"}`);
         return new Response("Ignored", { status: 200 });
       }
 
