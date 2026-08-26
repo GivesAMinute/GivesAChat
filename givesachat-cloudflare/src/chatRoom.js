@@ -313,6 +313,42 @@ export class ChatRoom {
     if (event?.type !== "velora_system") return false;
 
     const d = event.data || {};
+
+    /* ---------------------------------------------------------
+       ⭐ A NAMELESS ALERT IS NEVER THE ONE TO SHOW.
+
+       Proven on a live raid. The worker built the right card:
+
+         [ALERT] type=raid name="Kluma" viewers=1
+
+       and ChatRoom threw it away, because the popups overlay's
+       copy — which carries no raider name in its Socket.IO
+       payload — had already arrived and taken the slot. Every
+       raid read "Someone raided!" while the correct card was
+       discarded a beat later as the duplicate.
+
+       The overlay was supposed to stop relaying unnamed alerts.
+       That fix is client-side, and a browser source that will not
+       pick up a fresh module cannot be made to run it. Depending
+       on a refresh happening is not a fix.
+
+       So the rule moves server-side, where it cannot be dodged: an
+       alert with no name and no sentence is dropped outright. It
+       could only ever render as "Someone", and we now know a named
+       copy follows from the worker.
+
+       Alerts carrying a message but no name still pass — those
+       render Velora's own wording, which is real content.
+    --------------------------------------------------------- */
+    const hasName = !!(d.displayName || d.username);
+    const hasSentence = typeof d.message === "string" && d.message.trim();
+
+    if (!hasName && !hasSentence) {
+      console.log(
+        `[ChatRoom] unnamed ${d.alertType || "alert"} dropped — waiting for the named copy`
+      );
+      return true;
+    }
     const type = String(d.alertType || "alert");
     const name = String(d.displayName || d.username || "").toLowerCase();
     const key = `${type}|${name}`;
