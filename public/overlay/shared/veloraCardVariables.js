@@ -81,7 +81,35 @@ function timesFrom(data) {
 export function veloraCardValues(data = {}, extra = {}) {
   const t = data.templateData || {};
 
-  const user = data.displayName || data.username || "Someone";
+  /* ---------------------------------------------------------
+     ⭐ FLAT FIRST, THEN THE NESTED ACTORS.
+
+     Velora nests the person differently per event. A raid puts
+     them in data.raider; a redemption in data.user; a stream
+     alert may carry them flat. Reading only the flat fields is
+     why every raid popup said "Someone raided with 2 viewers!" —
+     the viewer count resolved because it IS flat, and the name
+     did not because it is not.
+
+     Flat is checked first so nothing that already works can
+     change: the claim cards resolve their user flat and must keep
+     doing so.
+
+     "Someone" survives as a genuine last resort, for an event
+     that truly carries no identity.
+  --------------------------------------------------------- */
+  const actor =
+    data.raider ||
+    data.user ||
+    data.from ||
+    null;
+
+  const user =
+    data.displayName ||
+    data.username ||
+    actor?.displayName ||
+    actor?.username ||
+    "Someone";
   const times = timesFrom(data);
   const place = placeFrom(data.builtInType, extra.place || "");
 
@@ -93,8 +121,8 @@ export function veloraCardValues(data = {}, extra = {}) {
     viewer: user,
 
     // {Username} / {Handle}
-    username: data.username || "",
-    handle: data.username || "",
+    username: data.username || actor?.username || "",
+    handle: data.username || actor?.username || "",
 
     reward: data.rewardTitle || data.rewardName || data.itemName || "",
 
@@ -106,7 +134,9 @@ export function veloraCardValues(data = {}, extra = {}) {
     amount: str(data.amount ?? t.amount),
     months: str(data.months ?? t.months),
     tier: str(data.tier ?? t.tier),
-    viewers: str(data.viewers ?? t.viewers),
+    /* viewerCount is what the raid webhook calls it; viewers is
+       what the socket payload uses. Both, so either shape works. */
+    viewers: str(data.viewers ?? t.viewers ?? data.viewerCount),
 
     message: data.userMessage || data.message || ""
   };
