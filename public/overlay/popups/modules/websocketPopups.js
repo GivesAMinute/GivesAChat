@@ -368,6 +368,53 @@ function resolveAlertName(src = {}) {
 /* ---------------------------------------------------------
    ⭐ Velora Event Handler
 --------------------------------------------------------- */
+/* ---------------------------------------------------------
+   ⭐ THE RAIDER, REMEMBERED FROM THE SIBLING EVENT.
+
+   Captured from a live raid. Velora sends TWO socket events in
+   the same millisecond:
+
+     channel.raid          { fromUsername, fromDisplayName,
+                             viewerCount }
+     channel.stream_alert  { alertType:"raid", cardDesign,
+                             templateData:{ viewers },
+                             message:"Someone raided with 10 viewers!" }
+
+   The popup renders from stream_alert, and that event carries NO
+   raider whatsoever. Velora's own message field says "Someone" —
+   this is their gap, not ours, and it is specific to raids: the
+   follow alert in the same capture carries username, displayName
+   AND templateData.username.
+
+   So the name has to come from the sibling. channel.raid arrives
+   first, so it is stashed and merged into the stream_alert that
+   follows. Note fromUsername / fromDisplayName is a FOURTH naming
+   convention, after data.raider, data.user and the flat form.
+
+   Kept for 15 seconds. Long enough to bridge two events sent
+   together, short enough that a later unrelated alert can never
+   pick up a stale name.
+--------------------------------------------------------- */
+const RAIDER_MEMORY_MS = 15_000;
+let lastRaider = null;
+
+function rememberRaider(data = {}) {
+  const name = data.fromDisplayName || data.fromUsername || null;
+  if (!name) return;
+
+  lastRaider = {
+    name,
+    viewers: data.viewerCount ?? null,
+    at: Date.now()
+  };
+}
+
+function recallRaider() {
+  if (!lastRaider) return null;
+  if (Date.now() - lastRaider.at > RAIDER_MEMORY_MS) return null;
+  return lastRaider;
+}
+
 function handleVeloraEvent({ event, data, timestamp }, source = "?") {
   console.log(`[VELORA RAW EVENT via ${source}]`, event, JSON.stringify(data, null, 2));
 
@@ -396,7 +443,33 @@ function handleVeloraEvent({ event, data, timestamp }, source = "?") {
     } catch {}
   }
 
+  /* Arrives immediately before the stream_alert it belongs to. */
+  if (event === "channel.raid") {
+    rememberRaider(data);
+  }
+
   if (event === "channel.stream_alert") {
+    /* Fill in what Velora left out, and only that. If they ever
+       start sending the raider on the alert itself, the payload
+       already has a name and this does nothing. */
+    if (data?.alertType === "raid" && !(data.displayName || data.username)) {
+      const raider = recallRaider();
+      if (raider) {
+        data = {
+          ...data,
+          displayName: raider.name,
+          username: raider.name,
+          templateData: {
+            ...(data.templateData || {}),
+            username: raider.name,
+            displayName: raider.name,
+            viewers: data.templateData?.viewers ?? raider.viewers
+          }
+        };
+        console.log(`[VELORA] raid alert named from sibling event: ${raider.name}`);
+      }
+    }
+
     /* Guard sits ABOVE renderVeloraAlertCard deliberately — a
        duplicate delivery must not draw a second popup either. */
     if (isDuplicateAlert(data.alertType, resolveAlertName(data))) return;
