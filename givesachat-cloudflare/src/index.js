@@ -1113,9 +1113,13 @@ export default {
            The token never leaves the worker either way — what goes
            out is a name and a number.
         --------------------------------------------------------- */
+        /* commandCode is fetched alongside the counts for the same
+           reason: if the public items endpoint omits either, the
+           authenticated one has both. */
         const hasCounts = items.some((i) => Number.isFinite(Number(i?.totalRedemptions)));
+        const hasCommands = items.some((i) => i?.commandCode);
 
-        if (!hasCounts) {
+        if (!hasCounts || !hasCommands) {
           try {
             const token = await getVeloraAccessToken(env);
             if (token) {
@@ -1129,11 +1133,15 @@ export default {
               if (authed.ok) {
                 const aData = await authed.json();
                 const aList = Array.isArray(aData) ? aData : aData?.rewards || aData?.items || [];
-                const counts = new Map(aList.map((r) => [r?.id, r?.totalRedemptions]));
-                items = items.map((i) => ({
-                  ...i,
-                  totalRedemptions: i?.totalRedemptions ?? counts.get(i?.id) ?? null
-                }));
+                const byId = new Map(aList.map((r) => [r?.id, r]));
+                items = items.map((i) => {
+                  const a = byId.get(i?.id) || {};
+                  return {
+                    ...i,
+                    totalRedemptions: i?.totalRedemptions ?? a.totalRedemptions ?? null,
+                    commandCode: i?.commandCode ?? a.commandCode ?? null
+                  };
+                });
               }
             }
           } catch (err) {
@@ -1146,10 +1154,24 @@ export default {
         const commands = items
           .filter((i) => i?.name && i?.enabled !== false)
           .map((i) => ({
-            /* The trigger is derived exactly as Velora derives it —
-               name, spaces out, lower case. Not stored anywhere, so
-               it cannot fall out of step with the real thing. */
-            trigger: String(i.name).replace(/\s+/g, "").toLowerCase(),
+            /* ---------------------------------------------------------
+               commandCode WINS WHEN IT IS SET.
+
+               Velora derives the trigger from the name only when no
+               chat command is configured. Deriving unconditionally
+               was right until the field became writable, and became
+               wrong the moment one was set: this page would have
+               told viewers to type
+               ^ain'tnobodygottimeforthat(original) for a reward
+               whose actual command is ^ainttime.
+
+               A command list that is confidently wrong is worse
+               than one that is missing, because nobody thinks to
+               doubt it.
+            --------------------------------------------------------- */
+            trigger: (
+              i.commandCode || String(i.name).replace(/\s+/g, "")
+            ).toLowerCase(),
             name: String(i.name),
             description: String(i.description || ""),
             cost: i.cost ?? null,
