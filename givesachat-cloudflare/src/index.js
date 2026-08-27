@@ -1365,6 +1365,100 @@ export default {
         ].join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
       }
 
+      /* ---------------------------------------------------------
+         ⭐ SET A CHAT COMMAND BY NAME.
+
+         Hardcoding a command in this repo cannot work: Velora
+         resolves ^commands natively, server-side. The redemption
+         happens before anything of ours is involved, so we never
+         see the text and have nothing to intercept. commandCode on
+         the reward is the only lever that exists.
+
+         Matched on a name fragment rather than an id, because ids
+         are not visible in the dashboard and this will be wanted
+         again every time a reward is created with punctuation in
+         its name — apostrophes and brackets are exactly what make
+         a derived command unusable.
+
+         Refuses on anything but a single match. "Ain't" hits two
+         rewards, and silently patching the wrong one of a pair
+         that differ by (Original) and (Remix) would be worse than
+         doing nothing.
+
+         Reads the value back, because a PATCH returning 200 has
+         already proved nothing once tonight.
+      --------------------------------------------------------- */
+      if (url.pathname === "/api/velora/rewards/set-command" && request.method === "POST") {
+        if (url.searchParams.get("confirm") !== "SET") {
+          return new Response("refused: add &confirm=SET", { status: 400 });
+        }
+
+        const match = (url.searchParams.get("match") || "").trim().toLowerCase();
+        const code = (url.searchParams.get("code") || "").trim();
+
+        if (!match || !code) {
+          return new Response("need &match=<part of the name>&code=<command>", { status: 400 });
+        }
+
+        /* Velora's own rule: starts with a letter or underscore,
+           word characters only. Checked here so a bad code fails
+           with an explanation rather than a 400 from upstream. */
+        if (!/^[A-Za-z_]\w*$/.test(code)) {
+          return new Response(
+            `refused: "${code}" must start with a letter or underscore and contain only letters, digits and underscores`,
+            { status: 400 }
+          );
+        }
+
+        let list;
+        try { list = await fetchRewards(); }
+        catch (err) { return new Response(String(err.message), { status: 200 }); }
+
+        const hits = list.filter((r) =>
+          String(r?.name || "").toLowerCase().includes(match)
+        );
+
+        if (!hits.length) {
+          return new Response(`no reward matches "${match}"`, { status: 404 });
+        }
+
+        if (hits.length > 1) {
+          return new Response(
+            `refused: "${match}" matches ${hits.length} rewards. Be more specific:\n` +
+            hits.map((r) => `  ${r.name}`).join("\n"),
+            { status: 409 }
+          );
+        }
+
+        const reward = hits[0];
+
+        const patch = await fetch(`${REWARDS_URL}/${reward.id}`, {
+          method: "PATCH",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ commandCode: code })
+        });
+        const patchBody = await patch.text();
+
+        let after = null;
+        try {
+          const fresh = await fetchRewards();
+          after = fresh.find((r) => r?.id === reward.id) || null;
+        } catch { /* fall through to reporting the patch alone */ }
+
+        const got = after?.commandCode ?? null;
+
+        return new Response([
+          `${reward.name}`,
+          `PATCH ${patch.status}`,
+          `sent      ${JSON.stringify(code)}`,
+          `read back ${JSON.stringify(got)}`,
+          ``,
+          got === code
+            ? `SET. Viewers type ^${code.toLowerCase()}`
+            : `NOT SET. ${patchBody.slice(0, 200)}`
+        ].join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+      }
+
       /* ⭐ PLAN — writes nothing. */
       if (url.pathname === "/api/velora/rewards/plan" && request.method === "GET") {
         const max = Number(url.searchParams.get("max") || DEFAULT_MAX);
