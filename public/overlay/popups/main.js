@@ -49,6 +49,37 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ---------------------------------------------------------
+     ⭐ ?celebrate=confetti | balloons — preview on demand.
+
+     These effects only fire when somebody claims 1st or 2nd to
+     the stream, which cannot be summoned and only happens once
+     each per broadcast. Tuning them by waiting for a real claim
+     would mean one look per stream.
+
+     Opening the overlay with ?celebrate= runs the effect
+     immediately, in the real overlay, at real scale — which is
+     the only place the sizes and timings can honestly be judged.
+     A canvas mocked up somewhere else would be a different
+     canvas.
+
+     Read from the query string and never from a message, so
+     nothing on the wire can trigger it on a live overlay.
+  --------------------------------------------------------- */
+  const celebrate = new URLSearchParams(location.search).get("celebrate");
+
+  if (celebrate === "confetti" || celebrate === "balloons") {
+    import("/overlay/popups/modules/celebrations.js").then((m) => {
+      const run = celebrate === "confetti" ? m.runConfetti : m.runBalloons;
+      console.log(`[Popups] preview: ${celebrate}`);
+      run();
+
+      /* Loops while the tab is open, so a whole cycle can be
+         watched more than once without reloading. */
+      setInterval(run, 23000);
+    });
+  }
+
+  /* ---------------------------------------------------------
      ⭐ Brave/iOS Fix — Delay WebSocket startup
      Prevents Brave stalls and iOS reload loops.
   --------------------------------------------------------- */

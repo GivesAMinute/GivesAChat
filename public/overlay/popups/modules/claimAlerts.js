@@ -31,7 +31,10 @@ const TITLE_PATTERNS = [
   { re: /\b(second|2nd)\b/i, place: "2nd", effect: "balloons" }
 ];
 
-const EFFECT_DURATION_MS = 15000;
+/* 15s -> 22s. The effects now stop respawning partway through
+   and taper out, and the thinning-out needs runtime to be worth
+   watching. See RESPAWN_FRACTION in celebrations.js. */
+const EFFECT_DURATION_MS = 22000;
 const CARD_FALLBACK_MS = 10000;
 
 export function identifyClaim(data) {
