@@ -2051,6 +2051,11 @@ export default {
        webhook endpoint being the obvious case).
     --------------------------------------------------------- */
     if (url.pathname.startsWith("/api/events/")) {
+      /* ⭐ TEMPORARY — Blaze duplicate hunt. Names every event
+         endpoint that is actually hit, so no individual door has
+         to be guessed at again. Remove once answered. */
+      console.log(`[EVENTS-DIAG] ${request.method} ${url.pathname}`);
+
       const auth = checkKey(request, url, env.INGEST_KEY);
       if (!auth.ok) return unauthorized();
       if (auth.unconfigured) {
