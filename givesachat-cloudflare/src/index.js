@@ -2031,7 +2031,7 @@ export default {
       const action = url.pathname.split("/")[2];
 
       // Diagnostic: trace a Kick avatar lookup end to end.
-      if (!["start", "stop", "status"].includes(action)) {
+      if (!["start", "stop", "status", "ogs"].includes(action)) {
         return new Response("Not found", { status: 404 });
       }
 

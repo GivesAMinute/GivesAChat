@@ -3,6 +3,7 @@
 import { IGNORED_SENDER_TYPES, transformBeamMessage } from "./beamTransform.js";
 import { resolveKickAvatar } from "./kickAvatars.js";
 import { resolveVpzoneAvatar, vpzoneUsernameFrom } from "./vpzoneAvatars.js";
+import { resolveBlazeOgs } from "./blazeRoles.js";
 
 /* ---------------------------------------------------------
    BeamRoom
@@ -68,6 +69,10 @@ export class BeamRoom {
     // repopulates by itself after an eviction.
     this.kickAvatarCache = new Map();
     this.vpzoneAvatarCache = new Map();
+
+    /* Blaze OG role list. One shared entry rather than a per-user
+       Map, because the API returns the whole role in one call. */
+    this.blazeOgCache = { set: null, expiresAt: 0 };
 
     // Diagnostics, surfaced by /beam/status
     this.connectedAt = null;
@@ -192,6 +197,26 @@ export class BeamRoom {
       this.clientsPresent = false;
       this.lastClientSeenAt = Date.now();
       return this.json({ ok: true });
+    }
+
+    /* ---------------------------------------------------------
+       Diagnostic: WHO does Blaze consider an OG?
+
+       The badge only appears when a name matches this list, so a
+       missing flame has two possible causes — the lookup failed,
+       or the name did not match — and they need opposite fixes.
+       Guessing between them is what made the duplicate hunt take
+       four attempts.
+
+       Answerable without being live and without sending a message.
+    --------------------------------------------------------- */
+    if (url.pathname.endsWith("/ogs")) {
+      const set = await resolveBlazeOgs(this.env, this.blazeOgCache);
+      return this.json({
+        count: set.size,
+        names: [...set].sort(),
+        cachedUntil: new Date(this.blazeOgCache.expiresAt).toISOString()
+      });
     }
 
     if (url.pathname.endsWith("/status")) {
@@ -450,6 +475,28 @@ export class BeamRoom {
           this.vpzoneAvatarCache,
           this.env
         );
+      }
+
+      /* ---------------------------------------------------------
+         Blaze has the gap in its BADGES rather than its avatars.
+
+         Beam relays owner, moderator and VIP but not OG, so the
+         orange flame disappeared when Blaze moved onto the relay.
+         Blaze's own API still lists the role, so fill it the same
+         way — from the origin platform, cached.
+
+         Skipped entirely when Beam already said OG, so if Beam
+         starts relaying it this costs nothing and can simply be
+         deleted.
+      --------------------------------------------------------- */
+      if (payload.platform === "blaze" && !payload.badges?.includes("og")) {
+        const ogs = await resolveBlazeOgs(this.env, this.blazeOgCache);
+
+        if (ogs.size && typeof payload.username === "string") {
+          if (ogs.has(payload.username.toLowerCase())) {
+            payload.badges = [...(payload.badges || []), "og"];
+          }
+        }
       }
 
       this.messageCount++;
