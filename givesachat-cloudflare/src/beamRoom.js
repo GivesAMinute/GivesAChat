@@ -1,6 +1,6 @@
 // givesachat-cloudflare/src/beamRoom.js
 
-import { transformBeamMessage } from "./beamTransform.js";
+import { IGNORED_SENDER_TYPES, transformBeamMessage } from "./beamTransform.js";
 import { resolveKickAvatar } from "./kickAvatars.js";
 import { resolveVpzoneAvatar, vpzoneUsernameFrom } from "./vpzoneAvatars.js";
 
@@ -203,6 +203,12 @@ export class BeamRoom {
           : null,
         messageCount: this.messageCount,
         droppedCount: this.droppedCount,
+
+        /* Which platforms Beam has actually relayed since this
+           connection opened. Empty for a platform means Beam is
+           not sending it, which is a Beam-side question rather
+           than an overlay one. */
+        platformsSeen: [...(this.platformsSeen || [])],
         lastError: this.lastError,
         stoppedReason: this.stoppedReason,
         secondsSinceOverlaySeen:
@@ -358,10 +364,42 @@ export class BeamRoom {
     const items = Array.isArray(raw) ? raw : [raw];
 
     for (const item of items) {
+      /* ---------------------------------------------------------
+         ⭐ SAY WHICH PLATFORMS ARE ACTUALLY ARRIVING.
+
+         "YouTube isn't coming through" has three possible causes
+         and no way to tell them apart from the outside: Beam is
+         not relaying it, the senderType is not the string we
+         expect, or the message renders empty and is dropped as
+         unrenderable.
+
+         Logged once per platform per connection, so it names the
+         set without filling the tail. A platform that appears here
+         and not in the overlay is our problem; one that never
+         appears at all is not.
+      --------------------------------------------------------- */
+      const seenType = String(item?.senderType || "beam").toLowerCase();
+
+      this.platformsSeen ||= new Set();
+      if (!this.platformsSeen.has(seenType)) {
+        this.platformsSeen.add(seenType);
+        console.log(`[BEAM] first message from platform: ${seenType}`);
+      }
+
       const payload = transformBeamMessage(item);
 
       if (!payload) {
         this.droppedCount++;
+
+        /* Dropped is ambiguous: deliberately ignored, or empty
+           after rendering. Only the second is a bug, and only the
+           unignored ones are worth reporting. */
+        if (!IGNORED_SENDER_TYPES.includes(seenType)) {
+          console.warn(
+            `[BEAM] DROPPED a ${seenType} message — nothing renderable. ops=` +
+            JSON.stringify(item?.content?.ops || null).slice(0, 300)
+          );
+        }
         continue;
       }
 
