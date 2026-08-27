@@ -163,13 +163,19 @@ function handleChat(payload, container) {
      ⭐ PLATFORM BADGES (Beam added)
   --------------------------------------------------------- */
   let badgesHTML = "";
-  if (payload.via === "beam") {
+  if (payload.platform === "blaze") {
+    /* ⭐ Blaze BEFORE the via check, deliberately.
+       Blaze now arrives relayed through Beam, and the rule below
+       would hand it Beam's crown-and-wrench artwork. We have
+       Blaze's own badges, so it keeps them — the whole point of
+       moving the pull to Beam was that the render not change.
+       beamTransform maps its roles into the shape this expects. */
+    badgesHTML = renderBlazeBadges(payload);
+  } else if (payload.via === "beam") {
     // ⭐ Relayed through Beam — Beam supplies the badge data for
     // every platform it carries, so use Beam's badge artwork
     // regardless of which platform the message came from.
     badgesHTML = renderBeamBadges(payload);
-  } else if (payload.platform === "blaze") {
-    badgesHTML = renderBlazeBadges(payload);
   } else if (payload.platform === "velora") {
     badgesHTML = renderVeloraBadges(payload);
   } else if (payload.platform === "youtube") {

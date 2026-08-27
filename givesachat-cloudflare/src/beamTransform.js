@@ -66,14 +66,56 @@ export const beamStickerUrl = (src, asset = {}) => {
    this list is what switches the platform over: our own reader is
    gone, and Beam's copy is now allowed through instead. Emotes and
    badges survive the relay; avatars are refilled by BeamRoom. */
+/* Blaze was here too, and it never matched a thing. Beam calls it
+   "blazestream", so the duplicate walked straight past a list that
+   was watching for "blaze" — see PLATFORM_ALIASES below. It is now
+   deliberately absent: Beam is the Blaze source, and putting it
+   back would silently switch Blaze off. */
 export const IGNORED_SENDER_TYPES = [
   "velora",   // direct: webhook -> ChatRoom
-  "blaze",    // direct: Socket.IO in the overlay
   "arena",    // direct: polled by ArenaRoom
   "odysee",   // direct: Commentron socket in OdyseeRoom
   "bitchute", // direct: Socket.IO in BitChuteRoom
   "facebook"  // direct: live_comments SSE in FacebookRoom
 ];
+
+/* ---------------------------------------------------------
+   Beam's name for a platform → ours.
+
+   Beam relays Blaze as "blazestream". Our icons, CSS classes,
+   badge artwork and username palette are all keyed on the
+   string "blaze", so an unmapped label costs all four at once:
+   /icons/blazestream.png 404s to the Beam icon, .blaze styling
+   never applies, and colorForUsername() falls back to a
+   generic palette instead of Blaze orange.
+
+   Mapped here rather than at each of those four sites, so a
+   platform is renamed in exactly one place.
+--------------------------------------------------------- */
+const PLATFORM_ALIASES = {
+  blazestream: "blaze"
+};
+
+/* ---------------------------------------------------------
+   Beam sends badges as objects — [{type:"owner"},{type:"vip"}] —
+   while renderBlazeBadges() reads plain role strings plus a
+   separate isOwner flag, because that is the shape Blaze's own
+   API used.
+
+   Confirmed from a real relayed message, not assumed:
+     badges=[{"type":"owner"},{"type":"moderator"},{"type":"vip"}]
+
+   Both shapes are accepted, since a bare string costs one
+   `typeof` to support and Beam has changed payload shapes before.
+--------------------------------------------------------- */
+function beamBadgesToRoles(badges) {
+  if (!Array.isArray(badges)) return [];
+
+  return badges
+    .map((b) => (typeof b === "string" ? b : b?.type))
+    .filter((t) => typeof t === "string" && t)
+    .map((t) => t.toLowerCase());
+}
 
 /* ---------------------------------------------------------
    Hosts allowed to appear in a relayed emote's src.
@@ -263,21 +305,44 @@ export function transformBeamMessage(raw) {
 
   if (IGNORED_SENDER_TYPES.includes(senderType)) return null;
 
+  const platform = PLATFORM_ALIASES[senderType] || senderType;
+
   const meta = raw.senderMeta || {};
   const html = deltaToHtml(raw.content?.ops);
 
   // Nothing renderable (unknown embed type, empty message)
   if (!html.trim()) return null;
 
+  const rawBadges = Array.isArray(meta.badges) ? meta.badges : [];
+
+  /* ---------------------------------------------------------
+     Blaze keeps its own badges even though it arrives via Beam.
+
+     Everything else Beam relays uses Beam's badge artwork, on
+     the reasoning that Beam supplies the badge data so Beam's
+     icons match it. Blaze is the exception because we already
+     have its real artwork — broadcaster, og, vip, mod — and the
+     point of moving the pull to Beam was to keep this render,
+     not to inherit Beam's crown and wrench.
+
+     isOwner is split out of the roles list because that is what
+     renderBlazeBadges() reads; Beam has no separate flag for it.
+  --------------------------------------------------------- */
+  const isBlaze = platform === "blaze";
+  const roles = isBlaze ? beamBadgesToRoles(rawBadges) : null;
+
   return {
     type: "chat",
-    platform: senderType,
+    platform,
     via: "beam",
 
     messageId: raw.id || null,
     username: sanitizeHtml(meta.displayName || "Unknown"),
     avatar: resolveAvatar(meta.avatarUrl),
-    badges: Array.isArray(meta.badges) ? meta.badges : [],
+    badges: isBlaze ? roles : rawBadges,
+    ...(isBlaze && {
+      isOwner: roles.includes("owner") || roles.includes("broadcaster")
+    }),
 
     // Kept so BeamRoom can look up avatars for platforms whose
     // pictures Beam doesn't relay (Kick sends avatarUrl: null).

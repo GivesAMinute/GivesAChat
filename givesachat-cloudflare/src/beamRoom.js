@@ -410,48 +410,6 @@ export class BeamRoom {
         console.log(`[BEAM] first message from platform: ${seenType}`);
       }
 
-      /* ---------------------------------------------------------
-         ⭐ TEMPORARY — Blaze duplicate hunt. Remove once answered.
-
-         Blaze is in IGNORED_SENDER_TYPES and is still arriving
-         twice, so `senderType` is not the string "blaze". Which
-         string it IS decides the fix, and the two candidates need
-         opposite treatments:
-
-           an unrecognised Blaze label ("blazetv", "blaze_tv")
-             → widen the ignore rule, done
-
-           the literal "beam"
-             → Beam is presenting it as its own message, no label
-               can distinguish it, and it needs content dedupe
-
-         The screenshot cannot tell them apart: the platform icon
-         falls back to beam.png for ANY unknown platform, so both
-         candidates look identical on stream.
-
-         The first-message log above can't answer it either — it
-         fires once per platform per connection, and "beam" has
-         always been seen already by the time Blaze arrives.
-
-         So: log the identifying fields of every relayed message,
-         capped per connection so a busy stream can't flood the
-         tail. One Blaze message while tailing settles it.
-      --------------------------------------------------------- */
-      this.diagCount = (this.diagCount || 0) + 1;
-      if (this.diagCount <= 40) {
-        console.log(
-          `[BEAM-DIAG ${this.diagCount}/40] senderType=${JSON.stringify(item?.senderType ?? null)} ` +
-          `name=${JSON.stringify(item?.senderMeta?.displayName ?? null)} ` +
-          `badges=${JSON.stringify(item?.senderMeta?.badges ?? null)} ` +
-          `text=${JSON.stringify(
-            (item?.content?.ops || [])
-              .map((o) => (typeof o?.insert === "string" ? o.insert : ""))
-              .join("")
-              .slice(0, 60)
-          )}`
-        );
-      }
-
       const payload = transformBeamMessage(item);
 
       if (!payload) {

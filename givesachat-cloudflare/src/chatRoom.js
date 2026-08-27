@@ -435,39 +435,6 @@ export class ChatRoom {
   broadcast(event, sender) {
     if (this.isDuplicateAlert(event)) return;
 
-    /* ---------------------------------------------------------
-       ⭐ TEMPORARY — Blaze duplicate hunt. Remove once answered.
-
-       Three guesses at WHICH door the "blazestream" message comes
-       through have now been wrong: IGNORED_SENDER_TYPES (the SSE
-       reader, which reported messageCount 0), then
-       /api/events/beam, then /api/events/blaze — both instrumented,
-       both silent, on a build confirmed live at /version.
-
-       So stop guessing at tributaries and instrument the
-       confluence. Every message reaching the overlay passes
-       through here, whatever route it took, so this cannot be
-       missed the way the others were.
-
-       `sender` is the tell: null means an HTTP caller inside the
-       worker (POST /broadcast), non-null means a browser client
-       relaying over its WebSocket. That single field separates
-       "some endpoint of ours" from "an overlay tab is sending
-       this", which is the question.
-    --------------------------------------------------------- */
-    if (event?.type === "chat" || event?.platform) {
-      const d = event?.data || event;
-      console.log(
-        `[BROADCAST-DIAG] platform=${JSON.stringify(event?.platform ?? d?.platform ?? null)} ` +
-        `user=${JSON.stringify(d?.username ?? null)} ` +
-        `via=${JSON.stringify(event?.via ?? null)} ` +
-        `source=${sender ? "CLIENT-RELAY" : "http-broadcast"} ` +
-        `nested=${event?.data ? "yes" : "no"} ` +
-        `badges=${JSON.stringify(d?.badges ?? null)} ` +
-        `isOwner=${JSON.stringify(d?.isOwner ?? null)}`
-      );
-    }
-
     const sockets = this.state.getWebSockets();
     if (!sockets.length) return;
 

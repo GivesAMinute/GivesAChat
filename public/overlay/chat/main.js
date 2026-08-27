@@ -28,7 +28,7 @@ import { fetchRewardSounds } from "./modules/rewardSounds.js";
 import { setupSocket } from "./modules/websocket.js";
 
 // ⭐ Blaze chat (own Socket.IO connection — see modules/blaze.js)
-import { setupBlazeChat } from "./modules/blaze.js";
+// import { setupBlazeChat } from "./modules/blaze.js";   // Blaze now relayed via Beam
 
 // ⭐ Load date into header (OBS-only)
 import { loadCurrentDate } from "./modules/currentDate.js";
@@ -96,7 +96,25 @@ async function initOverlay() {
        nothing optional gets to be awaited on the way there.
     --------------------------------------------------------- */
     run("socket", () => setupSocket());        // Velora + Beam via the worker
-    run("blaze", () => setupBlazeChat());      // direct: Socket.IO can't run in workerd
+
+    /* ---------------------------------------------------------
+       ⭐ Blaze now arrives through Beam, not from here.
+
+       This used to open our own Socket.IO connection to Blaze
+       from the browser, because Socket.IO cannot run in workerd.
+       Beam relays Blaze as well, so every message was arriving
+       twice: once from this reader and once from the relay.
+
+       Beam's copy carries the badges (owner, moderator, vip) and
+       beamTransform maps them back into Blaze's own shape, so the
+       render is unchanged and one fewer connection is opened from
+       the overlay.
+
+       To go back: uncomment, and restore "blaze" to
+       IGNORED_SENDER_TYPES in beamTransform.js. Doing only one of
+       those brings the duplicate back or drops Blaze entirely.
+    --------------------------------------------------------- */
+    // run("blaze", () => setupBlazeChat());
 
     /* ---------------------------------------------------------
        ⭐ Header systems — date, viewer count.
