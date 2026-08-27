@@ -47,6 +47,7 @@ const ALARM_INTERVAL_MS = 30_000;   // keepalive / supervisor tick
    So: stop reading when no overlay is connected. The next overlay to
    connect calls /start via wakeBeam() and it picks straight back up. */
 const IDLE_SHUTDOWN_MS = 120_000;   // no overlays for 2 min -> stop
+const TRAFFIC_GRACE_MS = 300_000;  // 5 min of real messages holds the room open
 
 /* Safety-net interval for the ChatRoom client-count check.
    Presence is normally pushed, so this is a fallback only. */
@@ -225,12 +226,35 @@ export class BeamRoom {
      alarm both keeps this one resident and restarts the reader
      if the loop ever fell over.
   --------------------------------------------------------- */
+  /* ---------------------------------------------------------
+     ⭐ TRAFFIC BEATS THE GATE.
+
+     The live gate asks one question: is the channel live on
+     VELORA. That was right while Velora was the only thing that
+     mattered, and wrong the moment a stream goes out to Beam or
+     YouTube without Velora — the supervisor then shuts this room
+     down every two minutes and chat dies mid-broadcast.
+
+     A message arriving IS proof of a live stream somewhere. So
+     recent traffic overrides the gate, and the gate still applies
+     the moment the traffic stops.
+
+     Counted only on real broadcast messages, never on keepalives
+     or connection frames — the SSE keepalive would otherwise hold
+     this open forever and put the 24/7 billing straight back.
+  --------------------------------------------------------- */
+  hasRecentTraffic() {
+    return !!this.lastMessageAt &&
+      Date.now() - this.lastMessageAt < TRAFFIC_GRACE_MS;
+  }
+
   async alarm() {
     await this.refreshClientPresence();
 
     const idleFor = Date.now() - this.lastClientSeenAt;
 
-    if (this.liveGate === false || (!this.clientsPresent && idleFor > IDLE_SHUTDOWN_MS)) {
+    if (!this.hasRecentTraffic() &&
+        (this.liveGate === false || (!this.clientsPresent && idleFor > IDLE_SHUTDOWN_MS))) {
       if (this.running) {
         console.log(
           `[BEAM] no overlays for ${Math.round(idleFor / 1000)}s — stopping`
@@ -429,6 +453,7 @@ export class BeamRoom {
       }
 
       this.messageCount++;
+      this.lastMessageAt = Date.now();
       await this.broadcast(payload);
     }
   }
