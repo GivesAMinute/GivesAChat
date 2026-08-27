@@ -2201,6 +2201,39 @@ export default {
         return new Response("Ignored external Velora", { status: 200 });
       }
 
+      /* ---------------------------------------------------------
+         ⭐ TEMPORARY — Blaze duplicate hunt. Remove once answered.
+
+         There are two Beam ingest paths and only one of them is
+         filtered:
+
+           BeamRoom SSE reader → transformBeamMessage()
+             → IGNORED_SENDER_TYPES applies
+
+           this endpoint
+             → platform passed through verbatim, no filter
+
+         Blaze arrives HERE, as platform "blazestream" — a string
+         that appears nowhere in this repo. That is why listing
+         "blaze" in IGNORED_SENDER_TYPES changed nothing: right
+         idea, wrong door.
+
+         What is still unknown is the BADGES. Rendering these
+         messages as Blaze needs isOwner plus the roles og / vip /
+         moderator, and if Beam flattens them to a generic
+         owner/mod pair then VIP and OG are simply not in the data.
+         Log the whole sender shape so the answer is read rather
+         than assumed.
+      --------------------------------------------------------- */
+      console.log(
+        `[INGEST-DIAG ${VERSION}] /api/events/beam ` +
+        `platform=${JSON.stringify(beamEvent.platform ?? null)} ` +
+        `user=${JSON.stringify(beamEvent.username ?? null)} ` +
+        `isOwner=${JSON.stringify(beamEvent.isOwner ?? null)} ` +
+        `badges=${JSON.stringify(beamEvent.badges ?? null)} ` +
+        `keys=${JSON.stringify(Object.keys(beamEvent || {}))}`
+      );
+
       const normalized = {
         platform: beamEvent.platform || "beam",
         username: beamEvent.username || "",
@@ -2277,6 +2310,26 @@ export default {
       }
 
       const sender = blazeEvent.sender || {};
+
+      /* ---------------------------------------------------------
+         ⭐ TEMPORARY — Blaze duplicate hunt. Remove once answered.
+
+         The counterpart to the log on /api/events/beam. Both fire
+         for the same chat message, so the tail shows the two
+         payloads side by side and the question "can Beam's copy
+         reproduce this render?" is answered by reading the diff
+         rather than reasoning about it.
+
+         This is the shape being aimed at: roles feed the og / vip
+         / moderator badges, isOwner picks the broadcaster badge.
+      --------------------------------------------------------- */
+      console.log(
+        `[INGEST-DIAG ${VERSION}] /api/events/blaze ` +
+        `user=${JSON.stringify(sender.displayName ?? sender.username ?? null)} ` +
+        `isOwner=${JSON.stringify(sender.isOwner ?? null)} ` +
+        `roles=${JSON.stringify(sender.roles ?? null)} ` +
+        `senderKeys=${JSON.stringify(Object.keys(sender))}`
+      );
 
       const normalized = {
         type: "chat",
