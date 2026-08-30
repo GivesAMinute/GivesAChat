@@ -393,14 +393,35 @@ export async function transformVeloraEvent(event, payload, env) {
              count in data.viewerCount. Neither displayName nor
              viewers exists at the top level, which is why every
              raid rendered as "Someone raided!" — the name was
-             never missing, we were reading the wrong place. */
+             never missing, we were reading the wrong place.
+
+             ⭐ fromDisplayName / fromUsername added on Cory's word
+             that raids are now flat:
+
+               data.fromUsername, data.fromDisplayName,
+               data.viewerCount
+
+             That is a FIFTH naming convention for the same person
+             across Velora's payloads, and the popups overlay has
+             read it off the socket for a while — the worker never
+             did. Had the webhook switched to it, every raid would
+             have gone nameless here and been dropped by
+             ChatRoom's nameless-alert rule, so the lane would show
+             nothing at all rather than "Someone raided!".
+
+             Added rather than swapped. data.raider is the shape
+             captured from two real raids, so it keeps priority;
+             this is a fallback beneath it. Both shapes work, and
+             whichever Velora actually sends, the name resolves. */
           displayName:
             data.raider?.displayName || data.raider?.username ||
             data.user?.displayName || data.user?.username ||
+            data.fromDisplayName || data.fromUsername ||
             data.displayName || data.username || null,
           username:
             data.raider?.username || data.raider?.displayName ||
             data.user?.username || data.user?.displayName ||
+            data.fromUsername || data.fromDisplayName ||
             data.username || data.displayName || null,
 
           avatar: data.raider?.avatarUrl || data.user?.avatarUrl || null,
@@ -425,10 +446,23 @@ export async function transformVeloraEvent(event, payload, env) {
              its numbers there while the typed events carry them
              flat, and a Volts send can arrive as either.
           --------------------------------------------------- */
+          /* data.amount first, and no longer a guess: Cory
+             confirmed channel.volts carries the amount flat as
+             data.amount, alongside data.username, data.displayName
+             and data.message. Nothing nested.
+
+             He also found why the 120 showed as 0 — channel.volts
+             was only firing for "quick celebration" sends and not
+             for custom amounts, so no amount ever reached us. The
+             card we DID see came from the stream_alert copy, which
+             carries the name but not the number.
+
+             The other names stay as fallbacks. They cost one ??
+             each and this event has now changed shape twice. */
           volts:
+            data.amount ??
             data.volts ??
             data.voltsAmount ??
-            data.amount ??
             data.total ??
             data.templateData?.amount ??
             data.count ??
