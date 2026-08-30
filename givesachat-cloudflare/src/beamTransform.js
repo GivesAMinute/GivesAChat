@@ -128,8 +128,28 @@ function beamBadgesToRoles(badges) {
    supabase.co is VPZONE's emote storage — confirmed from a real
    relayed frame, not guessed.
 --------------------------------------------------------- */
+/* ---------------------------------------------------------
+   ⭐ ggpht.com is where YouTube chat emoji actually live.
+
+   YouTube emoji were rendering as their own names — a message
+   reading literally "face-green-smiling" — which is this list
+   rejecting the url and falling back to the name, exactly as
+   designed. ytimg.com was in here on the assumption that it
+   covered YouTube images. It does not: ytimg.com serves
+   thumbnails and static assets, while chat emoji and avatars
+   come from yt3.ggpht.com.
+
+   googleusercontent.com is included alongside it because
+   YouTube serves the same images from there too, and which one
+   you get is not something the sender controls.
+
+   Both are broader than the platform-specific hosts above, so
+   the mismatch warning below is deliberately kept: an emote
+   from anywhere unexpected still names its host in the log
+   rather than being quietly allowed through.
+--------------------------------------------------------- */
 const RELAYED_EMOTE_HOST =
-  /^https:\/\/(?:[a-z0-9-]+\.)*(?:supabase\.co|vpzone\.tv|beamstream\.gg|kick\.com|twitch\.tv|jtvnw\.net|ytimg\.com|pilled\.net)\/[^"'<>\s]*$/i;
+  /^https:\/\/(?:[a-z0-9-]+\.)*(?:supabase\.co|vpzone\.tv|beamstream\.gg|kick\.com|twitch\.tv|jtvnw\.net|ytimg\.com|ggpht\.com|googleusercontent\.com|pilled\.net)\/[^"'<>\s]*$/i;
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
