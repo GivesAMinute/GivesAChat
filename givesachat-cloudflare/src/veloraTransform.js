@@ -408,6 +408,32 @@ export async function transformVeloraEvent(event, payload, env) {
           count: data.count || data.amount || data.total || null,
           viewers: data.viewerCount ?? data.viewers ?? null,
 
+          /* ---------------------------------------------------
+             ⭐ Volts, under its own name.
+
+             `count` above is a shared bucket for "how many" across
+             follows, gifts and Volts, and the lane read the wrong
+             one out of it — a real 120 rendered as 0. Carrying the
+             amount as `volts` as well means the Volts card has a
+             field that means only one thing, and cannot be lost to
+             a naming collision with gift counts.
+
+             `count` is left exactly as it was: the gift branch
+             depends on it.
+
+             templateData is included because stream_alert carries
+             its numbers there while the typed events carry them
+             flat, and a Volts send can arrive as either.
+          --------------------------------------------------- */
+          volts:
+            data.volts ??
+            data.voltsAmount ??
+            data.amount ??
+            data.total ??
+            data.templateData?.amount ??
+            data.count ??
+            null,
+
           message: data.message || null,
           customSoundUrl: data.customSoundUrl || null
         }

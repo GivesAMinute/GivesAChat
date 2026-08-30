@@ -432,13 +432,48 @@ function renderVeloraSystemMessage(event, data, container) {
     );
   }
   else if (data.alertType === "volts") {
+    /* ---------------------------------------------------------
+       ⭐ data.count IS WHERE THE NUMBER ACTUALLY IS.
+
+       A real 120 Volts rendered as "sent 0 Volts!" on stream. The
+       number was never missing — the worker had it and this read
+       the wrong field.
+
+       transformVeloraEvent() collapses Velora's amount into
+       `count` for every alert type:
+
+         count: data.count || data.amount || data.total || null
+
+       so by the time an alert reaches the lane the value is on
+       `count`, and `amount` no longer exists. The gift branch
+       above reads count and works; this one listed every name
+       EXCEPT count and fell through to its default.
+
+       The other names are kept ahead of it: the popups overlay
+       takes the same payloads from Velora's socket, where they
+       are still flat.
+    --------------------------------------------------------- */
     const amount =
       data.volts ??
       data.amount ??
+      data.count ??
       data.templateData?.amount ??
-      0;
+      null;
 
-    text = `${who} sent ${amount} Volts!`;
+    /* ---------------------------------------------------------
+       ⭐ NO NUMBER IS NOT ZERO.
+
+       The old default was 0, so a missing value became a positive
+       claim that someone sent nothing — worse than saying less,
+       and insulting to whoever just sent Volts. Same rule as the
+       raid and gift branches: when the count is unknown, say the
+       part that is still true.
+    --------------------------------------------------------- */
+    const n = Number(amount);
+
+    text = Number.isFinite(n) && n > 0
+      ? `${who} sent ${n} Volts!`
+      : `${who} sent Volts!`;
   }
   else {
     text = data.message || who;
