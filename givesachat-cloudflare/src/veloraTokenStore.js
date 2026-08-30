@@ -1,5 +1,16 @@
 // givesachat-cloudflare/src/veloraTokenStore.js
 
+/* ---------------------------------------------------------
+   Alert sample retention.
+
+   3 per event type so a shape can be compared against itself
+   (is reward.name ALWAYS null, or was that one payload?), and a
+   40 overall ceiling so a new event type appearing upstream
+   cannot grow this without bound.
+--------------------------------------------------------- */
+const PER_TYPE_SAMPLES = 3;
+const MAX_SAMPLES = 40;
+
 export class VeloraTokenStore {
   constructor(state) {
     this.state = state;
@@ -66,7 +77,7 @@ export class VeloraTokenStore {
          than the way back.
       ----------------------------------------------------- */
       /* -----------------------------------------------------
-         Alert sample log — the last 10 alert payloads, verbatim.
+         Alert sample log — real alert payloads, verbatim.
 
          Raids happen a few times a week and cannot be summoned on
          demand. A test alert is NOT a substitute: the test carries
@@ -76,15 +87,50 @@ export class VeloraTokenStore {
          twice it has missed.
 
          So the real thing gets captured when it happens, and read
-         back afterwards. Ten entries is enough to catch a raid
-         plus whatever else fired around it.
+         back afterwards.
       ----------------------------------------------------- */
+      /* ---------------------------------------------------------
+         ⭐ KEEP A QUOTA PER EVENT TYPE, NOT ONE GLOBAL LIST.
+
+         This was a flat "newest 10 wins", which loses precisely
+         the events worth capturing. A real 120-Volts send was
+         evicted by a burst of ten channel point redemptions
+         seconds later, so when the payload was finally needed the
+         log held ten copies of the same uninteresting shape and no
+         Volts at all.
+
+         Rare events are the whole point of this buffer. A
+         redemption happens constantly and its shape is already
+         known; a Volts send or a raid might happen twice a stream
+         and is exactly what nobody has a sample of.
+
+         So each event type gets its own slots and can only evict
+         itself. Redemptions can burst as much as they like now
+         without costing us anything else.
+      --------------------------------------------------------- */
       if (url.pathname.endsWith("/alerts/sample")) {
         const body = await request.json();
         const log = (await this.storage.get("alert-samples")) || [];
 
-        log.unshift({ at: Date.now(), ...body });
-        await this.storage.put("alert-samples", log.slice(0, 10));
+        const entry = { at: Date.now(), ...body };
+        const typeOf = (e) => String(e?.event || e?.payload?.event || "unknown");
+        const kind = typeOf(entry);
+
+        /* Newest first within a type, and the types keep their
+           relative order so the log still reads chronologically
+           for anything arriving at a normal rate. */
+        const kept = [entry];
+        let sameKind = 1;
+
+        for (const old of log) {
+          if (typeOf(old) === kind) {
+            if (sameKind >= PER_TYPE_SAMPLES) continue;
+            sameKind++;
+          }
+          kept.push(old);
+        }
+
+        await this.storage.put("alert-samples", kept.slice(0, MAX_SAMPLES));
 
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
