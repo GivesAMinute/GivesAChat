@@ -405,6 +405,32 @@ function renderVeloraSystemMessage(event, data, container) {
       ? `${who} raided with ${viewers} viewers!`
       : `${who} raided!`;
   }
+  /* ---------------------------------------------------------
+     ⭐ 1st / 2nd to the stream.
+
+     The celebration lives in the popups overlay — card, sound,
+     confetti, balloons — but that overlay is not always open.
+     On an IRL stream the lane is the only thing on screen, and a
+     claim was invisible there.
+
+     The worker composes the sentence, because reward.name arrives
+     null on every redemption observed and the lane cannot derive
+     the place from the payload the way the popups can from
+     Velora's socket. So this prefers data.message and only builds
+     its own as a fallback.
+
+     Written as its own branch rather than left to the `else`
+     below. That default would render this correctly today, but
+     only by accident — nothing about it says a claim is meant to
+     land there.
+  --------------------------------------------------------- */
+  else if (data.alertType === "claim") {
+    text = veloraSentence || (
+      data.place
+        ? `${who} was ${data.place} to the stream!`
+        : `${who} claimed a spot on the stream!`
+    );
+  }
   else if (data.alertType === "volts") {
     const amount =
       data.volts ??

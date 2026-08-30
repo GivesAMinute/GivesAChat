@@ -403,7 +403,21 @@ export class ChatRoom {
     }
     const type = String(d.alertType || "alert");
     const name = String(d.displayName || d.username || "").toLowerCase();
-    const key = `${type}|${name}`;
+
+    /* ---------------------------------------------------------
+       Place is part of the identity of a claim.
+
+       Velora emits both a redemption and a pointsCelebration for
+       one claim, and this key is what collapses that pair. But
+       without the place, one person claiming 1st and then 2nd
+       inside the 8-second window looks like the same alert twice
+       and the second card is thrown away.
+
+       Empty for every other alert type, so raid, follow, sub and
+       Volts keys are byte-for-byte what they were.
+    --------------------------------------------------------- */
+    const place = String(d.place || "").toLowerCase();
+    const key = `${type}|${name}|${place}`;
 
     const now = Date.now();
     this._recentAlerts ||= new Map();

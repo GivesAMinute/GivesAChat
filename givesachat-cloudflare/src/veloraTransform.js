@@ -63,6 +63,95 @@ function isClaimReward(data = {}) {
   return /\b(first|1st|second|2nd)\b/i.test(title);
 }
 
+/* ---------------------------------------------------------
+   Which place was claimed — "1st" or "2nd", or null.
+
+   Id first, title second, for the same reason isClaimReward
+   checks both: ids are exact but change if a reward is ever
+   recreated in Velora, and the title is the safety net.
+--------------------------------------------------------- */
+function claimPlace(data = {}) {
+  const id = data.reward?.id || data.rewardId || data.itemId;
+
+  if (id === CLAIM_REWARD_IDS[0]) return "1st";
+  if (id === CLAIM_REWARD_IDS[1]) return "2nd";
+
+  const title = String(
+    data.reward?.name || data.rewardTitle || data.itemName || ""
+  );
+
+  if (/\b(first|1st)\b/i.test(title)) return "1st";
+  if (/\b(second|2nd)\b/i.test(title)) return "2nd";
+
+  return null;
+}
+
+/* ---------------------------------------------------------
+   ⭐ A claim, as a card for the CHAT LANE.
+
+   The popups overlay owns the celebration — card, sound,
+   confetti, balloons — and none of that changes. But the popups
+   overlay is not always open: during an IRL stream the chat lane
+   is the only thing on screen, and a claim happening there was
+   completely invisible.
+
+   So the lane gets the card too, and only the card. Deliberately
+   NOT included: customSoundUrl, and anything that would start an
+   effect. Sound stays with the popups so a claim cannot play
+   twice when both overlays are open.
+
+   Built as a velora_system alert rather than a reward card
+   because that is already the lane's format for "something
+   happened on the stream" — follows, subs, raids and Volts all
+   render through it, and the popups' own claim card was
+   explicitly modelled on it (see claimAlerts.js). Matching it
+   means no new card design and no new stylesheet.
+
+   Both event branches below call this. Velora emits a
+   redemption AND a pointsCelebration for a single claim, so
+   emitting from one branch alone would miss claims that arrive
+   through the other. ChatRoom.isDuplicateAlert() collapses the
+   pair on an 8-second type|name key — the same mechanism that
+   already de-duplicates raids.
+--------------------------------------------------------- */
+function claimLaneCard(data = {}) {
+  const place = claimPlace(data);
+
+  const displayName =
+    data.user?.displayName || data.user?.username ||
+    data.displayName || data.username || null;
+
+  /* No name means the card would read "Someone was 1st to the
+     stream!", which tells the streamer nothing they can act on.
+     ChatRoom drops nameless alerts anyway; returning null here
+     says so at the point the decision belongs. */
+  if (!displayName) return null;
+
+  const where = place ? `${place} to the stream` : "a claim";
+
+  return {
+    type: "velora_system",
+    event: "channel.stream_alert",
+    platform: "velora",
+    data: {
+      alertType: "claim",
+      place,
+      displayName,
+      username: data.user?.username || data.username || null,
+      avatarUrl: data.user?.avatarUrl || data.avatarUrl || null,
+
+      /* The sentence is built here rather than left to the
+         overlay: reward.name arrives null on every redemption
+         observed, so the lane cannot derive it from the payload
+         the way the popups can from Velora's socket. */
+      message: `${displayName} was ${where}!`,
+
+      // The popups play the sound. The lane must not.
+      customSoundUrl: null
+    }
+  };
+}
+
 /**
  * Velora WebSocket Chat Transformer
  */
@@ -203,13 +292,15 @@ export async function transformVeloraEvent(event, payload, env) {
     // ⭐ REWARD: channel points
     if (event === "channel.channel_points_redemption") {
       /* -----------------------------------------------------
-         1st / 2nd GIVER claims are handled entirely by the
-         popups overlay (see popups/modules/claimAlerts.js).
-         Returning null keeps them out of the chat lane —
-         without this they render there with Velora's
+         1st / 2nd GIVER claims never render as a REWARD card.
+         That was the bare "Reward" card with Velora's
          {username}/{times}/{place} placeholders unsubstituted.
+
+         They now render as a stream-alert card instead, so the
+         lane shows a claim when the popups overlay is closed —
+         see claimLaneCard(). The popups are untouched.
       ----------------------------------------------------- */
-      if (isClaimReward(data)) return null;
+      if (isClaimReward(data)) return claimLaneCard(data);
 
       /* Nested first, flat as fallback — see isClaimReward. Note
          reward.name arrives as null on every redemption observed,
@@ -237,10 +328,13 @@ export async function transformVeloraEvent(event, payload, env) {
 
     // ⭐ REWARD: points celebration
     if (event === "pointsCelebration") {
-      /* Same exclusion as the redemption branch above. Velora
-         emits BOTH events for one redemption, so guarding only
-         one of them lets every claim through the other. */
-      if (isClaimReward(data)) return null;
+      /* Same treatment as the redemption branch above. Velora
+         emits BOTH events for one redemption, so handling only
+         one of them lets every claim through the other as a bare
+         reward card. Emitting from both means a claim survives
+         whichever event actually arrives; ChatRoom collapses the
+         pair. */
+      if (isClaimReward(data)) return claimLaneCard(data);
 
       const cd = data.cardDesign || {};
       const bg = cd.background || {};
