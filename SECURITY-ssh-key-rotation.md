@@ -72,9 +72,41 @@ Which are still alive:
 ```bash
 for ip in 159.13.49.46 136.114.9.5 149.118.67.110 158.178.142.156; do
   printf "%-16s " "$ip"
-  nc -z -w3 "$ip" 22 2>/dev/null && echo "SSH OPEN — still up" || echo "no response"
+  nc -z -G 3 "$ip" 22 2>/dev/null && echo "SSH OPEN — still up" || echo "no response"
 done
 ```
+
+`-G`, not `-w`. On macOS `-w` bounds the idle read timeout, not the
+connection attempt, so a host that silently drops packets hangs
+forever instead of timing out. The first run of this looked like a
+broken command and was actually a broken flag.
+
+### Result — 1 September 2026
+
+All four: **no response**. No reachable SSH on any of them.
+
+```
+159.13.49.46     no response
+136.114.9.5      no response
+149.118.67.110   no response
+158.178.142.156  no response
+```
+
+Which is why the local key copies were deleted: a surviving instance
+is terminated from the provider console, which needs no key, so the
+07-27 private key had no remaining use even in the worst case.
+
+Being precise about what this does and does not establish — it proves
+no reachable SSH on port 22, from one network, at one moment. A
+stopped VM, or one firewalled to specific source addresses, looks
+identical from outside. It is good evidence, not proof. The console is
+the only definitive answer:
+
+- [ ] Oracle Cloud → Compute → Instances, **every region**
+- [ ] github.com → Settings → SSH and GPG keys — match
+      `SHA256:y18Q4iSII8m7/+FCRyx///jWV/oZ70b8iGBnOosRuA0`.
+      Independent of all four VMs and outlives them: a compromised key
+      there is push access to every repository on the account.
 
 ## The thing to understand first
 
