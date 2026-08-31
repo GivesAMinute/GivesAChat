@@ -76,8 +76,38 @@ export const IGNORED_SENDER_TYPES = [
   "arena",    // direct: polled by ArenaRoom
   "odysee",   // direct: Commentron socket in OdyseeRoom
   "bitchute", // direct: Socket.IO in BitChuteRoom
-  "facebook"  // direct: live_comments SSE in FacebookRoom
+  "facebook"  // direct: FacebookRoom polls the comments edge
 ];
+
+/* ---------------------------------------------------------
+   Facebook, and why it is still ours to poll.
+
+   Beam does NOT relay Facebook chat — confirmed by Beam on
+   Discord, 1 September 2026: they are waiting on Facebook to
+   approve their API access, and Meta has come back asking for
+   more information. A live Facebook test that day produced no
+   facebook entry in BeamRoom's platformsSeen, which agrees.
+
+   So this entry is not the usual "we ingest it directly, keep
+   Beam's duplicate out" — there is no duplicate to keep out. It
+   is here so that the day Beam IS approved and starts relaying
+   Facebook, their copy does not silently start appearing
+   alongside ours.
+
+   When that day comes, this is the line to delete, the same way
+   deleting "blaze" moved Blaze onto the relay. Doing so is
+   worth it: our own Page token cannot see viewer identity at
+   all — comments arrive with no `from` object, so every viewer
+   renders as "Facebook viewer" with no avatar, and App Review
+   would not have changed that (all three permissions are
+   granted and it makes no difference). Beam's approval may
+   carry the identity ours cannot.
+
+   It would also retire FacebookRoom, its polling loop and its
+   rate-limit adaptation — five platform rooms down to four,
+   which lifts the free-tier ceiling from about 5.7 to about 7.1
+   streaming hours a day.
+--------------------------------------------------------- */
 
 /* ---------------------------------------------------------
    Beam's name for a platform → ours.
