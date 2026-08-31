@@ -1976,6 +1976,99 @@ export default {
         return json(status);
       }
 
+      /* ---------------------------------------------------------
+         ⭐ WHICH PERMISSIONS DO WE ACTUALLY HOLD RIGHT NOW?
+
+         App Review rejected pages_show_list, pages_read_engagement
+         and pages_read_user_content on the screencast, and the
+         question that decision turns on is whether approval would
+         even change anything: viewer comments arrive with no
+         `from` object, so names and avatars are missing, and Meta's
+         Live Comments docs list from{name,id} as a field a Page
+         token CAN request.
+
+         Those two facts cannot both be the whole story, and the
+         difference is worth twenty days:
+
+           granted here, and `from` still absent
+             -> the permissions are live and make no difference.
+                Approval was never going to bring names back, and
+                there is nothing to chase.
+
+           NOT granted
+             -> we have never actually run with them, the missing
+                names may simply be the missing permission, and a
+                re-submission is worth the screencast.
+
+         A Meta app in Development mode grants permissions to
+         people holding a role on the app without review, so as
+         the app admin this should already read "granted" if the
+         consent screen was completed.
+
+         Returns permission names and statuses only. No token, no
+         user id, nothing that has to be redacted.
+      --------------------------------------------------------- */
+      if (action === "permissions") {
+        if (!token?.access_token) {
+          return json({
+            connected: false,
+            hint: "No stored token. Connect at /facebook/connect first."
+          });
+        }
+
+        try {
+          const res = await fetch(
+            `${FB_API}/me/permissions?access_token=${encodeURIComponent(token.access_token)}`
+          );
+
+          const body = await res.json();
+
+          if (!res.ok || !Array.isArray(body?.data)) {
+            return json({
+              ok: false,
+              status: res.status,
+              /* Graph errors carry no token, but they DO echo
+                 request context, so only the message is surfaced. */
+              error: body?.error?.message || "unreadable response"
+            }, 200);
+          }
+
+          const byStatus = {};
+          for (const row of body.data) {
+            const state = row?.status || "unknown";
+            (byStatus[state] ||= []).push(row?.permission);
+          }
+
+          const WANTED = [
+            "pages_show_list",
+            "pages_read_engagement",
+            "pages_read_user_content"
+          ];
+
+          const granted = byStatus.granted || [];
+          const missing = WANTED.filter((p) => !granted.includes(p));
+
+          return json({
+            ok: true,
+            granted: granted.sort(),
+            declined: (byStatus.declined || []).sort(),
+            expired: (byStatus.expired || []).sort(),
+
+            wanted: WANTED,
+            missing,
+
+            verdict: missing.length
+              ? "NOT all granted — the missing names may just be the missing " +
+                "permission. A re-submission could be worth it."
+              : "All three granted already. Viewer comments still arrive " +
+                "with no `from`, so App Review would not have changed that. " +
+                "Nothing to chase."
+          });
+        } catch (err) {
+          return json({ ok: false, error: String(err?.message || err) }, 200);
+        }
+      }
+
       return new Response("Not found", { status: 404 });
     }
 
