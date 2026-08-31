@@ -10,6 +10,26 @@ treated as compromised:
 
 Both are 2048-bit RSA, both passphrase-less.
 
+## Where the private keys actually are
+
+**Not in this repository.** Every `keys/…` path below is written
+relative to the old snapshot folder, which is where the files survive:
+
+```
+GivesAChat/GAC Velora Finished/keys/ssh-key-2026-07-27.key
+GivesAChat/GAC Velora Finished/keys/ssh-key-2026-07-27.key.pub
+```
+
+Only the 07-27 pair is still on disk; the 07-25 private key is gone
+from the working tree, so if that key is authorised anywhere it can no
+longer be used to log in and remove itself.
+
+This matters for the order of operations: **the 07-27 private key is
+currently the only way in.** Deleting that snapshot folder before
+finishing steps 1–5 removes the credential needed to clean up the very
+machines it opens. Terminating the instances (below) is the better
+route precisely because it needs no key at all.
+
 ## What they open — confirmed from shell history
 
 These are **Oracle Cloud** VMs, left over from the Beam scraping era
