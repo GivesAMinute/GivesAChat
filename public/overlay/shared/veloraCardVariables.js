@@ -35,7 +35,31 @@
    deliberate divergence from Velora's own overlay, so it is a
    flag rather than something buried in the code: set this to
    false to match Velora exactly. */
-const ORDINALISE_TIMES = true;
+/* ⭐ Turned OFF, 4 Sep 2026, to match Velora exactly.
+
+   Velora's own card for a claim reads:
+
+     RobMac7733 was 1st to the stream!
+     RobMac7733 has been 1st 1 time!
+
+   With ordinals on, ours said "has been 1st 1st time!" — the
+   ordinal colliding with the {Place} right beside it. Whether
+   this flag helps or hurts depends entirely on the creator's
+   template wording, and the claim templates are the ones
+   actually in use.
+
+   Neither setting is right for every count, because the template
+   hard-codes the singular "time":
+
+     off:  "1 time"   ✓        "5 time"    ✗
+     on:   "1st time" ✗        "5th time"  ✓
+
+   Off is the better trade: a claim is almost always someone's
+   first, and it matches what Velora puts on screen — which is
+   the thing the two cards are compared against. Fixing the
+   plural properly means editing the template in Velora, not
+   here. */
+const ORDINALISE_TIMES = false;
 
 export function ordinal(n) {
   const s = ["th", "st", "nd", "rd"];

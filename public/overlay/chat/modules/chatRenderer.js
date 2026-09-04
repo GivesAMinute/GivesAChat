@@ -7,6 +7,10 @@ import { renderOdyseeBadges } from "../badges/odysee/index.js";
 import { colorForUsername } from "../utils/usernameColors.js";
 import { scheduleExit } from "./chatMode.js";
 import { linkify } from "../utils/linkify.js";
+import {
+  veloraCardValues,
+  renderVeloraTemplate
+} from "/overlay/shared/veloraCardVariables.js";   // ⭐ same module the popups use
 
 /* ---------------------------------------------------------
    ⭐ YouTube Normalizer
@@ -340,6 +344,11 @@ function renderVeloraSystemMessage(event, data, container) {
 
   let text = "";
 
+  /* Claims get a second line ("...has been 1st 1 time!"). Every
+     other alert type leaves this empty and renders exactly as
+     before. */
+  let claimLine2 = "";
+
   /* ---------------------------------------------------------
      ⭐ NEVER INTERPOLATE A NAME THAT MIGHT NOT BE THERE.
 
@@ -425,11 +434,36 @@ function renderVeloraSystemMessage(event, data, container) {
      land there.
   --------------------------------------------------------- */
   else if (data.alertType === "claim") {
-    text = veloraSentence || (
-      data.place
+    /* ---------------------------------------------------------
+       ⭐ Same two lines as the popup card, from the same code.
+
+       Velora's own alert reads:
+
+         RobMac7733 was 1st to the stream!
+         RobMac7733 has been 1st 1 time!
+
+       Neither line is composed here. Both are Velora's cardDesign
+       templates rendered through the shared substitution module —
+       the identical call the popups make in buildClaimText(). If
+       the creator edits the wording in Velora, both surfaces
+       follow, and neither can drift from the other, because there
+       is one implementation rather than two.
+
+       data.message stays as the fallback for line 1 when
+       cardDesign is absent; line 2 simply does not render, which
+       is better than inventing a count.
+    --------------------------------------------------------- */
+    const values = veloraCardValues(data, { place: data.place || "" });
+    const design = data.cardDesign || {};
+
+    text =
+      renderVeloraTemplate(design.textLine1?.content, values).trim() ||
+      veloraSentence ||
+      (data.place
         ? `${who} was ${data.place} to the stream!`
-        : `${who} claimed a spot on the stream!`
-    );
+        : `${who} claimed a spot on the stream!`);
+
+    claimLine2 = renderVeloraTemplate(design.textLine2?.content, values).trim();
   }
   else if (data.alertType === "volts") {
     /* ---------------------------------------------------------
@@ -498,6 +532,10 @@ function renderVeloraSystemMessage(event, data, container) {
     <div class="chat-message-content">
       <span class="text velora-system-text">${text}</span>
     </div>
+    ${claimLine2 ? `
+    <div class="chat-message-content">
+      <span class="text velora-system-subtext">${claimLine2}</span>
+    </div>` : ""}
   `;
 
   wrapper.appendChild(icon);
@@ -507,7 +545,7 @@ function renderVeloraSystemMessage(event, data, container) {
   enqueue({
     soundUrl: data.customSoundUrl || null,
     delayMs: 0,
-    ttsText: `Velora Stream Alert. ${text}`
+    ttsText: `Velora Stream Alert. ${text}${claimLine2 ? " " + claimLine2 : ""}`
   });
 
   scheduleExit(wrapper);

@@ -227,6 +227,34 @@
 }
 
 /* ---------------------------------------------------------
+   ⭐ Second line — the claim count.
+
+     RobMac7733 was 1st to the stream!
+     RobMac7733 has been 1st 1 time!
+
+   Only claims have one; every other alert renders a single
+   line and is untouched.
+
+   Styled to sit UNDER the headline rather than compete with
+   it — smaller, italic, and dimmer, matching how Velora's own
+   card treats the same line. The subordinate look is doing
+   real work on a busy overlay: two lines at equal weight read
+   as two separate alerts at a glance.
+
+   Margin is negative because .chat-message-content carries its
+   own top spacing, which between two lines of one card reads
+   as a gap rather than a pair.
+--------------------------------------------------------- */
+.velora-system-subtext {
+  color: #ffffff;
+  opacity: 0.62;
+  font-style: italic;
+  font-size: 0.86em;
+  margin-top: -4px;
+  display: inline-block;
+}
+
+/* ---------------------------------------------------------
    ⭐ Velora System Bubble — Sheen + Gold Shimmer
 --------------------------------------------------------- */
 .velora-system-bubble::before {

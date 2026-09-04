@@ -129,6 +129,21 @@ function claimLaneCard(data = {}) {
 
   const where = place ? `${place} to the stream` : "a claim";
 
+  /* One line, once per claim. The second line of the card depends
+     on two fields whose presence on the WEBHOOK is unverified —
+     the popups read them off Velora's socket, which is a different
+     payload. This says what actually arrived, so "everyone shows
+     1 time" can be diagnosed from a single real claim instead of
+     reasoned about. Remove once confirmed. */
+  console.log(
+    `[CLAIM] place=${place} user=${JSON.stringify(displayName)} ` +
+    `counts=${JSON.stringify(data.counts ?? null)} ` +
+    `builtInType=${JSON.stringify(data.reward?.builtInType ?? data.builtInType ?? null)} ` +
+    `line2template=${JSON.stringify(
+      (data.reward?.cardDesign || data.cardDesign)?.textLine2?.content ?? null
+    )}`
+  );
+
   return {
     type: "velora_system",
     event: "channel.stream_alert",
@@ -143,8 +158,39 @@ function claimLaneCard(data = {}) {
       /* The sentence is built here rather than left to the
          overlay: reward.name arrives null on every redemption
          observed, so the lane cannot derive it from the payload
-         the way the popups can from Velora's socket. */
+         the way the popups can from Velora's socket.
+
+         This stays as the FALLBACK line 1. When cardDesign comes
+         through, the overlay renders Velora's own template
+         instead, so the lane and the popups say the same thing. */
       message: `${displayName} was ${where}!`,
+
+      /* ---------------------------------------------------
+         ⭐ Everything {Times} and {Place} are built from.
+
+         The second line — "RobMac7733 has been 1st 1 time!" —
+         is not a sentence we compose. It is Velora's own
+         textLine2 template rendered against these values, which
+         is how the popups produce it. Passing the raw material
+         through and letting the shared module do the
+         substitution means the lane cannot word it differently
+         from the popup card; there is only one implementation.
+
+         cardDesign is confirmed present on the redemption
+         webhook — every sample in the alert log carries
+         reward.cardDesign with textLine1 and textLine2.
+
+         counts is NOT confirmed. Velora omits counts.lifetime
+         rather than sending zero, and timesFrom() reads absent
+         as 1, so a missing count renders "1 time" exactly as
+         Velora's own card does. Consistent either way, and
+         logged below so it can be checked against one real
+         claim rather than assumed.
+      --------------------------------------------------- */
+      counts: data.counts || null,
+      builtInType: data.reward?.builtInType || data.builtInType || null,
+      cardDesign: data.reward?.cardDesign || data.cardDesign || null,
+      rewardTitle: data.reward?.name || data.rewardTitle || null,
 
       // The popups play the sound. The lane must not.
       customSoundUrl: null
