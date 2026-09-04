@@ -222,6 +222,11 @@ export class BeamRoom {
     if (url.pathname.endsWith("/status")) {
       return this.json({
         running: this.running,
+        reconnects: this.reconnects || 0,
+        lastEventId: this.lastEventId || null,
+        connectedForSeconds: this.connectedAt
+          ? Math.round((Date.now() - this.connectedAt) / 1000)
+          : null,
         connectedAt: this.connectedAt,
         lastEventAt: this.lastEventAt,
         secondsSinceLastEvent: this.lastEventAt
@@ -338,19 +343,60 @@ export class BeamRoom {
   }
 
   async connect() {
-    const res = await fetch(this.sseUrl, {
-      headers: {
-        "Accept": "text/event-stream",
-        "Cache-Control": "no-cache"
-      }
-    });
+    /* ---------------------------------------------------------
+       ⭐ RESUME WHERE WE LEFT OFF.
+
+       Beam stamps every frame with an id:
+
+         event: init
+         id: 876042021972742145
+
+       That is SSE's resume marker, and until now we threw it
+       away and opened each connection fresh. Anything Beam sent
+       while we were between connections was simply gone — not
+       delayed, gone, because a new stream starts from "now".
+
+       An SSE connection closing periodically is normal, so those
+       gaps are routine. The symptom that sent us looking: 42
+       YouTube messages posted five seconds apart, all present in
+       Beam's own chat, roughly every second one missing from the
+       overlay. Regular reconnect gaps against a regular message
+       cadence look exactly like that.
+
+       Last-Event-ID asks Beam to replay from the last frame we
+       actually processed. If Beam honours it the gap is filled;
+       if it ignores the header we are no worse off than before.
+       That asymmetry is why this was worth shipping without
+       first proving the diagnosis.
+    --------------------------------------------------------- */
+    const headers = {
+      "Accept": "text/event-stream",
+      "Cache-Control": "no-cache"
+    };
+
+    if (this.lastEventId) {
+      headers["Last-Event-ID"] = String(this.lastEventId);
+    }
+
+    const res = await fetch(this.sseUrl, { headers });
 
     if (!res.ok) throw new Error(`Beam SSE returned ${res.status}`);
     if (!res.body) throw new Error("Beam SSE returned no body");
 
     this.connectedAt = Date.now();
     this.backoff = MIN_BACKOFF_MS;
-    console.log("[BEAM] connected to unified chat stream");
+
+    /* Counted and surfaced on /beam/status. A reconnect is not an
+       error and never appeared anywhere, so a stream flapping
+       every few seconds looked identical to one held open for
+       hours - and that difference is the whole question when
+       messages go missing. */
+    this.reconnects = (this.reconnects || 0) + 1;
+
+    console.log(
+      `[BEAM] connected to unified chat stream ` +
+      `(#${this.reconnects}${this.lastEventId ? `, resuming from ${this.lastEventId}` : ", from now"})`
+    );
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -392,6 +438,15 @@ export class BeamRoom {
       if (line.startsWith(":")) continue;              // comment
       if (line.startsWith("event:")) eventName = line.slice(6).trim();
       else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+      /* ⭐ Only the init frame carries an SSE id: line — verified
+         against the real capture, 1 id across 25 frames. Message
+         frames put theirs inside the JSON instead. Both are the
+         same snowflake sequence, so this seeds the resume point
+         and handleFrame advances it per message below. */
+      else if (line.startsWith("id:")) {
+        const id = line.slice(3).trim();
+        if (id && !this.lastEventId) this.lastEventId = id;
+      }
     }
 
     if (!dataLines.length) return;
@@ -497,6 +552,46 @@ export class BeamRoom {
             payload.badges = [...(payload.badges || []), "og"];
           }
         }
+      }
+
+      /* ---------------------------------------------------------
+         ⭐ RESUME POINT, and the duplicate guard it needs.
+
+         Advanced per message because message frames have no SSE
+         id: line — the id lives in the payload. Without this the
+         resume marker would stay pinned to whatever init issued
+         when the connection opened.
+
+         The guard is the other half. A replay is allowed to be
+         INCLUSIVE of the id we ask from, so resuming could
+         re-deliver the last message we already put on screen.
+         Re-reading a message the viewer already saw is a worse
+         failure than the gap this fixes, so ids we have already
+         broadcast are skipped.
+
+         Capped and trimmed: this room can run for a whole stream
+         and an unbounded Set is a slow leak.
+      --------------------------------------------------------- */
+      const msgId = item?.id || payload.messageId || null;
+
+      if (msgId) {
+        this.recentIds ||= new Set();
+
+        if (this.recentIds.has(msgId)) {
+          console.log(`[BEAM] skipped ${msgId} — already delivered (resume replay)`);
+          continue;
+        }
+
+        this.recentIds.add(msgId);
+        if (this.recentIds.size > 300) {
+          // Sets iterate in insertion order, so this drops oldest.
+          for (const old of this.recentIds) {
+            this.recentIds.delete(old);
+            if (this.recentIds.size <= 200) break;
+          }
+        }
+
+        this.lastEventId = msgId;
       }
 
       this.messageCount++;
