@@ -453,17 +453,54 @@ function renderVeloraSystemMessage(event, data, container) {
        cardDesign is absent; line 2 simply does not render, which
        is better than inventing a count.
     --------------------------------------------------------- */
-    const values = veloraCardValues(data, { place: data.place || "" });
-    const design = data.cardDesign || {};
+    /* ---------------------------------------------------------
+       ⭐ MIRROR VELORA'S OWN CARD, WORD FOR WORD.
 
+         net-TV was 1st to the stream!
+         net-TV has been 1st 17 times!
+
+       Composed here rather than rendered from the webhook's
+       cardDesign, which was the mistake in the previous version.
+       That design belongs to the REWARD, not to the alert, and
+       its templates produce different wording:
+
+         "{User} was the {Place} GIVER to this stream!"
+         "This is their {Times} time claiming {Place}!"
+
+       Velora's alert renders a different design that the webhook
+       never sends us, so following the one we DO get guaranteed a
+       mismatch. The sentences below are Velora's, transcribed.
+    --------------------------------------------------------- */
     text =
-      renderVeloraTemplate(design.textLine1?.content, values).trim() ||
       veloraSentence ||
       (data.place
         ? `${who} was ${data.place} to the stream!`
         : `${who} claimed a spot on the stream!`);
 
-    claimLine2 = renderVeloraTemplate(design.textLine2?.content, values).trim();
+    /* ---------------------------------------------------------
+       ⭐ NO COUNT, NO SECOND LINE.
+
+       `times` is null unless Velora actually sent a count. It
+       currently always is: channel.channel_points_redemption
+       carries no `counts` field — confirmed across three captured
+       payloads and by a live claim rendering "1 time" for someone
+       on their seventeenth.
+
+       So this line stays hidden rather than asserting "1 time"
+       about a regular. A number that is wrong on screen is worse
+       than a line that isn't there, and this was the actual
+       complaint.
+
+       Nothing else needs to change the day Velora includes the
+       count — the worker passes it straight through and this
+       lights up with the right wording and the right plural.
+    --------------------------------------------------------- */
+    const times = Number(data.times);
+
+    if (Number.isFinite(times) && times >= 1 && data.place) {
+      claimLine2 =
+        `${who} has been ${data.place} ${times} time${times === 1 ? "" : "s"}!`;
+    }
   }
   else if (data.alertType === "volts") {
     /* ---------------------------------------------------------

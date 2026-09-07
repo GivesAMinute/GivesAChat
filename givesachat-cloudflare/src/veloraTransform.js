@@ -155,39 +155,41 @@ function claimLaneCard(data = {}) {
       username: data.user?.username || data.username || null,
       avatarUrl: data.user?.avatarUrl || data.avatarUrl || null,
 
-      /* The sentence is built here rather than left to the
-         overlay: reward.name arrives null on every redemption
-         observed, so the lane cannot derive it from the payload
-         the way the popups can from Velora's socket.
+      /* ⭐ This IS line 1, not a fallback — it is Velora's own
+         wording, transcribed from their card:
 
-         This stays as the FALLBACK line 1. When cardDesign comes
-         through, the overlay renders Velora's own template
-         instead, so the lane and the popups say the same thing. */
+           net-TV was 1st to the stream!
+
+         An earlier version deferred to reward.cardDesign here,
+         which produced "was the 1st GIVER to this stream!"
+         instead. That design belongs to the REWARD; Velora's
+         alert renders a different design that this webhook never
+         sends, so following the one we do get guaranteed a
+         mismatch with what the streamer sees on Velora. */
       message: `${displayName} was ${where}!`,
 
       /* ---------------------------------------------------
-         ⭐ Everything {Times} and {Place} are built from.
-
-         The second line — "RobMac7733 has been 1st 1 time!" —
-         is not a sentence we compose. It is Velora's own
-         textLine2 template rendered against these values, which
-         is how the popups produce it. Passing the raw material
-         through and letting the shared module do the
-         substitution means the lane cannot word it differently
-         from the popup card; there is only one implementation.
-
-         cardDesign is confirmed present on the redemption
-         webhook — every sample in the alert log carries
-         reward.cardDesign with textLine1 and textLine2.
-
-         counts is NOT confirmed. Velora omits counts.lifetime
-         rather than sending zero, and timesFrom() reads absent
-         as 1, so a missing count renders "1 time" exactly as
-         Velora's own card does. Consistent either way, and
-         logged below so it can be checked against one real
-         claim rather than assumed.
+         Passed through for the popups and for future use. The
+         chat lane no longer renders cardDesign — see `message`
+         above and `times` below.
       --------------------------------------------------- */
       counts: data.counts || null,
+
+      /* ⭐ The count, or null — never a guess.
+
+         Velora's own alert shows the real figure ("net-TV has
+         been 1st 17 times!") because their alert pipeline carries
+         it. This webhook does not: three captured redemption
+         payloads have no `counts` field, and a live claim by
+         someone on their seventeenth rendered "1 time", which is
+         the shared module's documented reading of a MISSING
+         count rather than a real one.
+
+         So null is passed deliberately, and the overlay hides
+         the second line rather than printing a number that is
+         wrong. Asked of Cory; the day it appears in the payload
+         this starts working with no further change. */
+      times: data.counts?.lifetime ?? data.templateData?.times ?? null,
       builtInType: data.reward?.builtInType || data.builtInType || null,
       cardDesign: data.reward?.cardDesign || data.cardDesign || null,
       rewardTitle: data.reward?.name || data.rewardTitle || null,
