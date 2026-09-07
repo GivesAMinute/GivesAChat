@@ -80,7 +80,31 @@ export function buildClaimText(data, place) {
     renderVeloraTemplate(design.textLine1?.content, values).trim() ||
     `${values.user} was ${values.place || place} to the stream!`;
 
-  const line2 = renderVeloraTemplate(design.textLine2?.content, values).trim();
+  /* ---------------------------------------------------------
+     ⭐ Line 2 composed, not templated — matching the chat lane.
+
+     Velora's card reads "net-TV has been 1st 17 times!". The
+     saved textLine2 template is "This is their {Times} time
+     claiming {Place}!", which hard-codes the singular and reads
+     "their 17 time". No arrangement of {Tokens} fixes that: the
+     template has one fixed noun and the count is not known when
+     it is written.
+
+     So both surfaces compose this line from the number and
+     pluralise it. Line 1 is still the creator's template on both,
+     so wording edits in Velora's designer still flow through
+     where they matter.
+
+     Absent {Times} means 1 — Velora's documented reading — so
+     this agrees with their card even with no count.
+  --------------------------------------------------------- */
+  const times = Number(values.times);
+  const n = Number.isFinite(times) && times >= 1 ? times : 1;
+  const placeWord = values.place || place;
+
+  const line2 = placeWord
+    ? `${values.user} has been ${placeWord} ${n} time${n === 1 ? "" : "s"}!`
+    : renderVeloraTemplate(design.textLine2?.content, values).trim();
 
   return { line1, line2 };
 }

@@ -483,7 +483,38 @@ function renderVeloraSystemMessage(event, data, container) {
         ? `${who} was ${data.place} to the stream!`
         : `${who} claimed a spot on the stream!`);
 
-    claimLine2 = renderVeloraTemplate(design.textLine2?.content, values).trim();
+    /* ---------------------------------------------------------
+       ⭐ LINE 2 IS OURS, WORD FOR WORD FROM VELORA'S CARD.
+
+         net-TV has been 1st 17 times!
+
+       Line 1 stays the creator's cardDesign template. This one
+       does not, deliberately, because the saved template is
+
+         "This is their {Times} time claiming {Place}!"
+
+       which hard-codes the singular and reads "their 17 time".
+       Velora's own card gets the plural right, and no arrangement
+       of {Tokens} can — the template has one fixed noun and the
+       count is not known when it is written.
+
+       So the sentence is composed here and pluralised from the
+       actual number. Editing textLine2 in Velora's designer no
+       longer affects this line; editing textLine1 still works
+       normally. That is the trade, and it is the right way round:
+       line 1 is the creative one, line 2 is a fact with grammar
+       attached.
+
+       {Times} absent still means 1 — Velora's documented reading,
+       "the redemption in front of you is at least the first one" —
+       so this matches their card even when the count is missing.
+    --------------------------------------------------------- */
+    const times = Number(data.times);
+    const n = Number.isFinite(times) && times >= 1 ? times : 1;
+
+    claimLine2 = data.place
+      ? `${who} has been ${data.place} ${n} time${n === 1 ? "" : "s"}!`
+      : renderVeloraTemplate(design.textLine2?.content, values).trim();
   }
   else if (data.alertType === "volts") {
     /* ---------------------------------------------------------
