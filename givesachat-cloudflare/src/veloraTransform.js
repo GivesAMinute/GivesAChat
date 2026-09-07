@@ -107,12 +107,14 @@ function claimPlace(data = {}) {
    explicitly modelled on it (see claimAlerts.js). Matching it
    means no new card design and no new stylesheet.
 
-   Both event branches below call this. Velora emits a
-   redemption AND a pointsCelebration for a single claim, so
-   emitting from one branch alone would miss claims that arrive
-   through the other. ChatRoom.isDuplicateAlert() collapses the
-   pair on an 8-second type|name key — the same mechanism that
-   already de-duplicates raids.
+   ⭐ ONLY the redemption branch calls this. Velora emits a
+   pointsCelebration for the same claim, and that branch used to
+   build the card as well — which is what made the count wrong.
+   ChatRoom.isDuplicateAlert() keeps whichever copy arrives
+   FIRST, and pointsCelebration is the legacy event, absent from
+   Velora's documentation and carrying no counts.lifetime. When
+   it won the race the card showed 1 and the redemption's real
+   figure was discarded a beat later as a duplicate.
 --------------------------------------------------------- */
 function claimLaneCard(data = {}) {
   const place = claimPlace(data);
@@ -129,12 +131,10 @@ function claimLaneCard(data = {}) {
 
   const where = place ? `${place} to the stream` : "a claim";
 
-  /* One line, once per claim. The second line of the card depends
-     on two fields whose presence on the WEBHOOK is unverified —
-     the popups read them off Velora's socket, which is a different
-     payload. This says what actually arrived, so "everyone shows
-     1 time" can be diagnosed from a single real claim instead of
-     reasoned about. Remove once confirmed. */
+  /* One line per claim, and now the fastest way to confirm the
+     count arrived. If this shows counts={"lifetime":17} while the
+     card still reads 1, the loss is downstream of here rather
+     than in the payload. */
   console.log(
     `[CLAIM] place=${place} user=${JSON.stringify(displayName)} ` +
     `counts=${JSON.stringify(data.counts ?? null)} ` +
@@ -155,42 +155,46 @@ function claimLaneCard(data = {}) {
       username: data.user?.username || data.username || null,
       avatarUrl: data.user?.avatarUrl || data.avatarUrl || null,
 
-      /* ⭐ This IS line 1, not a fallback — it is Velora's own
-         wording, transcribed from their card:
-
-           net-TV was 1st to the stream!
-
-         An earlier version deferred to reward.cardDesign here,
-         which produced "was the 1st GIVER to this stream!"
-         instead. That design belongs to the REWARD; Velora's
-         alert renders a different design that this webhook never
-         sends, so following the one we do get guaranteed a
-         mismatch with what the streamer sees on Velora. */
+      /* Fallback only. The overlay renders cardDesign.textLine1
+         when it is present, which is the creator's own wording. */
       message: `${displayName} was ${where}!`,
 
       /* ---------------------------------------------------
-         Passed through for the popups and for future use. The
-         chat lane no longer renders cardDesign — see `message`
-         above and `times` below.
+         ⭐ WHAT {Times} AND {Place} RESOLVE FROM.
+
+         Velora's card-variables documentation is explicit:
+
+           {Times} -> counts.lifetime  — "the number of fulfilled
+             redemptions of THIS reward by THIS viewer, all time,
+             including the one being delivered"
+           {Place} -> builtInType      — "first" | "second"
+
+         and it names channel.channel_points_redemption as the
+         event carrying both.
       --------------------------------------------------- */
-      counts: data.counts || null,
+      counts:
+        data.counts || data.reward?.counts || data.user?.counts || null,
 
-      /* ⭐ The count, or null — never a guess.
+      /* Velora documents these FLAT on the redemption event:
 
-         Velora's own alert shows the real figure ("net-TV has
-         been 1st 17 times!") because their alert pipeline carries
-         it. This webhook does not: three captured redemption
-         payloads have no `counts` field, and a live claim by
-         someone on their seventeenth rendered "1 time", which is
-         the shared module's documented reading of a MISSING
-         count rather than a real one.
+           "counts": { "lifetime": 9 },
+           "builtInType": null            // "first" | "second"
 
-         So null is passed deliberately, and the overlay hides
-         the second line rather than printing a number that is
-         wrong. Asked of Cory; the day it appears in the payload
-         this starts working with no further change. */
-      times: data.counts?.lifetime ?? data.templateData?.times ?? null,
-      builtInType: data.reward?.builtInType || data.builtInType || null,
+         The payloads we capture are nested (data.user, data.reward),
+         so both shapes are read. Absent stays null and the shared
+         module renders 1, which is Velora's own documented reading:
+         "If it is absent, render 1: the redemption in front of you
+         is at least the first one." */
+      times:
+        data.counts?.lifetime ??
+        data.reward?.counts?.lifetime ??
+        data.user?.counts?.lifetime ??
+        data.templateData?.times ??
+        null,
+      /* {Place} resolves from builtInType — Velora's own answer,
+         authoritative over our reward-id match. Flat first, per
+         the documented payload. */
+      builtInType: data.builtInType || data.reward?.builtInType || null,
       cardDesign: data.reward?.cardDesign || data.cardDesign || null,
       rewardTitle: data.reward?.name || data.rewardTitle || null,
 
@@ -376,13 +380,29 @@ export async function transformVeloraEvent(event, payload, env) {
 
     // ⭐ REWARD: points celebration
     if (event === "pointsCelebration") {
-      /* Same treatment as the redemption branch above. Velora
-         emits BOTH events for one redemption, so handling only
-         one of them lets every claim through the other as a bare
-         reward card. Emitting from both means a claim survives
-         whichever event actually arrives; ChatRoom collapses the
-         pair. */
-      if (isClaimReward(data)) return claimLaneCard(data);
+      /* ---------------------------------------------------
+         ⭐ SUPPRESS HERE, DO NOT EMIT HERE.
+
+         Velora sends BOTH events for one claim, and this branch
+         used to build the card too, on the reasoning that either
+         event should be able to carry it. That is what made the
+         count wrong.
+
+         ChatRoom.isDuplicateAlert() keeps whichever copy lands
+         FIRST and discards the other. pointsCelebration is the
+         legacy event and is not in Velora's documentation at
+         all; channel.channel_points_redemption is the one
+         documented to carry counts.lifetime and builtInType. So
+         when the countless copy arrived first it took the slot,
+         and the redemption's real "17 times" was thrown away a
+         beat later as a duplicate — the card showed 1.
+
+         Same shape as the raid bug: two routes disagreeing, and
+         the wrong one winning a race.
+
+         Claims are still suppressed as REWARD cards here, which
+         is what this branch was originally for. */
+      if (isClaimReward(data)) return null;
 
       const cd = data.cardDesign || {};
       const bg = cd.background || {};

@@ -454,53 +454,36 @@ function renderVeloraSystemMessage(event, data, container) {
        is better than inventing a count.
     --------------------------------------------------------- */
     /* ---------------------------------------------------------
-       ⭐ MIRROR VELORA'S OWN CARD, WORD FOR WORD.
+       ⭐ THE CREATOR'S OWN cardDesign, BOTH LINES.
 
-         net-TV was 1st to the stream!
-         net-TV has been 1st 17 times!
+       Velora documents exactly this path for anyone rendering a
+       creator's card themselves:
 
-       Composed here rather than rendered from the webhook's
-       cardDesign, which was the mistake in the previous version.
-       That design belongs to the REWARD, not to the alert, and
-       its templates produce different wording:
+         "You only need this page if you are building your own
+          overlay and rendering a creator's cardDesign yourself —
+          then the raw template text reaches you with the tokens
+          intact, and you substitute from the payload fields."
 
-         "{User} was the {Place} GIVER to this stream!"
-         "This is their {Times} time claiming {Place}!"
+       So the wording is the creator's, not ours, and editing the
+       card in Velora's designer changes both surfaces. I briefly
+       replaced line 1 with a hand-written sentence; that was
+       wrong, and it threw away wording that was already right.
 
-       Velora's alert renders a different design that the webhook
-       never sends us, so following the one we DO get guaranteed a
-       mismatch. The sentences below are Velora's, transcribed.
+       {Times} resolves from counts.lifetime and {Place} from
+       builtInType — see the worker, which now reads both from
+       the event that actually carries them.
     --------------------------------------------------------- */
+    const values = veloraCardValues(data, { place: data.place || "" });
+    const design = data.cardDesign || {};
+
     text =
+      renderVeloraTemplate(design.textLine1?.content, values).trim() ||
       veloraSentence ||
       (data.place
         ? `${who} was ${data.place} to the stream!`
         : `${who} claimed a spot on the stream!`);
 
-    /* ---------------------------------------------------------
-       ⭐ NO COUNT, NO SECOND LINE.
-
-       `times` is null unless Velora actually sent a count. It
-       currently always is: channel.channel_points_redemption
-       carries no `counts` field — confirmed across three captured
-       payloads and by a live claim rendering "1 time" for someone
-       on their seventeenth.
-
-       So this line stays hidden rather than asserting "1 time"
-       about a regular. A number that is wrong on screen is worse
-       than a line that isn't there, and this was the actual
-       complaint.
-
-       Nothing else needs to change the day Velora includes the
-       count — the worker passes it straight through and this
-       lights up with the right wording and the right plural.
-    --------------------------------------------------------- */
-    const times = Number(data.times);
-
-    if (Number.isFinite(times) && times >= 1 && data.place) {
-      claimLine2 =
-        `${who} has been ${data.place} ${times} time${times === 1 ? "" : "s"}!`;
-    }
+    claimLine2 = renderVeloraTemplate(design.textLine2?.content, values).trim();
   }
   else if (data.alertType === "volts") {
     /* ---------------------------------------------------------
