@@ -555,12 +555,33 @@ function renderVeloraSystemMessage(event, data, container) {
        "the redemption in front of you is at least the first one" —
        so this matches their card even when the count is missing.
     --------------------------------------------------------- */
-    const times = Number(data.times);
-    const n = Number.isFinite(times) && times >= 1 ? times : 1;
+    /* ---------------------------------------------------------
+       ⭐ NO COUNT IN THE LANE UNLESS IT IS REAL.
 
-    claimLine2 = data.place
-      ? `${who} has been ${data.place} ${n} time${n === 1 ? "" : "s"}!`
-      : renderVeloraTemplate(design.textLine2?.content, values).trim();
+       The count is not in the redemption webhook — only on
+       Velora's socket, which the popups overlay reads and this
+       one cannot. So the lane could only ever render 1, and
+       "Dale-Bold has been 1st 1 time!" about someone on their
+       forty-second is worse than saying nothing: the lane is
+       iOS-only now and its TTS reads both lines aloud, so that
+       wrong number gets spoken on every claim.
+
+       The lane's job is WHO claimed — that is what line 1 says,
+       and hearing the name is what prompts the shout-out. The
+       NUMBER is the popup's job, and the popup has the real one
+       because it has the socket.
+
+       Written as "only when the count is real" rather than
+       deleted outright, so the line returns by itself if Velora
+       ever puts counts.lifetime on the webhook. `times` is
+       already passed through from the worker for exactly that.
+    --------------------------------------------------------- */
+    const times = Number(data.times);
+
+    if (Number.isFinite(times) && times >= 1 && data.place) {
+      claimLine2 =
+        `${who} has been ${data.place} ${times} time${times === 1 ? "" : "s"}!`;
+    }
   }
   else if (data.alertType === "volts") {
     /* ---------------------------------------------------------
