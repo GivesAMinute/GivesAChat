@@ -7,6 +7,7 @@ import { renderOdyseeBadges } from "../badges/odysee/index.js";
 import { colorForUsername } from "../utils/usernameColors.js";
 import { scheduleExit } from "./chatMode.js";
 import { linkify } from "../utils/linkify.js";
+import { isIOSDevice } from "./audio.js";
 import {
   veloraCardValues,
   renderVeloraTemplate
@@ -338,9 +339,54 @@ function pickAlertName(data = {}) {
 /* ---------------------------------------------------------
    Velora System Alerts
 --------------------------------------------------------- */
+/* ---------------------------------------------------------
+   ⭐ WHERE THE CLAIM CARD BELONGS.
+
+   On the streaming PC the popups overlay already draws the
+   claim card in the middle of the screen, with the confetti and
+   the balloons. The chat lane drawing a second copy underneath
+   it is redundant — two cards, same words, same moment.
+
+   On the iPad there is no popups overlay. The chat overlay is
+   the whole show, and a claim happening with nothing on screen
+   was the reason the lane card was built in the first place.
+
+   So: iOS gets it, everything else does not. Both are the same
+   URL, so this keys off the device rather than the address —
+   isIOSDevice() is the same check the overlay already uses to
+   decide about audio unlocking, and OBS's CEF and
+   GoLightStream's renderer both answer false.
+
+   ?claims=on / ?claims=off overrides it either way, for testing
+   in a desktop browser or for turning it off on an iPad without
+   a code change.
+
+   ONLY claims are gated. Follows, subs, raids and Volts render
+   everywhere exactly as before — those have no popup twin.
+--------------------------------------------------------- */
+function showClaimCards() {
+  try {
+    const raw = new URLSearchParams(location.search)
+      .get("claims")?.trim().toLowerCase();
+
+    if (["on", "yes", "1", "true", "show"].includes(raw)) return true;
+    if (["off", "no", "0", "false", "hide"].includes(raw)) return false;
+  } catch {
+    // Malformed query string — fall through to the device check.
+  }
+
+  return isIOSDevice();
+}
+
 function renderVeloraSystemMessage(event, data, container) {
   if (!container) return;
   if (event !== "channel.stream_alert") return;
+
+  /* The popups overlay owns this card on desktop. See above. */
+  if (data?.alertType === "claim" && !showClaimCards()) {
+    console.log("[Overlay] claim card suppressed — popups overlay owns it here");
+    return;
+  }
 
   let text = "";
 

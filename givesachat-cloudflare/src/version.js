@@ -2,4 +2,4 @@
    fixes tonight were tested against a build that turned out not to
    be deployed, or an overlay page that had not been refreshed.
    "Is my code running?" should be answerable, not assumed. */
-export const VERSION = "v26-claim-line2";
+export const VERSION = "v27-claims-ios-only";
