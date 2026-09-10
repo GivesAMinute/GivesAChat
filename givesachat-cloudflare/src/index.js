@@ -1680,6 +1680,46 @@ export default {
     }
 
     /* ⭐ Read back the captured alert payloads. */
+    /* ---------------------------------------------------------
+       ⭐ Streamlabs socket token, handed to the overlay.
+
+       YouTube superchats never reach us: Beam does not relay
+       them and Velora has no view of another platform's
+       payments. Streamlabs does see them, because the alert box
+       is already consuming them, and exposes them on its Socket
+       API.
+
+       That API is Socket.IO, which does not run in workerd — the
+       same wall Blaze hit — so the connection has to be opened
+       by the browser. The token therefore has to reach the
+       browser, and the only real question is how.
+
+       Not in the overlay URL: that string gets pasted into OBS
+       scene collections, GoLightStream, screenshots and Discord.
+       Served here instead, behind OVERLAY_KEY, so it lives in a
+       worker secret and is fetched at runtime by something that
+       already proved it holds the key.
+
+       Read-only either way — the Streamlabs socket token grants
+       event subscription, not account access.
+    --------------------------------------------------------- */
+    if (url.pathname === "/api/streamlabs/token" && request.method === "GET") {
+      const auth = checkKey(request, url, env.OVERLAY_KEY);
+      if (!auth.ok) return unauthorized();
+
+      if (!env.STREAMLABS_SOCKET_TOKEN) {
+        return json({
+          ok: false,
+          reason: "STREAMLABS_SOCKET_TOKEN is not set",
+          how: "npx wrangler secret put STREAMLABS_SOCKET_TOKEN — the value is " +
+               "Streamlabs Dashboard > avatar menu > Account Settings > " +
+               "API Settings > Your Socket API Token"
+        }, 200);
+      }
+
+      return json({ ok: true, token: env.STREAMLABS_SOCKET_TOKEN }, 200);
+    }
+
     if (url.pathname === "/api/velora/alert-log" && request.method === "GET") {
       const auth = checkKey(request, url, env.OVERLAY_KEY);
       if (!auth.ok) return unauthorized();

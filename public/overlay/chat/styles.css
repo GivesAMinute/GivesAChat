@@ -546,3 +546,30 @@ body.scrollback #messages::-webkit-scrollbar {
   margin-right: 6px;
   vertical-align: middle;
 }
+
+/* ---------------------------------------------------------
+   ⭐ SUPERCHAT AMOUNT
+
+   The money chip inside a superchat bubble. Gold on dark, so it
+   reads as an amount rather than as part of the sentence — a
+   superchat that looks like an ordinary message defeats the
+   point of someone having paid for it.
+
+   The bubble itself is a normal YouTube chat bubble: that is
+   what a superchat is on YouTube, a highlighted chat message,
+   and it means the exit timing, scroll-back and TTS all behave
+   the way every other message does.
+--------------------------------------------------------- */
+.superchat-amount {
+  display: inline-block;
+  background: linear-gradient(180deg, #ffd75e, #e2af00);
+  color: #1b1400;
+  font-weight: 800;
+  padding: 1px 10px;
+  border-radius: 999px;
+  margin-right: 2px;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  font-size: 0.88em;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}

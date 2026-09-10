@@ -26,6 +26,7 @@ import { isIOSDevice, createAudioUnlockButtons, unlockAudioOnly } from "./module
 import { showVoiceSelector } from "./modules/tts.js";
 import { fetchRewardSounds } from "./modules/rewardSounds.js";
 import { setupSocket } from "./modules/websocket.js";
+import { setupStreamlabs } from "./modules/streamlabs.js";
 
 // ⭐ Blaze chat (own Socket.IO connection — see modules/blaze.js)
 // import { setupBlazeChat } from "./modules/blaze.js";   // Blaze now relayed via Beam
@@ -96,6 +97,22 @@ async function initOverlay() {
        nothing optional gets to be awaited on the way there.
     --------------------------------------------------------- */
     run("socket", () => setupSocket());        // Velora + Beam via the worker
+
+    /* ---------------------------------------------------------
+       ⭐ YouTube superchats, via Streamlabs.
+
+       Neither of the other pipelines can see these: Beam does
+       not relay them and Velora has no view of another
+       platform's payments. Streamlabs does, and its socket is
+       the only way in.
+
+       Runs alongside chat rather than before it, and its own
+       failures are contained by run() — a Streamlabs outage, an
+       unset token or a socket.io version mismatch must never
+       cost us the chat lane. It degrades to "no superchats",
+       which is exactly where we were.
+    --------------------------------------------------------- */
+    run("streamlabs", () => setupStreamlabs());
 
     /* ---------------------------------------------------------
        ⭐ Blaze now arrives through Beam, not from here.

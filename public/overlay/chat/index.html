@@ -5,7 +5,7 @@
   <title>GivesAChat Overlay</title>
 
   <!-- ⭐ Global chat + layout styles -->
-  <link rel="stylesheet" href="/overlay/chat/styles.css?v=31" />
+  <link rel="stylesheet" href="/overlay/chat/styles.css?v=32" />
 
   <!-- ⭐ Official header styles
 
@@ -111,7 +111,13 @@
   ></iframe>
 
   <!-- ⭐ Overlay logic (CORRECT FILE NAME) -->
-  <script type="module" src="/overlay/chat/main.js?v=39"></script>
+  <!-- Streamlabs Socket API (YouTube superchats) speaks socket.io 2.x.
+       A 4.x client cannot handshake with it, so this is pinned and
+       loaded as a global rather than imported as an ES module.
+       See modules/streamlabs.js. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
+
+  <script type="module" src="/overlay/chat/main.js?v=40"></script>
 
 </body>
 </html>
