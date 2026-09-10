@@ -179,7 +179,7 @@ function beamBadgesToRoles(badges) {
    rather than being quietly allowed through.
 --------------------------------------------------------- */
 const RELAYED_EMOTE_HOST =
-  /^https:\/\/(?:[a-z0-9-]+\.)*(?:supabase\.co|vpzone\.tv|beamstream\.gg|kick\.com|twitch\.tv|jtvnw\.net|ytimg\.com|ggpht\.com|googleusercontent\.com|pilled\.net)\/[^"'<>\s]*$/i;
+  /^https:\/\/(?:[a-z0-9-]+\.)*(?:supabase\.co|vpzone\.tv|beamstream\.gg|kick\.com|twitch\.tv|jtvnw\.net|ytimg\.com|ggpht\.com|googleusercontent\.com|pilled\.net|giphy\.com|tenor\.com)\/[^"'<>\s]*$/i;
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -215,6 +215,49 @@ function cleanName(name) {
 }
 
 /* ---------------------------------------------------------
+   ⭐ A pasted GIF link IS the message.
+
+   Someone in VPZONE posted a Giphy GIF and the chat lane showed
+   the raw URL instead — and read it aloud. VPZONE embeds these
+   itself, so on their side it is a picture and on ours it was
+   forty characters of base64.
+
+   Two ways that happens, and this covers the text one: the link
+   arrives as an ordinary string in the message rather than as an
+   embed, so there is no `type: "gif"` for the branch below to
+   catch. (The other way is an emote embed from a host the
+   allowlist rejected — giphy.com and tenor.com are now on it.)
+
+   Deliberately narrow. This runs AFTER sanitizeHtml, so it is
+   putting an <img> into text that has already been escaped:
+
+     - two hard-coded CDNs, nothing configurable, no wildcards
+       that a subdomain could slip past
+     - the path must end .gif — not "contains", ends
+     - no query strings, which is where a redirect would hide
+     - the URL is escaped again on the way into the attribute
+
+   Anything failing those stays exactly as it was: a link, which
+   is what it is today.
+--------------------------------------------------------- */
+const BARE_GIF_URL =
+  /https:\/\/(?:[a-z0-9-]+\.)*(?:giphy\.com|tenor\.com)\/[^\s<>"']+\.gif\b/gi;
+
+function embedGifUrls(html) {
+  if (!html || !/giphy\.com|tenor\.com/i.test(html)) return html;
+
+  return html.replace(BARE_GIF_URL, (url) => {
+    /* alt is what TTS reads: isEmoteOnlyMessage() sees a message
+       that is only this image and says "sent the gif emote",
+       rather than spelling out the CDN path. */
+    /* NOT .relayed-emote — that is 34px, an emote size. A GIF
+       someone chose to post is a picture and gets picture
+       dimensions, matching .beam-gif. */
+    return `<img class="gif-embed" src="${escapeAttr(url)}" alt="gif" title="gif">`;
+  });
+}
+
+/* ---------------------------------------------------------
    Quill Delta → HTML
 
    Beam has no text formatting, so this only needs to handle
@@ -229,7 +272,7 @@ export function deltaToHtml(ops) {
       const insert = op?.insert;
 
       // Plain text
-      if (typeof insert === "string") return sanitizeHtml(insert);
+      if (typeof insert === "string") return embedGifUrls(sanitizeHtml(insert));
 
       if (!insert || typeof insert !== "object") return "";
 

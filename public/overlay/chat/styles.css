@@ -573,3 +573,23 @@ body.scrollback #messages::-webkit-scrollbar {
   font-size: 0.88em;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
 }
+
+/* ---------------------------------------------------------
+   ⭐ GIF EMBED
+
+   A Giphy or Tenor link pasted into chat, turned into the
+   picture it points at — see embedGifUrls() in beamTransform.
+
+   Sized to match .beam-gif rather than .relayed-emote. A GIF is
+   not an emote: 34px would be a thumbnail nobody can make out,
+   and the whole reason someone posts one is to be looked at.
+--------------------------------------------------------- */
+.gif-embed {
+  max-width: 320px;
+  max-height: 240px;
+  width: auto;
+  height: auto;
+  display: block;
+  margin: 4px 0 2px;
+  border-radius: 8px;
+}
