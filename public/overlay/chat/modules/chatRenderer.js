@@ -8,6 +8,7 @@ import { colorForUsername } from "../utils/usernameColors.js";
 import { scheduleExit } from "./chatMode.js";
 import { linkify } from "../utils/linkify.js";
 import { isIOSDevice } from "./audio.js";
+import { speakableUrls } from "../utils/speakableUrls.js";
 import {
   veloraCardValues,
   renderVeloraTemplate
@@ -286,7 +287,13 @@ function handleChat(payload, container) {
       const formatted = formatEmoteList(cleanMessage.trim());
       ttsText = `${payload.username} on ${payload.platform} sent the ${formatted}`;
     } else {
-      ttsText = `${payload.username} on ${payload.platform} says: ${cleanMessage}`;
+      /* ⭐ SPEECH ONLY. The message on screen is already in the
+         DOM and linkify() has made it clickable; this rewrites a
+         separate string for the speech queue so a posted map link
+         is not read out coordinate by coordinate. */
+      ttsText =
+        `${payload.username} on ${payload.platform} says: ` +
+        speakableUrls(cleanMessage);
     }
   }
 
