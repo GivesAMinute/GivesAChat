@@ -1,5 +1,6 @@
 import { drainRewardSoundQueue } from "../chat/modules/rewardSounds.js";
 
+import { pronounce } from "./pronounce.js";
 let selectedVoice = null;
 let queue = [];
 let speaking = false;
@@ -64,8 +65,19 @@ export function speakText(text) {
     return;
   }
 
+  /* ---------------------------------------------------------
+     ⭐ Every spoken string in the overlay comes through here —
+     chat, Velora alerts, claim cards, superchats — so the
+     pronunciation pass lives at this one point rather than at
+     each of the four places that build speech text.
+
+     Nothing on screen is affected: this rewrites only what is
+     handed to the engine. See tts/pronounce.js.
+  --------------------------------------------------------- */
+  const spoken = pronounce(text);
+
   ensureVoicesReady(() => {
-    queue.push(text);
+    queue.push(spoken);
 
     // ⭐ TTS is pending (about to speak)
     window.ttsPending = true;
