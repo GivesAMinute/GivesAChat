@@ -2,6 +2,26 @@
 
 import { speakText, setTTSVoice, preloadVoices } from "../../tts/engine.js";
 
+/* ---------------------------------------------------------
+   ⭐ THE VOICES THAT MAY APPEAR, BY NAME.
+
+   An allowlist, not a filter. The picker used to be
+   "everything the device reports, minus a long banned list",
+   which is at the mercy of what iOS decides to expose — and
+   speechSynthesis.getVoices() genuinely returns different
+   results depending on when it is called and which voice packs
+   have finished loading. That is how a second Daniel appeared
+   without any change to the filtering.
+
+   Naming the three wanted voices makes the picker deterministic:
+   the same three buttons every time, in this order, regardless
+   of what the OS lists or when.
+
+   To add one, put its exact name here. bannedVoices below is
+   kept only for the fallback.
+--------------------------------------------------------- */
+const PREFERRED_VOICES = ["Karen", "Samantha", "Daniel"];
+
 const bannedVoices = [
   "Bad News","Bahh","Bells","Boing","Bubbles","Cellos","Wobble","Good News",
   "Jester","Organ","Trinoids","Whisper","Superstar","Piya","Soumya","Moira",
@@ -19,37 +39,56 @@ function showVoiceSelector() {
   const voices = speechSynthesis.getVoices();
 
   /* ---------------------------------------------------------
-     ⭐ ONE BUTTON PER NAME.
+     ⭐ EXACTLY THE ALLOWLISTED VOICES, ONCE EACH.
 
-     iOS ships the same voice more than once — a compact build
-     and an enhanced one, both called "Samantha" — so the picker
-     showed it twice with no way to tell which was which.
-
-     Deduped on name, keeping the first. Everything downstream
-     already works by name:
+     One button per NAME, because iOS ships the same voice more
+     than once — a compact build and an enhanced one, both called
+     "Samantha". The duplicate was not merely untidy, it was
+     inert: selection is stored and resolved by name,
 
        utter.voice = voices.find(v => v.name === selectedVoice)
 
-     so a second entry could never have been selected anyway. The
-     duplicate button was not just untidy, it was inert: tapping
-     it set the same voice as the first one.
+     so the second button always set the same voice as the first.
+
+     find() takes the first match per name, which is the dedupe
+     and the ordering in one step — buttons come out in
+     PREFERRED_VOICES order rather than whatever order the OS
+     happened to report.
   --------------------------------------------------------- */
-  const seenNames = new Set();
+  let filtered = PREFERRED_VOICES
+    .map((name) => voices.find((v) => v.name === name))
+    .filter(Boolean);
 
-  const filtered = voices.filter((v) => {
-    if (bannedVoices.includes(v.name)) return false;
-    if (seenNames.has(v.name)) return false;
+  /* ---------------------------------------------------------
+     Fallback: a device with none of them installed must not get
+     an empty picker and no way to choose anything. Deduped the
+     same way.
+  --------------------------------------------------------- */
+  if (!filtered.length && voices.length) {
+    console.warn(
+      "[TTS] none of the preferred voices are installed — showing all usable voices"
+    );
 
-    seenNames.add(v.name);
-    return true;
-  });
+    const seen = new Set();
+    filtered = voices.filter((v) => {
+      if (bannedVoices.includes(v.name) || seen.has(v.name)) return false;
+      seen.add(v.name);
+      return true;
+    });
+  }
 
   if (!filtered.length) {
     setTimeout(showVoiceSelector, 500);
     return;
   }
 
+  /* Tapping "Enable Full TTS" twice, or a retry racing the first
+     call, would otherwise append a second picker on top of the
+     first — which looks exactly like duplicated voices. */
+  document.getElementById("gac-voice-picker")?.remove();
+
   const wrapper = document.createElement("div");
+  wrapper.id = "gac-voice-picker";
   wrapper.style.position = "fixed";
   wrapper.style.top = "60%";
   wrapper.style.left = "50%";
