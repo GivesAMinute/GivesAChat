@@ -130,9 +130,35 @@ function processQueue() {
     speechSynthesis.resume();
   }
 
-  utter.onend = () => {
+  /* ---------------------------------------------------------
+     ⭐ onend AND onerror, because onend is not guaranteed.
+
+     Channel point audio hangs off this handler: a reward
+     redeemed while TTS is talking is queued by
+     playRewardSound() and ONLY released by the drain below.
+
+     That made a single missed event fatal. If an utterance
+     errors — or is cancelled, or silently never completes,
+     which Web Speech does on Safari and the iPad — then
+     `speaking` stays true forever, every later message stops
+     being spoken, and every queued channel point sound is
+     stranded for the rest of the session.
+
+     Which is exactly the reported symptom: sounds play with
+     "Channel Points Only" (nothing is ever queued, because
+     nothing is speaking) and not with "Full TTS".
+
+     Same cleanup either way.
+  --------------------------------------------------------- */
+  const finish = (why) => {
+    if (!speaking) return;              // already handled
+
     speaking = false;
     window.ttsSpeaking = false;
+
+    if (why !== "end") {
+      console.warn(`[TTS] utterance ended via ${why} — recovering`);
+    }
 
     // ⭐ If more TTS messages exist, honour them FIRST
     if (queue.length > 0) {
@@ -145,6 +171,9 @@ function processQueue() {
     window.ttsPending = false;
     drainRewardSoundQueue();
   };
+
+  utter.onend = () => finish("end");
+  utter.onerror = (e) => finish(e?.error || "error");
 
   speechSynthesis.speak(utter);
 }

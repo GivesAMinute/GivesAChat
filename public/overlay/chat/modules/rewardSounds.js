@@ -259,6 +259,47 @@ function drainRewardSoundQueue() {
   }
 }
 
+/* ---------------------------------------------------------
+   ⭐ WATCHDOG — a queued sound must never be stranded.
+
+   The drain above is normally triggered by the TTS utterance
+   finishing. That is one event, from an API that does not
+   reliably deliver it: Web Speech can drop onend outright,
+   particularly on Safari and the iPad, and a page backgrounded
+   mid-utterance may deliver neither onend nor onerror.
+
+   When that happened, every channel point sound queued behind
+   TTS stayed queued for the rest of the session. Sounds worked
+   in "Channel Points Only" mode — nothing is ever queued there,
+   because nothing is speaking — and silently stopped in "Full
+   TTS". Which is precisely what was reported.
+
+   This asks the BROWSER whether it is speaking rather than
+   trusting our own ttsSpeaking / ttsPending flags, because
+   those flags are the thing that gets stuck. speechSynthesis
+   .speaking and .pending are the authoritative answer.
+
+   Only ever drains a queue that already has something in it and
+   only when nothing is being spoken, so it cannot talk over TTS
+   — which is the entire reason the queue exists.
+--------------------------------------------------------- */
+const DRAIN_WATCHDOG_MS = 1000;
+
+if (typeof window !== "undefined") {
+  setInterval(() => {
+    if (!window.rewardSoundQueue?.length) return;
+
+    const synth = window.speechSynthesis;
+    if (synth && (synth.speaking || synth.pending)) return;
+
+    console.warn(
+      `[RewardSounds] watchdog releasing ${window.rewardSoundQueue.length} ` +
+      `queued sound(s) — TTS never signalled it finished`
+    );
+    drainRewardSoundQueue();
+  }, DRAIN_WATCHDOG_MS);
+}
+
 export {
   rewardSounds,
   fetchRewardSounds,
