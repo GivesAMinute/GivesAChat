@@ -37,7 +37,7 @@ const PRONUNCIATIONS = [
      Run-together words and invented spellings both land here —
      no rule distinguishes "melbournedoug" from a surname, and
      "Ph" is only an F when a human decides it is. */
-  [/\bmelbournedoug\b/gi, "Mel Born Doug"],
+  [/\bmelbournedoug\b/gi, "Mel Burn Doug"],
   [/\bphlomix\b/gi, "Flow Mix"]
 ];
 
