@@ -17,7 +17,32 @@ function showVoiceSelector() {
   preloadVoices();
 
   const voices = speechSynthesis.getVoices();
-  const filtered = voices.filter(v => !bannedVoices.includes(v.name));
+
+  /* ---------------------------------------------------------
+     ⭐ ONE BUTTON PER NAME.
+
+     iOS ships the same voice more than once — a compact build
+     and an enhanced one, both called "Samantha" — so the picker
+     showed it twice with no way to tell which was which.
+
+     Deduped on name, keeping the first. Everything downstream
+     already works by name:
+
+       utter.voice = voices.find(v => v.name === selectedVoice)
+
+     so a second entry could never have been selected anyway. The
+     duplicate button was not just untidy, it was inert: tapping
+     it set the same voice as the first one.
+  --------------------------------------------------------- */
+  const seenNames = new Set();
+
+  const filtered = voices.filter((v) => {
+    if (bannedVoices.includes(v.name)) return false;
+    if (seenNames.has(v.name)) return false;
+
+    seenNames.add(v.name);
+    return true;
+  });
 
   if (!filtered.length) {
     setTimeout(showVoiceSelector, 500);
