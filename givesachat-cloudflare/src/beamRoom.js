@@ -223,6 +223,7 @@ export class BeamRoom {
       return this.json({
         running: this.running,
         reconnects: this.reconnects || 0,
+        lastBadges: this.lastBadges || {},
         lastEventId: this.lastEventId || null,
         connectedForSeconds: this.connectedAt
           ? Math.round((Date.now() - this.connectedAt) / 1000)
@@ -488,6 +489,36 @@ export class BeamRoom {
       if (!this.platformsSeen.has(seenType)) {
         this.platformsSeen.add(seenType);
         console.log(`[BEAM] first message from platform: ${seenType}`);
+      }
+
+      /* ---------------------------------------------------------
+         ⭐ REMEMBER THE BADGE SHAPE PER PLATFORM.
+
+         Kick has rolled out new badges — level, founder, pioneer
+         — and whether we can render them depends entirely on
+         whether Beam relays the types. Artwork is useless if the
+         payload never says the viewer holds the badge.
+
+         Our only captured Kick frame is from August and carries
+         [{type:"owner"},{type:"verified"}], which predates them.
+
+         Recorded as state and read from /beam/status rather than
+         logged, deliberately. BeamRoom's SSE reader is one
+         long-lived invocation, so a `wrangler tail` started
+         afterwards never sees its console output — that cost two
+         wrong conclusions during the Blaze hunt. State can be
+         read whenever.
+
+         One entry per platform, overwritten each message, so this
+         cannot grow.
+      --------------------------------------------------------- */
+      if (item?.senderMeta?.badges?.length) {
+        this.lastBadges ||= {};
+        this.lastBadges[seenType] = {
+          at: new Date().toISOString(),
+          name: item.senderMeta.displayName || null,
+          badges: item.senderMeta.badges
+        };
       }
 
       const payload = transformBeamMessage(item);
