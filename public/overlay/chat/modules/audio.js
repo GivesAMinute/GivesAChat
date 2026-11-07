@@ -42,25 +42,75 @@ function styleUnlockButton(btn) {
 /* ---------------------------------------------------------
    ⭐ Unlock AUDIO ONLY (silent MP3)
 --------------------------------------------------------- */
+/* ---------------------------------------------------------
+   ⭐ THE UNLOCK MUST NOT HANG ON ONE PROMISE.
+
+   Captured on the iPad:
+
+     [Audio] unlock FAILED: AbortError
+     [RewardSounds] BAILED: not unlocked and not a compositor
+
+   Every reward sound for the rest of the session, killed by one
+   rejected promise.
+
+   Two causes, both fixed here.
+
+   The element was LOCAL. Once unlockAudioOnly() returned nothing
+   referenced it, and Safari may collect an Audio element before
+   its play() settles — which surfaces as AbortError. It is now
+   held on window. Calling speechSynthesis.speak() immediately
+   before, as the buttons do, makes the abort more likely by
+   taking the audio session mid-start.
+
+   And the flag meant the wrong thing. audioUnlocked gated ALL
+   playback but recorded "a particular promise resolved". What it
+   needs to record is "the user has tapped, so we are allowed to
+   play" — which is true the instant the handler runs, because a
+   tap IS the gesture. The silent MP3 is a warm-up, and a warm-up
+   failing is not a reason to refuse audio for the rest of the
+   stream.
+--------------------------------------------------------- */
+function markAudioUnlocked(why) {
+  audioUnlocked = true;
+  window.gacAudioUnlocked = true;
+  console.log(`[Audio] unlocked (${why})`);
+}
+
 function unlockAudioOnly() {
-  const unlockAudio = new Audio("/overlay/silent.mp3");
+  /* Held on window so it cannot be collected mid-play. */
+  const unlockAudio = window.gacUnlockAudio || new Audio("/overlay/silent.mp3");
+  window.gacUnlockAudio = unlockAudio;
   unlockAudio.volume = 0.01;
 
+  /* Set BEFORE awaiting anything: we are inside a user gesture,
+     which is the only thing iOS actually requires. */
+  markAudioUnlocked("user gesture");
+
   unlockAudio.play().then(() => {
-    audioUnlocked = true;
-    /* Mirrored for the on-screen debug panel — the module-level
-       flag is invisible from outside, and "did the unlock hold?"
-       is the first question when audio stops on an iPad. */
-    window.gacAudioUnlocked = true;
-    console.log("[Audio] unlocked");
+    console.log("[Audio] silent warm-up ok");
   }).catch((err) => {
-    window.gacAudioUnlocked = false;
-    console.warn("[Audio] unlock FAILED:", err?.name || err);
+    /* Logged, not fatal. The pool was primed in the same gesture
+       and is what plays reward sounds. */
+    console.warn(
+      `[Audio] silent warm-up failed: ${err?.name || err} — continuing, pool was primed`
+    );
   });
 }
 
 /* ---------------------------------------------------------
    ⭐ Create trusted audio pool (iPad/iOS requires this)
+--------------------------------------------------------- */
+/* ---------------------------------------------------------
+   ⭐ PRIME THE POOL, NOT A THROWAWAY ELEMENT.
+
+   These six elements are what actually play reward sounds, and
+   they were only ever constructed here — never played. iOS wants
+   each element started inside a user gesture before it will play
+   unprompted later, so the element that got unlocked was the
+   throwaway one in unlockAudioOnly() and the pool was not.
+
+   Starting and immediately pausing each one, inside the tap,
+   is what makes them usable afterwards.
 --------------------------------------------------------- */
 function createTrustedAudioPool() {
   window.rewardAudioPool = [];
@@ -69,8 +119,21 @@ function createTrustedAudioPool() {
   for (let i = 0; i < 6; i++) {
     const a = new Audio();
     a.volume = 1.0;
+
+    /* Prime inside the gesture. Failures are expected and
+       harmless on platforms that do not need this. */
+    try {
+      a.src = "/overlay/silent.mp3";
+      const p = a.play();
+      if (p && typeof p.then === "function") {
+        p.then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
+      }
+    } catch { /* not every platform allows this; not fatal */ }
+
     window.rewardAudioPool.push(a);
   }
+
+  console.log(`[Audio] pool primed (${window.rewardAudioPool.length} elements)`);
 }
 
 /* ---------------------------------------------------------
@@ -84,8 +147,7 @@ function createAudioUnlockButtons(showVoiceSelector) {
   if (window.obsBrowserSource) {
     console.log("[Audio] OBS detected — auto-unlocking channel point audio");
 
-    audioUnlocked = true;
-    window.gacAudioUnlocked = true;
+    markAudioUnlocked("OBS");
 
     // Create trusted audio pool automatically
     createTrustedAudioPool();
@@ -119,10 +181,14 @@ function createAudioUnlockButtons(showVoiceSelector) {
 
     window.enableChatTTS = false;
 
-    // ⭐ Create trusted audio pool INSIDE user gesture
+    /* ⭐ ORDER MATTERS — audio before speech.
+       Starting speechSynthesis takes the audio session, and
+       doing it between priming the pool and unlocking audio is
+       what produced "unlock FAILED: AbortError" on the iPad.
+       Audio first, speech warm-up last. */
     createTrustedAudioPool();
+    unlockAudioOnly();
 
-    // ⭐ Unlock TTS (Safari requires this warm-up)
     try {
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(" ");
@@ -131,7 +197,6 @@ function createAudioUnlockButtons(showVoiceSelector) {
       console.warn("[Audio] Immediate TTS unlock failed:", e);
     }
 
-    unlockAudioOnly();
     wrapper.remove();
   });
 
@@ -145,10 +210,10 @@ function createAudioUnlockButtons(showVoiceSelector) {
 
     window.enableChatTTS = true;
 
-    // ⭐ Create trusted audio pool INSIDE user gesture
+    /* ⭐ Audio before speech — see the note on the button above. */
     createTrustedAudioPool();
+    unlockAudioOnly();
 
-    // ⭐ Unlock TTS
     try {
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(" ");
@@ -157,7 +222,6 @@ function createAudioUnlockButtons(showVoiceSelector) {
       console.warn("[Audio] Immediate TTS unlock failed:", e);
     }
 
-    unlockAudioOnly();
     showVoiceSelector();
     wrapper.remove();
   });
