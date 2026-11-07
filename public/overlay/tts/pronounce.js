@@ -31,7 +31,14 @@ const PRONUNCIATIONS = [
   [/\bvp\s*-?\s*zone\b/gi, "Vee Pee Zone"],
 
   // People
-  [/\bkoebsch\b/gi, "Kerbsh"]
+  [/\bkoebsch\b/gi, "Kerbsh"],
+
+  /* Viewers whose names the engine cannot be expected to guess.
+     Run-together words and invented spellings both land here —
+     no rule distinguishes "melbournedoug" from a surname, and
+     "Ph" is only an F when a human decides it is. */
+  [/\bmelbournedoug\b/gi, "Mel Born Doug"],
+  [/\bphlomix\b/gi, "Flow Mix"]
 ];
 
 /* ---------------------------------------------------------
