@@ -116,6 +116,9 @@ async function fetchRewardSounds() {
 --------------------------------------------------------- */
 let poolIndex = 0;
 
+/* Hard ceiling on how long one sound may hold the "busy" flag. */
+const MAX_SOUND_MS = 15000;
+
 function playRewardSoundImmediateBrowser(rewardId) {
   /* ---------------------------------------------------------
      TEMPORARY DIAGNOSTIC — logging only, no behaviour change.
@@ -151,16 +154,75 @@ function playRewardSoundImmediateBrowser(rewardId) {
   const audio = pool[poolIndex];
   poolIndex = (poolIndex + 1) % pool.length;
 
+  /* ---------------------------------------------------------
+     ⭐ THE COUNTER MUST COME BACK DOWN. ALWAYS.
+
+     rewardAudioPlayingCount is not bookkeeping — the TTS engine
+     refuses to speak while it is above zero:
+
+       function channelPointsBusy() {
+         return (window.rewardAudioPlayingCount || 0) > 0;
+       }
+
+     so a single leaked increment stops TTS permanently. And
+     because TTS never finishes, ttsPending stays true, every
+     later reward sound is queued behind it, and the drain never
+     runs. One missed decrement deadlocks both.
+
+     It used to decrement in exactly two places — onended, and a
+     rejected play(). Three ways to leak past that:
+
+       the element is REUSED while still playing. The pool is six
+       elements round-robin, so the seventh sound reassigns src on
+       a live one, which cancels it, and its onended never fires.
+
+       playback ERRORS after starting. There was no onerror.
+
+       iOS interrupts the audio session and fires nothing at all —
+       which is exactly what an OS update changing audio routing
+       would do, and matches the first utterance now sounding
+       distorted.
+
+     So: one release per play, idempotent, reachable five ways.
+     The previous play on this element is released before its src
+     is reassigned, and a hard ceiling catches the case where the
+     platform tells us nothing whatsoever.
+  --------------------------------------------------------- */
+  audio._gacRelease?.();   // reusing this element cancels its play
+
+  let timer = null;
+  let released = false;
+
+  const release = () => {
+    if (released) return;
+    released = true;
+
+    clearTimeout(timer);
+    if (audio._gacRelease === release) audio._gacRelease = null;
+
+    window.rewardAudioPlayingCount =
+      Math.max(0, window.rewardAudioPlayingCount - 1);
+  };
+
+  audio._gacRelease = release;
   window.rewardAudioPlayingCount++;
 
-  audio.onended = () => {
-    window.rewardAudioPlayingCount = Math.max(0, window.rewardAudioPlayingCount - 1);
-  };
+  audio.onended = release;
+  audio.onerror = release;
+
+  /* Reward sounds are a few seconds. This is not a timeout for
+     normal playback — it is the backstop for a platform that
+     goes quiet without telling us. */
+  timer = setTimeout(() => {
+    console.warn(`[RewardSounds] ${rewardId} never reported finishing — releasing`);
+    release();
+  }, MAX_SOUND_MS);
 
   audio.src = url;
   audio.currentTime = 0;
-  audio.play().catch(() => {
-    window.rewardAudioPlayingCount = Math.max(0, window.rewardAudioPlayingCount - 1);
+  audio.play().catch((err) => {
+    console.warn(`[RewardSounds] play() rejected for ${rewardId}:`, err?.name || err);
+    release();
   });
 }
 
