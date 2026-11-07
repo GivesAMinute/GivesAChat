@@ -27,6 +27,7 @@ import { showVoiceSelector } from "./modules/tts.js";
 import { fetchRewardSounds } from "./modules/rewardSounds.js";
 import { setupSocket } from "./modules/websocket.js";
 import { setupStreamlabs } from "./modules/streamlabs.js";
+import { setupDebugPanel } from "./modules/debugPanel.js";
 
 // ⭐ Blaze chat (own Socket.IO connection — see modules/blaze.js)
 // import { setupBlazeChat } from "./modules/blaze.js";   // Blaze now relayed via Beam
@@ -71,6 +72,10 @@ async function initOverlay() {
      the lane is already following the bottom when the first
      one lands rather than jumping once it initialises.
   --------------------------------------------------------- */
+  /* ⭐ First, so it captures the logs from everything below.
+     Does nothing at all without ?debug=1 in the URL. */
+  setupDebugPanel();
+
   initChatScroll();
 
   // ⭐ Audio unlock

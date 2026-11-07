@@ -48,7 +48,15 @@ function unlockAudioOnly() {
 
   unlockAudio.play().then(() => {
     audioUnlocked = true;
-  }).catch(() => {});
+    /* Mirrored for the on-screen debug panel — the module-level
+       flag is invisible from outside, and "did the unlock hold?"
+       is the first question when audio stops on an iPad. */
+    window.gacAudioUnlocked = true;
+    console.log("[Audio] unlocked");
+  }).catch((err) => {
+    window.gacAudioUnlocked = false;
+    console.warn("[Audio] unlock FAILED:", err?.name || err);
+  });
 }
 
 /* ---------------------------------------------------------
@@ -77,6 +85,7 @@ function createAudioUnlockButtons(showVoiceSelector) {
     console.log("[Audio] OBS detected — auto-unlocking channel point audio");
 
     audioUnlocked = true;
+    window.gacAudioUnlocked = true;
 
     // Create trusted audio pool automatically
     createTrustedAudioPool();
