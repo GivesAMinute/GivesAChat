@@ -224,6 +224,7 @@ export class BeamRoom {
         running: this.running,
         reconnects: this.reconnects || 0,
         lastBadges: this.lastBadges || {},
+        lastSeen: this.lastSeen || {},
         lastEventId: this.lastEventId || null,
         connectedForSeconds: this.connectedAt
           ? Math.round((Date.now() - this.connectedAt) / 1000)
@@ -512,13 +513,33 @@ export class BeamRoom {
          One entry per platform, overwritten each message, so this
          cannot grow.
       --------------------------------------------------------- */
+      /* ⭐ Text included as well as badges now.
+
+         Arena messages still appear twice with v42 live, which
+         rules out the senderType ignore list — arenasocial is
+         provably dropped. The remaining question is whether Beam
+         sends the SAME post under two labels (arenasocial, and
+         again as native beam chat), which no senderType rule
+         could fix without killing real Beam chat.
+
+         Recording the text makes that answerable from one status
+         call: identical text under two labels, seconds apart, is
+         a double relay. Different text is two different messages
+         and the duplicate is coming from somewhere else entirely. */
+      this.lastSeen ||= {};
+      this.lastSeen[seenType] = {
+        at: new Date().toISOString(),
+        name: item?.senderMeta?.displayName || null,
+        badges: item?.senderMeta?.badges || [],
+        text: (item?.content?.ops || [])
+          .map((o) => (typeof o?.insert === "string" ? o.insert : ""))
+          .join("")
+          .slice(0, 60)
+      };
+
       if (item?.senderMeta?.badges?.length) {
         this.lastBadges ||= {};
-        this.lastBadges[seenType] = {
-          at: new Date().toISOString(),
-          name: item.senderMeta.displayName || null,
-          badges: item.senderMeta.badges
-        };
+        this.lastBadges[seenType] = this.lastSeen[seenType];
       }
 
       const payload = transformBeamMessage(item);
