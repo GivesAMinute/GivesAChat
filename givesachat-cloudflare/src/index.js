@@ -321,7 +321,7 @@ export default {
         return ns.get(ns.idFromName(name)).fetch("https://do/live", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ live })
+          body: JSON.stringify({ live, version: VERSION })
         });
       })
     );

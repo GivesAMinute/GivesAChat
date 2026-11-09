@@ -173,10 +173,51 @@ export class BeamRoom {
     --------------------------------------------------------- */
     if (url.pathname.endsWith("/live")) {
       let live = true;
+      let version = null;
       try {
         const body = await request.json();
         live = body?.live !== false;
+        version = body?.version || null;
       } catch { /* unreadable body: assume live, per above */ }
+
+      /* ---------------------------------------------------------
+         ⭐ A DEPLOY DOES NOT NECESSARILY REPLACE THIS OBJECT.
+
+         connect() holds an SSE stream that never ends, so this
+         Durable Object can keep running the PREVIOUS build
+         indefinitely after a deploy. /version answers from a
+         fresh worker invocation and reports the new build, so
+         everything looks deployed while the room quietly carries
+         on with the old code.
+
+         That has now cost two debugging sessions. The Arena
+         duplicate was fixed by v42 and still appeared, because
+         this room was running v41. During the Blaze hunt the
+         same thing made a diagnostic log never appear, and I
+         concluded the code path was not running when in fact the
+         code was not loaded — and instrumented three wrong
+         places on the strength of it.
+
+         The supervisor now sends its VERSION every two minutes.
+         If it differs from the build this object started with,
+         the read loop stops; ensureRunning() picks it straight
+         back up on the next tick, as a fresh instance on the new
+         code. Last-Event-ID resumes the stream, so the gap costs
+         nothing.
+      --------------------------------------------------------- */
+      if (version) {
+        this.bootVersion ||= version;
+
+        if (this.bootVersion !== version) {
+          console.log(
+            `[BEAM] worker is ${version}, this room started on ` +
+            `${this.bootVersion} — restarting to pick up the new code`
+          );
+          this.bootVersion = version;
+          this.running = false;
+          this.stoppedReason = "version-change";
+        }
+      }
 
       this.liveGate = live;
 
@@ -225,6 +266,7 @@ export class BeamRoom {
         reconnects: this.reconnects || 0,
         lastBadges: this.lastBadges || {},
         lastSeen: this.lastSeen || {},
+        bootVersion: this.bootVersion || null,
         lastEventId: this.lastEventId || null,
         connectedForSeconds: this.connectedAt
           ? Math.round((Date.now() - this.connectedAt) / 1000)
