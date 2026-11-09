@@ -54,11 +54,22 @@ export function renderVeloraBadges(msg) {
     // -------------------------------------------------------
     // ⭐ Broadcaster
     // -------------------------------------------------------
+    /* ⭐ ?v= on the src, and it is load-bearing.
+
+       Badge artwork lives under /badges/, which _headers
+       deliberately leaves cacheable — images are large and
+       rarely change. "Rarely" is not "never": Velora redrew this
+       badge on 22 September, and without a changed URL, OBS and
+       every viewer's browser keep serving the old picture
+       indefinitely. A source refresh does not clear it.
+
+       Velora cache-bust their own copy the same way
+       (?v=20260922). Bump this whenever the file is replaced. */
     if (badgeId === "broadcaster") {
       if (msg.badges?.includes("broadcaster")) {
         out += wrapWithTooltip(`
           <img class="velora-badge"
-               src="/badges/velora/StreamerBroadcasterBadge.png"
+               src="/badges/velora/StreamerBroadcasterBadge.png?v=20260922"
                alt="Broadcaster"
                title="Broadcaster">
         `, "Broadcaster");
