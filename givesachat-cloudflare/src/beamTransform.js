@@ -71,12 +71,29 @@ export const beamStickerUrl = (src, asset = {}) => {
    was watching for "blaze" — see PLATFORM_ALIASES below. It is now
    deliberately absent: Beam is the Blaze source, and putting it
    back would silently switch Blaze off. */
+/* ---------------------------------------------------------
+   ⭐ BEAM'S NAME FOR THE PLATFORM, NOT OURS.
+
+   "arena" sat in this list for months and never matched a
+   thing: Beam calls it "arenasocial", so every Arena message
+   appeared twice — once from ArenaRoom with Arena's own icon,
+   once relayed with Beam's.
+
+   That is the second time this exact trap has been sprung;
+   "blaze" never matched "blazestream" either. The entries here
+   must be BEAM'S spelling, which is reported by platformsSeen
+   on /beam/status and is the only reliable way to know it.
+
+   Both spellings are kept. "arena" costs nothing and covers
+   Beam renaming it to the obvious string later.
+--------------------------------------------------------- */
 export const IGNORED_SENDER_TYPES = [
-  "velora",   // direct: webhook -> ChatRoom
-  "arena",    // direct: polled by ArenaRoom
-  "odysee",   // direct: Commentron socket in OdyseeRoom
-  "bitchute", // direct: Socket.IO in BitChuteRoom
-  "facebook"  // direct: FacebookRoom polls the comments edge
+  "velora",       // direct: webhook -> ChatRoom
+  "arena",        // direct: polled by ArenaRoom
+  "arenasocial",  //   ...which is what Beam actually calls it
+  "odysee",       // direct: Commentron socket in OdyseeRoom
+  "bitchute",     // direct: Socket.IO in BitChuteRoom
+  "facebook"      // direct: FacebookRoom polls the comments edge
 ];
 
 /* ---------------------------------------------------------
