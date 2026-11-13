@@ -140,7 +140,29 @@ export const IGNORED_SENDER_TYPES = [
    platform is renamed in exactly one place.
 --------------------------------------------------------- */
 const PLATFORM_ALIASES = {
-  blazestream: "blaze"
+  blazestream: "blaze",
+
+  /* ---------------------------------------------------------
+     Razo, under every spelling it might arrive as.
+
+     Beam's label for it is NOT yet confirmed — Razo is new and
+     low traffic, and the room shuts down before a test message
+     lands when not live. Rather than block on that, every
+     plausible spelling maps to "razo".
+
+     An alias that never matches costs nothing, and the two times
+     this has been guessed at the answer was the non-obvious one:
+     "blaze" was blazestream, "arena" was arenasocial. If Beam
+     uses something outside this list, Razo simply keeps
+     rendering as it does today and platformsSeen on
+     /beam/status will name it the next time Benon is live.
+  --------------------------------------------------------- */
+  razotv: "razo",
+  "razo_tv": "razo",
+  "razo-tv": "razo",
+  "razo.tv": "razo",
+  razosocial: "razo",
+  razolive: "razo"
 };
 
 /* ---------------------------------------------------------

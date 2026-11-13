@@ -87,6 +87,27 @@ export function colorForUsername(name, platform) {
       "#00B0CC",
       "#00F2FF"
     ],
+    /* ---------------------------------------------------------
+       Razo — built from the brand magenta in its own icon,
+       #F50A8C, weighted toward the brand colour with lighter
+       tints for spread.
+
+       Every entry clears 4.5:1 against the bubble background
+       (rgba(0,0,0,0.90)). The two obvious darker magentas,
+       #E6007E and #D6007A, were measured at 4.32:1 and 3.83:1
+       and left out — they read fine on a white mock-up and badly
+       on the overlay, which is the only place this runs.
+    --------------------------------------------------------- */
+    razo: [
+      "#F50A8C","#F50A8C","#F50A8C",
+      "#FF2D9B","#FF2D9B",
+      "#FF1493","#FF1493",
+      "#FF57AE",
+      "#FF69B4",
+      "#FF7DC0",
+      "#FF8FCB"
+    ],
+
     blaze: [
       "#FF8800","#FF8800","#FF8800",
       "#FF9C33","#FF9C33",
