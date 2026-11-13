@@ -134,12 +134,47 @@ export class BeamRoom {
   async fetch(request) {
     const url = new URL(request.url);
 
+    /* ---------------------------------------------------------
+       ⭐ ?hold=<minutes> — keep the room up without being live.
+
+       /start says "an overlay is present"; it does NOT open the
+       live gate. So when the cron has seen you offline, the very
+       next alarm stops the room again:
+
+         if (!hasRecentTraffic() && (liveGate === false || ...))
+
+       which leaves roughly a thirty second window to post a test
+       message. That is a silly way to test a single platform,
+       and it has now wasted time twice.
+
+       A hold suspends the gate for a bounded period. Deliberately
+       bounded rather than a flag: a permanent override left on by
+       accident is exactly the 24/7 residency bug that cost 84% of
+       a month's allowance, and a value that expires cannot be
+       forgotten.
+
+       Default 10 minutes, capped at 60.
+    --------------------------------------------------------- */
     if (url.pathname.endsWith("/start")) {
       this.lastClientSeenAt = Date.now();
       this.clientsPresent = true;
       this.stoppedReason = null;
+
+      const asked = Number(url.searchParams.get("hold"));
+      const minutes = Number.isFinite(asked) && asked > 0
+        ? Math.min(asked, 60)
+        : 10;
+
+      this.holdUntil = Date.now() + minutes * 60_000;
+      console.log(`[BEAM] manual hold for ${minutes} min — live gate suspended`);
+
       this.ensureRunning();
-      return this.json({ ok: true, running: this.running });
+      return this.json({
+        ok: true,
+        running: this.running,
+        heldForMinutes: minutes,
+        holdUntil: new Date(this.holdUntil).toISOString()
+      });
     }
 
     if (url.pathname.endsWith("/stop")) {
@@ -286,6 +321,10 @@ export class BeamRoom {
         platformsSeen: [...(this.platformsSeen || [])],
         lastError: this.lastError,
         stoppedReason: this.stoppedReason,
+        holdUntil: this.holdUntil
+          ? new Date(this.holdUntil).toISOString()
+          : null,
+        heldNow: !!(this.holdUntil && Date.now() < this.holdUntil),
         secondsSinceOverlaySeen:
           Math.round((Date.now() - this.lastClientSeenAt) / 1000),
         sourceUrl: this.sseUrl
@@ -327,7 +366,9 @@ export class BeamRoom {
 
     const idleFor = Date.now() - this.lastClientSeenAt;
 
-    if (!this.hasRecentTraffic() &&
+    const held = this.holdUntil && Date.now() < this.holdUntil;
+
+    if (!held && !this.hasRecentTraffic() &&
         (this.liveGate === false || (!this.clientsPresent && idleFor > IDLE_SHUTDOWN_MS))) {
       if (this.running) {
         console.log(
