@@ -186,15 +186,96 @@ export class VeloraChatRoom {
       return this.json({ ok: true, running: false });
     }
 
+    /* ---------------------------------------------------------
+       ⭐ FORCE A CODE RELOAD.
+
+       A deploy does not replace a running Durable Object. This
+       room runs a `while (this.running)` connect loop, so it
+       never goes idle, never gets evicted, and keeps the module
+       it booted with — while /version, a fresh worker
+       invocation, cheerfully reports the new build. That has now
+       produced three wrong diagnoses in this project: a missing
+       Beam log blamed on tail buffering, an Arena duplicate
+       blamed on a double relay, and a Velora socket 504 that
+       looked like an unfixed bug after it had been fixed.
+
+       Stopping is not enough on its own either: the 30-second
+       alarm calls ensureRunning() straight back whenever the
+       channel is live, so the object can never fall idle long
+       enough to be recycled.
+
+       So this does the three things that actually make eviction
+       happen — stop the loop, close the socket, and DELETE the
+       alarm so nothing wakes it — and then abort the object
+       outright where the runtime supports it.
+    --------------------------------------------------------- */
+    if (url.pathname.endsWith("/recycle")) {
+      this.stop("recycle");
+
+      try { await this.state.storage.deleteAlarm(); } catch {}
+
+      /* Guarded rather than assumed: abort() discards the object
+         immediately and the next request builds a fresh one on
+         current code. If this runtime does not have it, the
+         deleted alarm above still gets us there, just slower. */
+      if (typeof this.state.abort === "function") {
+        try {
+          this.state.abort("code reload requested");
+        } catch { /* abort throws by design */ }
+      }
+
+      return this.json({ ok: true, recycled: true });
+    }
+
     /* Live gate, pushed by the cron. Fails towards running: an
        unreadable body is treated as live, because losing bot
        messages mid-stream is worse than an idle room. */
     if (url.pathname.endsWith("/live")) {
       let live = true;
+      let version = null;
+
       try {
         const body = await request.json();
         live = body?.live !== false;
+        version = body?.version || null;
       } catch { /* assume live */ }
+
+      /* ---------------------------------------------------------
+         ⭐ SELF-HEAL ON A VERSION CHANGE.
+
+         The supervisor already stamps every tick with the
+         worker's VERSION. If it disagrees with the build this
+         room booted on, the room is stale by definition — so it
+         stands itself down and lets the next tick, two minutes
+         later, start a fresh object on current code.
+
+         ⚠️ It must NOT fall through to ensureRunning() below.
+         BeamRoom's version check sets running = false and then
+         the very next branch calls ensureRunning() again, which
+         restarts the loop inside the SAME object and reloads
+         nothing at all. The early return is the whole point.
+      --------------------------------------------------------- */
+      if (version) {
+        this.bootVersion ||= version;
+
+        if (this.bootVersion !== version) {
+          console.log(
+            `[VELORA-SOCKET] worker is ${version}, room booted on ` +
+            `${this.bootVersion} — standing down for a reload`
+          );
+
+          this.bootVersion = version;
+          this.stop("version-change");
+
+          try { await this.state.storage.deleteAlarm(); } catch {}
+
+          if (typeof this.state.abort === "function") {
+            try { this.state.abort("version change"); } catch {}
+          }
+
+          return this.json({ ok: true, live, recycled: true });
+        }
+      }
 
       this.liveGate = live;
 
@@ -228,6 +309,12 @@ export class VeloraChatRoom {
         messagesSeen: this.messagesSeen,
         botsForwarded: this.botsForwarded,
         liveGate: this.liveGate ?? null,
+
+        /* Which build this OBJECT booted on, which is not
+           necessarily the build /version reports. When they
+           disagree, that discrepancy is the bug. */
+        bootVersion: this.bootVersion || null,
+
         stoppedReason: this.stoppedReason,
         lastError: this.lastError,
 

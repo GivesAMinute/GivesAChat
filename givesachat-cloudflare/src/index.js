@@ -2203,12 +2203,42 @@ export default {
       if (!auth.ok) return unauthorized();
 
       const action = url.pathname.split("/")[2];
-      if (!["start", "stop", "status"].includes(action)) {
+      if (!["start", "stop", "status", "recycle", "offline"].includes(action)) {
         return new Response("Not found", { status: 404 });
       }
 
       const id = env.VeloraChatRoom.idFromName("velora-bot-chat");
-      return env.VeloraChatRoom.get(id).fetch(`https://do/${action}`);
+      const stub = env.VeloraChatRoom.get(id);
+
+      /* ---------------------------------------------------------
+         ⭐ "offline" is the escape hatch for a STALE object.
+
+         /recycle only exists in the code; an object still running
+         an older build has never heard of that route and will
+         answer it with a cheerful 200 and do nothing. The one
+         lever that works on a room already in memory is a route
+         it was born knowing — and /live is in every build.
+
+         Pushing live:false drops its gate, so its own 30-second
+         alarm stops it and, critically, stops rescheduling
+         itself. With no alarm pending and no loop running the
+         object falls idle and gets recycled, and the next /start
+         builds a fresh one on current code.
+
+         The window is real but short: the supervisor pushes
+         live:true again on the next two-minute tick, so the
+         alarm has to fire inside that gap. It runs every 30
+         seconds, so it does.
+      --------------------------------------------------------- */
+      if (action === "offline") {
+        return stub.fetch("https://do/live", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ live: false })
+        });
+      }
+
+      return stub.fetch(`https://do/${action}`);
     }
 
     /* ---------------------------------------------------------
