@@ -391,6 +391,36 @@ export default {
           target.searchParams.set("header", "no");
         }
 
+        /* ---------------------------------------------------
+           ⭐ CARRY THE HARMLESS OPTIONS THROUGH THE REDIRECT.
+
+           This builds a brand new URL, so anything on the
+           incoming request was silently discarded. ?debug=1 was
+           therefore impossible to use on /chat at all — it
+           looked like the debug panel was broken, when it was
+           never reaching the page. Forwarding the DreamHost
+           wrapper's query string did not help either, because
+           the loss happens one hop further on, here.
+
+           An ALLOWLIST, not a passthrough. Two parameters are
+           set deliberately above and must not be overridable by
+           whoever holds the link:
+
+             key   — viewers get VIEWER_KEY, which cannot put
+                     content on the live stream. Letting a caller
+                     supply their own key is the whole thing this
+                     route exists to prevent.
+             mode  — persistent is what makes the public page
+                     readable rather than a 45-second ticker.
+
+           Anything added here must be safe for a stranger with
+           the public link to set on themselves.
+        --------------------------------------------------- */
+        for (const name of ["debug", "claims"]) {
+          const value = url.searchParams.get(name);
+          if (value !== null) target.searchParams.set(name, value);
+        }
+
         return Response.redirect(target.toString(), 302);
       }
     }
