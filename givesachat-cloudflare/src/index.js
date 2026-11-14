@@ -7,6 +7,7 @@ import { ArenaRoom } from "./arenaRoom.js";
 import { OdyseeRoom } from "./odyseeRoom.js";
 import { BitChuteRoom } from "./bitchuteRoom.js";
 import { FacebookRoom } from "./facebookRoom.js";
+import { VeloraChatRoom } from "./veloraChatRoom.js";
 import {
   FacebookTokenStore,
   beginFacebookAuth,
@@ -45,6 +46,7 @@ export {
   ArenaRoom,
   OdyseeRoom,
   BitChuteRoom,
+  VeloraChatRoom,
   FacebookTokenStore,
   FacebookRoom
 };
@@ -82,6 +84,19 @@ async function wakeFacebook(env) {
     await stub.fetch("https://do/start");
   } catch (err) {
     console.error("Facebook wake failed:", err);
+  }
+}
+
+/* Velora BOT chat only. Human Velora chat arrives on the webhook
+   with no room involved, so this wakes the socket that carries the
+   one thing the webhook omits. */
+async function wakeVeloraBots(env) {
+  try {
+    const id = env.VeloraChatRoom.idFromName("velora-bot-chat");
+    const stub = env.VeloraChatRoom.get(id);
+    await stub.fetch("https://do/start");
+  } catch (err) {
+    console.error("Velora bot chat wake failed:", err);
   }
 }
 
@@ -312,7 +327,13 @@ export default {
       [env.ArenaRoom, "arena-live-chat"],
       [env.OdyseeRoom, "odysee-live-chat"],
       [env.BitChuteRoom, "bitchute-live-chat"],
-      [env.FacebookRoom, "facebook-live-chat"]
+      [env.FacebookRoom, "facebook-live-chat"],
+
+      /* Velora chat itself comes from the webhook and needs no
+         room. This one exists only to carry BOT messages, which
+         the webhook does not deliver — so it is gated like every
+         other room and costs nothing off-stream. */
+      [env.VeloraChatRoom, "velora-bot-chat"]
     ];
 
     await Promise.allSettled(
@@ -489,12 +510,14 @@ export default {
           ctx.waitUntil(wakeOdysee(env));
           ctx.waitUntil(wakeBitchute(env));
           ctx.waitUntil(wakeFacebook(env));
+          ctx.waitUntil(wakeVeloraBots(env));
         } else {
           await wakeBeam(env);
           await wakeArena(env);
           await wakeOdysee(env);
           await wakeBitchute(env);
           await wakeFacebook(env);
+          await wakeVeloraBots(env);
         }
       }
 
@@ -2161,6 +2184,34 @@ export default {
     }
 
     /* ---------------------------------------------------------
+       7d-e. Velora bot-chat socket control
+             (/velorabot/status|start|stop)
+
+       ⚠️ Deliberately NOT under /velora/. That prefix holds
+       /velora/login and /velora/callback, which are unauthenticated
+       on purpose — they are opened straight from a browser, where a
+       key in the URL would leak into history and referrers, and the
+       real protection is the owner check at the callback.
+
+       This route is the opposite case: it controls a room that
+       writes to the live overlay, so it must sit behind the ingest
+       key. Keeping it on its own prefix means neither rule can ever
+       be widened into the other by accident.
+    --------------------------------------------------------- */
+    if (url.pathname.startsWith("/velorabot/")) {
+      const auth = checkKey(request, url, env.INGEST_KEY);
+      if (!auth.ok) return unauthorized();
+
+      const action = url.pathname.split("/")[2];
+      if (!["start", "stop", "status"].includes(action)) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const id = env.VeloraChatRoom.idFromName("velora-bot-chat");
+      return env.VeloraChatRoom.get(id).fetch(`https://do/${action}`);
+    }
+
+    /* ---------------------------------------------------------
        7d. Arena poller control  (/arena/status|start|stop)
     --------------------------------------------------------- */
     if (url.pathname.startsWith("/arena/")) {
@@ -2262,6 +2313,34 @@ export default {
           "[VELORA UNMAPPED]",
           veloraEvent.event,
           JSON.stringify(veloraEvent).slice(0, 1200)
+        );
+      }
+
+      /* ---------------------------------------------------------
+         ⭐ TEMPORARY: name the author of every chat.message.
+
+         The bot CapWeinersCupGame replies in Velora chat and
+         nothing reaches the overlay. The transformer has no bot
+         filter and the debug panel printed the human message and
+         not the bot's, so the question is whether the webhook
+         delivers bot-authored messages at all.
+
+         A tail can ALMOST answer that already — a chat.message is
+         the only event that loads the emote and badge catalogs, so
+         the POSTs can be counted by their side effects. Almost is
+         how the blazestream and arenasocial diagnoses both went
+         wrong. This prints the author, so the tail is counted by
+         name instead of inferred.
+
+         Remove once the question is closed.
+      --------------------------------------------------------- */
+      if (veloraEvent.event === "chat.message") {
+        const d = veloraEvent.data || {};
+        console.log(
+          `[VELORA CHAT] author="${d.displayName || d.username || d.user?.username || "?"}" ` +
+          `isBot=${d.isBot ?? d.user?.isBot ?? "absent"} ` +
+          `badges=${JSON.stringify(d.badges || [])} ` +
+          `text="${String(d.message || d.html || d.text || "").slice(0, 60)}"`
         );
       }
 

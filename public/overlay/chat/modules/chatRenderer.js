@@ -282,7 +282,21 @@ function handleChat(payload, container) {
 
   let ttsText = null;
 
-  if (window.enableChatTTS) {
+  /* ---------------------------------------------------------
+     ⭐ BOTS ARE RENDERED, NOT SPOKEN.
+
+     Velora's chat.message webhook does not deliver bot messages
+     at all, so these arrive on a separate socket (see
+     veloraChatRoom.js) carrying isBot:true.
+
+     They are shown in the lane — that was the whole point of
+     fetching them — but never read aloud. A command bot answers
+     !mods, !uptime and the like several times a stream, and every
+     one of those replies spoken over the top of a live broadcast
+     is noise, not information. The viewer who typed the command
+     can read the answer.
+  --------------------------------------------------------- */
+  if (window.enableChatTTS && !payload.isBot) {
     if (isEmoteOnlyMessage(payload.html)) {
       const formatted = formatEmoteList(cleanMessage.trim());
       ttsText = `${payload.username} on ${payload.platform} sent the ${formatted}`;

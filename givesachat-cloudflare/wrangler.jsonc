@@ -42,6 +42,10 @@
         "class_name": "BitChuteRoom"
       },
       {
+        "name": "VeloraChatRoom",
+        "class_name": "VeloraChatRoom"
+      },
+      {
         "name": "FacebookTokenStore",
         "class_name": "FacebookTokenStore"
       },
@@ -78,6 +82,10 @@
       "storage": "sqlite"
     },
     "BitChuteRoom": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    },
+    "VeloraChatRoom": {
       "type": "durable-object",
       "storage": "sqlite"
     },
