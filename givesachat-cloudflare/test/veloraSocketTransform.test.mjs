@@ -27,7 +27,8 @@ vi.mock("../src/veloraBadges.js", () => ({
 const {
   transformVeloraSocketMessage,
   isBotMessage,
-  socketMessageId
+  socketMessageId,
+  stripBotPrefix
 } = await import("../src/veloraSocketTransform.js");
 
 const env = {};
@@ -80,6 +81,35 @@ describe("socketMessageId", () => {
   });
 });
 
+describe("stripBotPrefix", () => {
+  /* Exactly as it arrives: pictograph + variation selector. */
+  const WRENCH = "\u{1F6E0}️";
+
+  it("removes the glyph, its variation selector and the space", () => {
+    const out = stripBotPrefix(`${WRENCH} Mod commands: !skip = skip`);
+    expect(out).toBe("Mod commands: !skip = skip");
+
+    /* The selector is invisible, so assert on code points rather
+       than trusting the eye. */
+    expect([...out].some((c) => c === "️")).toBe(false);
+  });
+
+  it("handles the glyph without a variation selector", () => {
+    expect(stripBotPrefix("\u{1F6E0} More: !srclear")).toBe("More: !srclear");
+  });
+
+  it("leaves the glyph alone mid-message", () => {
+    const text = `fixed with a ${WRENCH} today`;
+    expect(stripBotPrefix(text)).toBe(text);
+  });
+
+  it("leaves other leading emoji alone", () => {
+    /* A ✅ or ❌ prefix carries meaning in a reply, which is why
+       this is a list and not a sweep over all pictographs. */
+    expect(stripBotPrefix("✅ done")).toBe("✅ done");
+  });
+});
+
 describe("transformVeloraSocketMessage", () => {
   /* The documented shape: "id, sender, content, badges,
      channelRole, replyTo". Note content, not message, and the
@@ -128,6 +158,25 @@ describe("transformVeloraSocketMessage", () => {
 
     expect(out.username).toBe("CapWeinersCupGame");
     expect(out.html).toContain("hello");
+  });
+
+  it("strips the prefix for bots but not for humans", async () => {
+    const text = "\u{1F6E0}️ Mod commands: !skip";
+
+    const asBot = await transformVeloraSocketMessage(
+      { ...frame, content: text },
+      env
+    );
+    expect(asBot.html).toContain("Mod commands");
+    expect(asBot.html).not.toContain("\u{1F6E0}");
+
+    /* Same text from a human keeps it — this strip is about the
+       bot's own decoration, not about the character. */
+    const asHuman = await transformVeloraSocketMessage(
+      { id: "h1", sender: { id: "uuid-1", displayName: "CompTech" }, content: text },
+      env
+    );
+    expect(asHuman.html).toContain("\u{1F6E0}");
   });
 
   it("escapes markup in the message body", async () => {

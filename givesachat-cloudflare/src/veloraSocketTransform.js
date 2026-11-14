@@ -79,6 +79,43 @@ export function socketMessageId(frame = {}) {
   return frame.id ?? frame.messageId ?? frame._id ?? null;
 }
 
+/* ---------------------------------------------------------
+   ⭐ LEADING DECORATION ON BOT MESSAGES.
+
+   CapWeinersCupGame prefixes its command output with a hammer
+   and wrench (🛠️ U+1F6E0 U+FE0F), which reads fine in Velora's
+   own chat and is just noise in the overlay lane, where the bot
+   already has an avatar and a name.
+
+   Stripped at the START only, and only for bot messages, so the
+   same character typed mid-sentence or by a human is untouched.
+
+   ⚠️ U+FE0F matters. 🛠️ is TWO code points — the pictograph
+   and a variation selector that asks for the colour emoji form.
+   Matching only the first leaves a stray selector behind, which
+   renders as nothing visible but is still there in the string
+   and in anything downstream that measures it.
+
+   This is a LIST rather than a regex over all emoji on purpose.
+   Stripping every leading pictograph would also eat a ✅ or ❌
+   that actually carries meaning in a reply. Add glyphs here as
+   they turn up.
+--------------------------------------------------------- */
+const STRIPPED_PREFIXES = ["\u{1F6E0}"];
+
+export function stripBotPrefix(text) {
+  let out = String(text);
+
+  for (const glyph of STRIPPED_PREFIXES) {
+    /* The glyph, an optional variation selector, then any
+       whitespace that followed it. */
+    const re = new RegExp(`^${glyph}\\uFE0F?\\s*`, "u");
+    out = out.replace(re, "");
+  }
+
+  return out;
+}
+
 export async function transformVeloraSocketMessage(frame, env) {
   if (!frame || typeof frame !== "object") return null;
 
@@ -93,11 +130,19 @@ export async function transformVeloraSocketMessage(frame, env) {
 
   if (!String(rawMessage).trim()) return null;
 
+  /* Bots only — see stripBotPrefix. Done before emotes and
+     sanitising, so the prefix is gone before anything else looks
+     at the string. */
+  const bot = isBotMessage(frame);
+  const cleaned = bot ? stripBotPrefix(rawMessage) : String(rawMessage);
+
+  if (!cleaned.trim()) return null;
+
   /* Same two steps, in the same order, as the webhook path:
      emotes expanded first, then sanitised. Reversing them would
      strip the <img> tags the emote pass just inserted. */
   const htmlMessage = sanitizeHtml(
-    await applyVeloraEmotes(String(rawMessage), env)
+    await applyVeloraEmotes(cleaned, env)
   );
 
   const badges = Array.isArray(frame.badges)
@@ -151,7 +196,7 @@ export async function transformVeloraSocketMessage(frame, env) {
        so. Passed through rather than acted on here — the chat
        lane decides whether to draw a bot badge, and the TTS
        decides whether to read it aloud. */
-    isBot: isBotMessage(frame),
+    isBot: bot,
 
     isModerator: role === "moderator" || frame.isModerator === true,
     isMod: role === "moderator" || frame.isModerator === true,
