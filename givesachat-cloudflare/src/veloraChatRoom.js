@@ -58,9 +58,41 @@ import {
    must be re-emitted on every reconnect.
 --------------------------------------------------------- */
 
-const GATEWAY = "wss://api.velora.tv/chat";
+/* ---------------------------------------------------------
+   ⭐ THE GATEWAY IS /socket.io/, NOT /chat.
 
-/* The namespace prefix on every frame. */
+   This was wrong first time and failed with a bare
+   "gateway did not upgrade (status 504)", which looks like
+   Velora being down and is not.
+
+   The docs give the endpoint as wss://api.velora.tv/chat, but
+   that is a SOCKET.IO-CLIENT CONNECTION STRING, not an HTTP
+   address. Hand it to io() and the library splits it in two:
+
+     host       api.velora.tv
+     namespace  /chat
+
+   and then opens the transport at its own default path,
+   /socket.io/. Nothing is served at /chat over HTTP at all, so
+   an upgrade aimed there hangs until Cloudflare's edge gives up
+   — hence a timeout rather than a 404, which is what made it
+   look like a Velora problem.
+
+   Their own gotcha gives it away on a second reading: "if you
+   connect to the root URL (wss://api.velora.tv/socket.io/) with
+   no namespace…". That sentence only parses if /socket.io/ is
+   the real endpoint and the namespace is a protocol step on top
+   of it — which is exactly what the 40/chat, frame below does.
+
+   BitChute's gateway is spelled .../socket.io/ for the same
+   reason. The transport was copied from there; this detail was
+   not.
+--------------------------------------------------------- */
+const GATEWAY = "wss://api.velora.tv/socket.io/";
+
+/* The namespace prefix on every frame. Velora's chat lives on
+   /chat, so this is NOT the bare "40"/"42[…]" that BitChute's
+   default-namespace socket uses. */
 const NS = "/chat,";
 
 const ALARM_INTERVAL_MS = 30_000;
