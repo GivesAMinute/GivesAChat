@@ -21,10 +21,25 @@
 
 const MAX_LINES = 24;
 
-/* Only our own messages. The browser's own noise — CORS warnings,
-   favicon 404s, Discord's socket spam — would push the useful
-   lines off the top within seconds. */
-const INTERESTING = /^\[(RewardSounds|TTS|Audio|Overlay|Streamlabs|Overlay WS)\]/;
+/* ---------------------------------------------------------
+   Only our own messages. The browser's own noise — CORS
+   warnings, favicon 404s, Discord's socket spam — would push the
+   useful lines off the top within seconds.
+
+   ⚠️ CASE-INSENSITIVE, and that matters.
+
+   This was written case-sensitive and the chat payload log is
+   console.log("[OVERLAY] incoming chat payload:", …) in capitals,
+   so every chat line was silently discarded by the one tool
+   built to show them. Chasing a missing bot message, the panel
+   showed nothing and the obvious reading was "no message
+   arrived" — when the truth was "the panel refused to print it".
+
+   A diagnostic that hides evidence is worse than no diagnostic,
+   because it answers confidently and wrongly.
+--------------------------------------------------------- */
+const INTERESTING =
+  /^\[(RewardSounds|TTS|Audio|Overlay|Overlay WS|Streamlabs|BEAM|CLAIM|Velora)\]/i;
 
 export function setupDebugPanel() {
   let on = false;
@@ -60,6 +75,17 @@ export function setupDebugPanel() {
     const text = args
       .map((a) => {
         if (typeof a === "string") return a;
+
+        /* A chat payload stringifies to several hundred
+           characters of html and badge arrays, which fills the
+           panel with one message. Summarised to the fields that
+           identify it. */
+        if (a && typeof a === "object" && a.type === "chat") {
+          return `{${a.platform} ${a.username} avatar=${a.avatar ? "yes" : "NO"} ` +
+                 `badges=${JSON.stringify(a.badges || [])} ` +
+                 `"${String(a.html || "").replace(/<[^>]+>/g, "").slice(0, 40)}"}`;
+        }
+
         try { return JSON.stringify(a); } catch { return String(a); }
       })
       .join(" ");
