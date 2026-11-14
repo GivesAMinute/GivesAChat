@@ -69,11 +69,41 @@
   </div>
 
   <iframe
+    id="chat-frame"
     src="https://givesachat-cloudflare.benonkoebsch.workers.dev/chat"
     title="GivesAChat live chat"
     allow="autoplay"
     referrerpolicy="no-referrer-when-downgrade"
   ></iframe>
+
+  <script>
+    /* ---------------------------------------------------------
+       Pass this page's query string through to the overlay.
+
+       The iframe src was fixed, so every overlay option was
+       unreachable from bjwok.com/chat/ — ?debug=1 looked broken,
+       and so would ?mode=persistent, ?header=off or ?claims=on.
+       The only way to use one was to open the worker URL
+       directly, which defeats the point of having this page.
+
+       The BASE is hard-coded and only the query string is
+       appended, so nothing here can change the origin or the
+       path — a crafted link can set overlay options, which it
+       could already do by opening the overlay directly, and
+       nothing more.
+
+       The src attribute above stays as the plain URL so the
+       iframe still loads if this script does not run.
+    --------------------------------------------------------- */
+    (function () {
+      var BASE = "https://givesachat-cloudflare.benonkoebsch.workers.dev/chat";
+      var frame = document.getElementById("chat-frame");
+
+      if (frame && window.location.search) {
+        frame.src = BASE + window.location.search;
+      }
+    })();
+  </script>
 
 </body>
 </html>
