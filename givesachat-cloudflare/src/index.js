@@ -2347,32 +2347,28 @@ export default {
       }
 
       /* ---------------------------------------------------------
-         ⭐ TEMPORARY: name the author of every chat.message.
+         ⭐ THIS WEBHOOK DOES NOT DELIVER BOT MESSAGES.
 
-         The bot CapWeinersCupGame replies in Velora chat and
-         nothing reaches the overlay. The transformer has no bot
-         filter and the debug panel printed the human message and
-         not the bot's, so the question is whether the webhook
-         delivers bot-authored messages at all.
+         Established 14 Nov 2026 by logging the author of every
+         chat.message POST while triggering a bot command live.
+         Two human messages arrived by name and the bot's reply
+         produced no POST at all:
 
-         A tail can ALMOST answer that already — a chat.message is
-         the only event that loads the emote and badge catalogs, so
-         the POSTs can be counted by their side effects. Almost is
-         how the blazestream and arenasocial diagnoses both went
-         wrong. This prints the author, so the tail is counted by
-         name instead of inferred.
+           author="CompTech"      text="ok"
+           author="GivesAMinute"  text="!mods"
+           (nothing for CapWeinersCupGame)
 
-         Remove once the question is closed.
+         The temporary logging that proved it is gone; the
+         finding is not, because it is the reason a whole second
+         delivery path exists. Bot messages come in over the Chat
+         WebSocket instead — see veloraChatRoom.js, which
+         forwards ONLY bots precisely because this path already
+         covers every human.
+
+         If bot messages ever start arriving here, that room
+         becomes a duplicate generator and should be retired
+         rather than left running alongside.
       --------------------------------------------------------- */
-      if (veloraEvent.event === "chat.message") {
-        const d = veloraEvent.data || {};
-        console.log(
-          `[VELORA CHAT] author="${d.displayName || d.username || d.user?.username || "?"}" ` +
-          `isBot=${d.isBot ?? d.user?.isBot ?? "absent"} ` +
-          `badges=${JSON.stringify(d.badges || [])} ` +
-          `text="${String(d.message || d.html || d.text || "").slice(0, 60)}"`
-        );
-      }
 
       /* ---------------------------------------------------------
          ⭐ CAPTURE EVERY ALERT, VERBATIM.
