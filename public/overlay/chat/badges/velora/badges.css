@@ -28,6 +28,12 @@
   margin-right: 4px;
 }
 
+/* ⭐ No badges (bots, new viewers): take up no room at all, so the
+   name sits right next to the avatar instead of after a gap. */
+.velora-badges:empty {
+  display: none;
+}
+
 .bubble .velora-badge {
   filter: drop-shadow(0 0 2px rgba(0,0,0,0.4));
 }

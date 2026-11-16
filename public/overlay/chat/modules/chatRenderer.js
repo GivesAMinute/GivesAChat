@@ -15,6 +15,29 @@ import {
 } from "/overlay/shared/veloraCardVariables.js";   // ⭐ same module the popups use
 
 /* ---------------------------------------------------------
+   ⭐ Velora-style **bold** and *italic*
+
+   Velora chat renders these two markdown marks itself (bots use
+   them, e.g. the CapWeinersCup bot bolds every !command), so the
+   overlay does the same rather than showing raw asterisks.
+
+   Runs on the already-sanitised HTML, and only on the text
+   BETWEEN tags, so emote <img> attributes and the like are never
+   touched. Velora messages only — other platforms don't use it.
+--------------------------------------------------------- */
+function applyVeloraMarkdown(html) {
+  return String(html ?? "")
+    .split(/(<[^>]*>)/)
+    .map((part) => {
+      if (part.startsWith("<")) return part;
+      return part
+        .replace(/\*\*(?=\S)([^*]+?)(?<=\S)\*\*/g, "<strong>$1</strong>")
+        .replace(/(^|[^*\w])\*(?=\S)([^*]+?)(?<=\S)\*(?![*\w])/g, "$1<em>$2</em>");
+    })
+    .join("");
+}
+
+/* ---------------------------------------------------------
    ⭐ YouTube Normalizer
 --------------------------------------------------------- */
 function normalizeYouTubePayload(payload) {
@@ -126,6 +149,20 @@ function formatEmoteList(str) {
 --------------------------------------------------------- */
 function handleChat(payload, container) {
   console.log("[OVERLAY] incoming chat payload:", payload);
+
+  /* ---------------------------------------------------------
+     ⭐ Song requests (!sr CODE) stay off the overlay.
+     The CapWeinersCup bot answers every one straight away
+     ("Your request is in…"), so the viewer's own command is
+     just noise on stream. Gives' !g guesses are hidden too, so the
+     stream never shows his answer. Only these commands are hidden:
+     !srstart, !sroff and the rest still show.
+  --------------------------------------------------------- */
+  const plainText = String(payload.html ?? payload.message ?? "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+  if (/^!(sr|g|guess|myguess)(\s|$)/i.test(plainText)) return;   // !g = Gives' secret artist guess
 
   // Normalize YouTube BEFORE rendering
   if (payload.platform === "youtube") {
@@ -242,6 +279,11 @@ function handleChat(payload, container) {
     textContent = `<img class="beam-sticker" src="${url}">`;
   }
 
+  // ⭐ Velora markdown (**bold**, *italic*) — matches Velora's own chat
+  if (payload.platform === "velora" && !payload.volts) {
+    textContent = applyVeloraMarkdown(textContent);
+  }
+
   // ⭐ Velora volts support
   if (payload.platform === "velora" && payload.volts) {
     const amount =
@@ -255,11 +297,7 @@ function handleChat(payload, container) {
 
   bubble.innerHTML = `
     <div class="chat-message-content">
-      <span class="velora-line">
-        ${avatar}
-        ${badgesHTML}
-        <span class="username">${payload.username}</span>
-      </span>
+      <span class="velora-line">${avatar}${badgesHTML}<span class="username">${payload.username}</span></span>
       <span class="text">${textContent}</span>
     </div>
   `;

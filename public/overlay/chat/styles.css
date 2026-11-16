@@ -184,6 +184,14 @@ body {
   display: block;
 }
 
+/* ⭐ **bold** in Velora messages (the CapWeinersCup bot bolds every
+   !command). Bold alone barely shows at overlay size, so it's gold
+   too: easy to tell what to type from what it does. */
+.text strong {
+  font-weight: 800;
+  color: #ffc94a;
+}
+
 /* ---------------------------------------------------------
    ⭐ CENTER POPUP
 --------------------------------------------------------- */
@@ -407,6 +415,26 @@ body.header-off #messages {
 }
 
 .vpzone-emote {
+  height: 34px;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 2px;
+  display: inline-block;
+}
+
+/* ---------------------------------------------------------
+   Razo's mascot emotes.
+
+   Substituted from :razo_name: codes rather than relayed as
+   embeds — see razoEmotes.js — but they carry .relayed-emote
+   too, so this only needs to differ where it differs.
+
+   The source asset is the 112px variant rendered at 34, which
+   is deliberate: the overlay is captured at 1080p or higher and
+   a 56px source goes soft at that scale. Costs a few KB per
+   emote and they cache.
+--------------------------------------------------------- */
+.razo-emote {
   height: 34px;
   width: auto;
   vertical-align: middle;

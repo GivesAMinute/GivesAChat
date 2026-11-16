@@ -42,7 +42,7 @@ export function renderVeloraBadges(msg) {
         const label = esc(sub.label || "Subscriber");
 
         out += wrapWithTooltip(`
-          <img class="velora-badge"
+          <img class="velora-badge" onerror="this.remove()"
                src="${esc(url)}"
                alt="${label}"
                title="${label}">
@@ -68,7 +68,7 @@ export function renderVeloraBadges(msg) {
     if (badgeId === "broadcaster") {
       if (msg.badges?.includes("broadcaster")) {
         out += wrapWithTooltip(`
-          <img class="velora-badge"
+          <img class="velora-badge" onerror="this.remove()"
                src="/badges/velora/StreamerBroadcasterBadge.png?v=20260922"
                alt="Broadcaster"
                title="Broadcaster">
@@ -83,7 +83,7 @@ export function renderVeloraBadges(msg) {
     if (badgeId === "moderator") {
       if (msg.badges?.includes("moderator") || msg.isModerator) {
         out += wrapWithTooltip(`
-          <img class="velora-badge"
+          <img class="velora-badge" onerror="this.remove()"
                src="/badges/velora/ModeratorModBadge.png"
                alt="Moderator"
                title="Moderator">
@@ -98,7 +98,7 @@ export function renderVeloraBadges(msg) {
     if (badgeId === "vip") {
       if (msg.badges?.includes("vip") || msg.isVip) {
         out += wrapWithTooltip(`
-          <img class="velora-badge"
+          <img class="velora-badge" onerror="this.remove()"
                src="/badges/velora/VIPBadge.png"
                alt="VIP"
                title="VIP">
@@ -113,7 +113,7 @@ export function renderVeloraBadges(msg) {
     if (badgeId === "gift_leader") {
       if (msg.badges?.includes("gift_leader") || msg.role === "gift_leader") {
         out += wrapWithTooltip(`
-          <img class="velora-badge"
+          <img class="velora-badge" onerror="this.remove()"
                src="/badges/velora/GifterBadge.png"
                alt="Gift Leader"
                title="Gift Leader">
@@ -144,7 +144,7 @@ export function renderVeloraBadges(msg) {
       const label = String(fromCatalog.name || badgeId).replace(/"/g, "&quot;");
 
       out += wrapWithTooltip(`
-        <img class="velora-badge"
+        <img class="velora-badge" onerror="this.remove()"
              src="${String(fromCatalog.url).replace(/"/g, "&quot;")}"
              alt="${label}"
              title="${label}">

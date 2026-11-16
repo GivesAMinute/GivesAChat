@@ -1,6 +1,7 @@
 // givesachat-cloudflare/src/beamTransform.js
 
 import { sanitizeHtml } from "./sanitizeNodeHTML.js";
+import { applyRazoEmotes } from "./razoEmotes.js";
 
 /* ---------------------------------------------------------
    Beam asset CDN
@@ -217,8 +218,19 @@ function beamBadgesToRoles(badges) {
    from anywhere unexpected still names its host in the log
    rather than being quietly allowed through.
 --------------------------------------------------------- */
+/* ---------------------------------------------------------
+   razo.tv is here for the day Beam starts relaying Razo's
+   emotes as proper { type:"emote", url } embeds.
+
+   It does not today — Razo codes arrive as plain text and are
+   substituted in the text branch by razoEmotes.js. When Beam
+   catches up, those embeds will arrive from this host and would
+   otherwise be rejected and rendered as their names, which is
+   the bug being fixed. Allowing it now costs nothing and means
+   the switchover needs no code change.
+--------------------------------------------------------- */
 const RELAYED_EMOTE_HOST =
-  /^https:\/\/(?:[a-z0-9-]+\.)*(?:supabase\.co|vpzone\.tv|beamstream\.gg|kick\.com|twitch\.tv|jtvnw\.net|ytimg\.com|ggpht\.com|googleusercontent\.com|pilled\.net|giphy\.com|tenor\.com)\/[^"'<>\s]*$/i;
+  /^https:\/\/(?:[a-z0-9-]+\.)*(?:supabase\.co|vpzone\.tv|beamstream\.gg|kick\.com|twitch\.tv|jtvnw\.net|ytimg\.com|ggpht\.com|googleusercontent\.com|pilled\.net|giphy\.com|tenor\.com|razo\.tv)\/[^"'<>\s]*$/i;
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -303,7 +315,7 @@ function embedGifUrls(html) {
    the embed types: emote, sticker and gif. Anything
    unrecognised is skipped rather than guessed at.
 --------------------------------------------------------- */
-export function deltaToHtml(ops) {
+export function deltaToHtml(ops, platform = null) {
   if (!Array.isArray(ops)) return "";
 
   return ops
@@ -311,7 +323,23 @@ export function deltaToHtml(ops) {
       const insert = op?.insert;
 
       // Plain text
-      if (typeof insert === "string") return embedGifUrls(sanitizeHtml(insert));
+      if (typeof insert === "string") {
+        const text = embedGifUrls(sanitizeHtml(insert));
+
+        /* ⭐ Razo emotes arrive as text, not as embeds.
+
+           Beam relays other platforms' emotes as
+           { type:"emote", url } and those are handled below.
+           Razo's come through with the code still in the string
+           — ":razo_shock:" — so the lane rendered the code
+           itself. Substituted here, AFTER sanitising, because
+           this step inserts markup the sanitiser would
+           otherwise strip.
+
+           Scoped to the razo platform so a code typed anywhere
+           else stays text. */
+        return platform === "razo" ? applyRazoEmotes(text) : text;
+      }
 
       if (!insert || typeof insert !== "object") return "";
 
@@ -440,7 +468,7 @@ export function transformBeamMessage(raw) {
   const platform = PLATFORM_ALIASES[senderType] || senderType;
 
   const meta = raw.senderMeta || {};
-  const html = deltaToHtml(raw.content?.ops);
+  const html = deltaToHtml(raw.content?.ops, platform);
 
   // Nothing renderable (unknown embed type, empty message)
   if (!html.trim()) return null;
