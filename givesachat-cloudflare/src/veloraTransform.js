@@ -54,14 +54,65 @@ function isClaimReward(data = {}) {
      popups overlay listens to does use them, and this function is
      the shared answer to "is this a claim".
   --------------------------------------------------------- */
-  const id = data.reward?.id || data.rewardId || data.itemId;
-  if (CLAIM_REWARD_IDS.includes(id)) return true;
-
-  const title = String(
-    data.reward?.name || data.rewardTitle || data.itemName || ""
-  );
-  return /\b(first|1st|second|2nd)\b/i.test(title);
+  return claimPlace(data) !== null;
 }
+
+/* ---------------------------------------------------------
+   ⭐ THE CARD TEMPLATE, NOT THE TITLE.
+
+   The title fallback used to be a bare word match:
+
+     /\b(first|1st|second|2nd)\b/i
+
+   which hijacked every reward whose NAME happened to contain
+   one of those words. "I Loved The Second One Too" — a Trump
+   soundboard clip — was classified as the 2nd-GIVER claim and
+   played the balloons celebration instead of its own alert.
+   Any reward mentioning first or second did the same.
+
+   A word in a name was never evidence of anything. These two
+   signals are:
+
+   1. The card TEMPLATE. Velora sends claim cards with their
+      placeholders unsubstituted, and {place}/{times} are
+      specific to claim rewards — Velora's own editor requires
+      all three placeholders on a claim card and offers them
+      nowhere else. The same template also states the place in
+      words ("{username} was the 2nd GIVER to this stream!"),
+      so it identifies the claim AND which one.
+
+   2. The title SUFFIX. Velora appends "(1st)" or "(2nd)" to a
+      claim reward's title automatically, so requiring the
+      parentheses matches the real thing while rejecting a name
+      that merely contains the word.
+
+   Ids still come first and are still exact. This is the safety
+   net for the one case it was written for — the rewards being
+   recreated with new ids — without catching everything else.
+--------------------------------------------------------- */
+function claimCardText(data = {}) {
+  const card = data.reward?.cardDesign || data.cardDesign || {};
+
+  return [card.textLine1?.content, card.textLine2?.content]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function placeFromCard(data = {}) {
+  const text = claimCardText(data);
+
+  /* No claim placeholders means this is not a claim card,
+     whatever else it says. */
+  if (!/\{place\}|\{times\}/i.test(text)) return null;
+
+  if (/\b1st\b/i.test(text)) return "1st";
+  if (/\b2nd\b/i.test(text)) return "2nd";
+
+  return null;
+}
+
+/* The auto-appended place suffix, e.g. "Second (2nd)". */
+const TITLE_PLACE = /\((1st|2nd)\)/i;
 
 /* ---------------------------------------------------------
    Which place was claimed — "1st" or "2nd", or null.
@@ -76,13 +127,23 @@ function claimPlace(data = {}) {
   if (id === CLAIM_REWARD_IDS[0]) return "1st";
   if (id === CLAIM_REWARD_IDS[1]) return "2nd";
 
+  /* Card template before title: it is the signal that survives
+     a reward being recreated AND renamed. */
+  const fromCard = placeFromCard(data);
+  if (fromCard) return fromCard;
+
   const title = String(
     data.reward?.name || data.rewardTitle || data.itemName || ""
   );
 
-  if (/\b(first|1st)\b/i.test(title)) return "1st";
-  if (/\b(second|2nd)\b/i.test(title)) return "2nd";
+  const suffix = title.match(TITLE_PLACE);
+  if (suffix) return suffix[1].toLowerCase();
 
+  /* ⚠️ Deliberately NOT falling back to a bare word match on the
+     title. That is what made "I Loved The Second One Too" play
+     the balloons. An unrecognised reward renders as an ordinary
+     reward, which is correct and recoverable; a misidentified
+     one hijacks a celebration that can only happen once. */
   return null;
 }
 

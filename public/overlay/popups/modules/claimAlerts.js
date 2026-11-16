@@ -26,10 +26,66 @@ const CLAIM_REWARDS = {
   "f49bd3f1-ae87-4359-b15b-7c28857d036f": { place: "2nd", effect: "balloons" }
 };
 
-const TITLE_PATTERNS = [
-  { re: /\b(first|1st)\b/i, place: "1st", effect: "confetti" },
-  { re: /\b(second|2nd)\b/i, place: "2nd", effect: "balloons" }
-];
+/* ---------------------------------------------------------
+   ⭐ A WORD IN A NAME IS NOT EVIDENCE.
+
+   This used to be a bare word match:
+
+     /\b(first|1st)\b/i   -> confetti
+     /\b(second|2nd)\b/i  -> balloons
+
+   so ANY reward whose title contained "first" or "second" was
+   treated as a GIVER claim. "I Loved The Second One Too", a
+   Trump soundboard clip, played the full 2nd-place balloons
+   celebration instead of its own alert.
+
+   That is a bad failure in both directions: the clip's own
+   alert never fires, and a celebration that is supposed to
+   happen once per stream fires on a redemption anyone can
+   trigger repeatedly.
+
+   Replaced with two signals that actually mean "claim":
+
+   1. The card TEMPLATE. Velora sends these unsubstituted, and
+      {place}/{times} appear only on claim cards — its editor
+      requires all three placeholders there and offers them
+      nowhere else. The template also names the place, so it
+      identifies which claim.
+
+   2. The title SUFFIX "(1st)" / "(2nd)", which Velora appends
+      to a claim reward automatically. Requiring the brackets
+      matches the real reward and rejects a name that merely
+      mentions the word.
+
+   Ids remain first and remain exact. Kept in sync with
+   veloraTransform.js in the worker — both had this bug.
+--------------------------------------------------------- */
+const PLACE_EFFECTS = {
+  "1st": { place: "1st", effect: "confetti" },
+  "2nd": { place: "2nd", effect: "balloons" }
+};
+
+const TITLE_PLACE = /\((1st|2nd)\)/i;
+
+function claimCardText(data = {}) {
+  const card = data.cardDesign || data.reward?.cardDesign || {};
+
+  return [card.textLine1?.content, card.textLine2?.content]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function placeFromCard(data) {
+  const text = claimCardText(data);
+
+  // No claim placeholders means it is not a claim card.
+  if (!/\{place\}|\{times\}/i.test(text)) return null;
+
+  if (/\b1st\b/i.test(text)) return "1st";
+  if (/\b2nd\b/i.test(text)) return "2nd";
+
+  return null;
+}
 
 /* 15s -> 22s. The effects now stop respawning partway through
    and taper out, and the thinning-out needs runtime to be worth
@@ -40,14 +96,20 @@ const CARD_FALLBACK_MS = 10000;
 export function identifyClaim(data) {
   if (!data) return null;
 
-  const byId = CLAIM_REWARDS[data.rewardId];
+  const byId =
+    CLAIM_REWARDS[data.rewardId] || CLAIM_REWARDS[data.reward?.id];
   if (byId) return byId;
 
-  const title = String(data.rewardTitle || "");
-  for (const { re, place, effect } of TITLE_PATTERNS) {
-    if (re.test(title)) return { place, effect };
-  }
+  const fromCard = placeFromCard(data);
+  if (fromCard) return PLACE_EFFECTS[fromCard];
 
+  const title = String(data.rewardTitle || data.reward?.name || "");
+  const suffix = title.match(TITLE_PLACE);
+  if (suffix) return PLACE_EFFECTS[suffix[1].toLowerCase()];
+
+  /* ⚠️ No bare word fallback. See above — an unrecognised
+     reward playing its own alert is correct; a soundboard clip
+     hijacking the balloons is not. */
   return null;
 }
 

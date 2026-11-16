@@ -2,4 +2,4 @@
    fixes tonight were tested against a build that turned out not to
    be deployed, or an overlay page that had not been refreshed.
    "Is my code running?" should be answerable, not assumed. */
-export const VERSION = "v57-cleanup";
+export const VERSION = "v58-claim-detection";
